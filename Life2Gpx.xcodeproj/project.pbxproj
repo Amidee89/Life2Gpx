@@ -14,6 +14,8 @@
 		A9B62FB72B66E694004A010E /* Life2GpxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FB62B66E694004A010E /* Life2GpxTests.swift */; };
 		A9B62FC12B66E694004A010E /* Life2GpxUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */; };
 		A9B62FC32B66E694004A010E /* Life2GpxUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */; };
+		A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FD02B682E99004A010E /* LocationManager.swift */; };
+		A9DA21D32B69310600EE4889 /* mapstogpx20240130_132725.gpx in Resources */ = {isa = PBXBuildFile; fileRef = A9DA21D22B69310600EE4889 /* mapstogpx20240130_132725.gpx */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +46,9 @@
 		A9B62FBC2B66E694004A010E /* Life2GpxUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Life2GpxUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITests.swift; sourceTree = "<group>"; };
 		A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		A9B62FCF2B682E1B004A010E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A9B62FD02B682E99004A010E /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
+		A9DA21D22B69310600EE4889 /* mapstogpx20240130_132725.gpx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = mapstogpx20240130_132725.gpx; path = ../../../../Downloads/mapstogpx20240130_132725.gpx; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +99,8 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A9B62FCF2B682E1B004A010E /* Info.plist */,
+				A9B62FD02B682E99004A010E /* LocationManager.swift */,
 				A9B62FA52B66E692004A010E /* Life2GpxApp.swift */,
 				A9B62FA72B66E692004A010E /* ContentView.swift */,
 				A9B62FA92B66E694004A010E /* Assets.xcassets */,
@@ -121,6 +128,7 @@
 		A9B62FBF2B66E694004A010E /* Life2GpxUITests */ = {
 			isa = PBXGroup;
 			children = (
+				A9DA21D22B69310600EE4889 /* mapstogpx20240130_132725.gpx */,
 				A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */,
 				A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */,
 			);
@@ -233,6 +241,7 @@
 			files = (
 				A9B62FAD2B66E694004A010E /* Preview Assets.xcassets in Resources */,
 				A9B62FAA2B66E694004A010E /* Assets.xcassets in Resources */,
+				A9DA21D32B69310600EE4889 /* mapstogpx20240130_132725.gpx in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,6 +268,7 @@
 			files = (
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
+				A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -425,11 +435,15 @@
 				DEVELOPMENT_TEAM = AH7845L455;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Life2Gpx/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "This app requires constant access to your location to track and log your position even when the app is not in the foreground.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs access to your location to record your movements throughout the day when the app is in use.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -454,11 +468,15 @@
 				DEVELOPMENT_TEAM = AH7845L455;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Life2Gpx/Info.plist;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "This app requires constant access to your location to track and log your position even when the app is not in the foreground.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs access to your location to record your movements throughout the day when the app is in use.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
