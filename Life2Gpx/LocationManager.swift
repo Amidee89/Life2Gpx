@@ -4,12 +4,15 @@ import CoreLocation
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
+    private var previousLocation: CLLocation? // Store the previous location
     private var locationUpdateTimer: Timer?
-    private var ignoreNextLocationUpdate = false // Step 1: Add flag to track if next update should be ignored
+    private var customDistanceFilter: CLLocationDistance = 20 // Default to 20 meters
+    private var currentDate: Date?
 
     override init() {
         super.init()
         setupLocationManager()
+        currentDate = Date()
     }
 
     private func setupLocationManager() {
@@ -17,27 +20,46 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestAlwaysAuthorization()
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.startUpdatingLocation()
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = 20
+        locationManager.distanceFilter = kCLDistanceFilterNone
+        locationManager.startUpdatingLocation()
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard !ignoreNextLocationUpdate else { // Step 3: Check the flag
-            ignoreNextLocationUpdate = false // Reset the flag
-            return // Skip this update
-        }
+           guard let newLocation = locations.last else { return }
+           
+         let newUpdateDate = Date()
+         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
+             appendLocationToFile(type: "P")
+         }
         
-        currentLocation = locations.last
-        adjustSettingsForMovement()
-        appendLocationToFile(type: "WP")
-    }
-    
+        
+           if let previousLocation = previousLocation {
+               let distanceFromPrevious = previousLocation.distance(from: newLocation)
+               if distanceFromPrevious >= customDistanceFilter {
+                   // Movement significant enough to trigger updates and reset timer
+                   currentLocation = newLocation
+                   adjustSettingsForMovement()
+                   appendLocationToFile(type: "WP")
+                   self.previousLocation = currentLocation
+               }
+               // If distance is not enough, don't update settings or reset the timer
+           } else {
+               // No previous location means this is the first update
+               currentLocation = newLocation
+               adjustSettingsForMovement() // Initial setting adjustments
+               appendLocationToFile(type: "WP")
+               previousLocation = currentLocation // Update the previous location after appending
+           }
+        currentDate = newUpdateDate
+
+       }
     private func adjustSettingsForMovement() {
         print("moving")
-        ignoreNextLocationUpdate = true // Step 2: Set the flag to ignore next update
-        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
-        locationManager.distanceFilter = 20
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        //locationManager.distanceFilter = 20
+        //locationManager.startUpdatingLocation()
+        customDistanceFilter = 20
         resetLocationUpdateTimer()
     }
     
@@ -50,25 +72,24 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func adjustSettingsForStationary() {
         print("stationary")
-        ignoreNextLocationUpdate = true // Step 2: Set the flag to ignore next update
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        locationManager.distanceFilter = 100
+        //locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        //locationManager.distanceFilter = 60
+        //locationManager.startUpdatingLocation()
+        customDistanceFilter = 60 // Reset custom distance filter for movement
         appendLocationToFile(type: "P")
     }
     
-    private func appendLocationToFile(type: String) { // Added `type` parameter
+    private func appendLocationToFile(type: String) {
         guard let location = currentLocation else {
             print("error with location")
             return
         }
+        let distanceFromPrevious = previousLocation?.distance(from: location) ?? 0 // Calculate distance
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .short)
-        // Include `type` at the beginning of the log
-        let log = "\(type) - \(dateString): \(location.coordinate.latitude), \(location.coordinate.longitude), \(location.altitude)\n"
+        let log = "\(type) - \(dateString): \(location.coordinate.latitude), \(location.coordinate.longitude), \(location.altitude), Distance from previous: \(distanceFromPrevious) meters\n"
         
         let fileManager = FileManager.default
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
-        
-        // Correcting the date format for filename to avoid using '/'
         let fileNameFormatter = DateFormatter()
         fileNameFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(fileNameFormatter.string(from: Date())).txt"
