@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A95FDABB2B810CC100097276 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABA2B810CC100097276 /* Models.swift */; };
+		A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABC2B82257A00097276 /* GPXManager.swift */; };
 		A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA52B66E692004A010E /* Life2GpxApp.swift */; };
 		A9B62FA82B66E692004A010E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA72B66E692004A010E /* ContentView.swift */; };
 		A9B62FAA2B66E694004A010E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9B62FA92B66E694004A010E /* Assets.xcassets */; };
@@ -15,7 +17,6 @@
 		A9B62FC12B66E694004A010E /* Life2GpxUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */; };
 		A9B62FC32B66E694004A010E /* Life2GpxUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */; };
 		A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FD02B682E99004A010E /* LocationManager.swift */; };
-		A9DA21D32B69310600EE4889 /* mapstogpx20240130_132725.gpx in Resources */ = {isa = PBXBuildFile; fileRef = A9DA21D22B69310600EE4889 /* mapstogpx20240130_132725.gpx */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +37,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A95FDABA2B810CC100097276 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A95FDABC2B82257A00097276 /* GPXManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPXManager.swift; sourceTree = "<group>"; };
 		A9B62FA22B66E692004A010E /* Life2Gpx.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Life2Gpx.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9B62FA52B66E692004A010E /* Life2GpxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxApp.swift; sourceTree = "<group>"; };
 		A9B62FA72B66E692004A010E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -48,7 +51,6 @@
 		A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		A9B62FCF2B682E1B004A010E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A9B62FD02B682E99004A010E /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
-		A9DA21D22B69310600EE4889 /* mapstogpx20240130_132725.gpx */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = mapstogpx20240130_132725.gpx; path = ../../../../Downloads/mapstogpx20240130_132725.gpx; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,6 +107,8 @@
 				A9B62FA72B66E692004A010E /* ContentView.swift */,
 				A9B62FA92B66E694004A010E /* Assets.xcassets */,
 				A9B62FAB2B66E694004A010E /* Preview Content */,
+				A95FDABA2B810CC100097276 /* Models.swift */,
+				A95FDABC2B82257A00097276 /* GPXManager.swift */,
 			);
 			path = Life2Gpx;
 			sourceTree = "<group>";
@@ -128,7 +132,6 @@
 		A9B62FBF2B66E694004A010E /* Life2GpxUITests */ = {
 			isa = PBXGroup;
 			children = (
-				A9DA21D22B69310600EE4889 /* mapstogpx20240130_132725.gpx */,
 				A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */,
 				A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */,
 			);
@@ -241,7 +244,6 @@
 			files = (
 				A9B62FAD2B66E694004A010E /* Preview Assets.xcassets in Resources */,
 				A9B62FAA2B66E694004A010E /* Assets.xcassets in Resources */,
-				A9DA21D32B69310600EE4889 /* mapstogpx20240130_132725.gpx in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -269,6 +271,8 @@
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
 				A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */,
+				A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */,
+				A95FDABB2B810CC100097276 /* Models.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

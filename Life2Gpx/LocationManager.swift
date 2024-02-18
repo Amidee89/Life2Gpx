@@ -3,7 +3,7 @@ import CoreLocation
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
-    private var currentLocation: CLLocation?
+    @Published var currentLocation: CLLocation?
     private var previousLocation: CLLocation? // Store the previous location
     private var locationUpdateTimer: Timer?
     private var customDistanceFilter: CLLocationDistance = 20 // Default to 20 meters
@@ -81,38 +81,44 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func appendLocationToFile(type: String) {
         guard let location = currentLocation else {
-            print("error with location")
+            print("Error with location")
             return
         }
-        let distanceFromPrevious = previousLocation?.distance(from: location) ?? 0 // Calculate distance
-        let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .short)
-        let log = "\(type) - \(dateString): \(location.coordinate.latitude), \(location.coordinate.longitude), \(location.altitude), Distance from previous: \(distanceFromPrevious) meters\n"
-        
-        let fileManager = FileManager.default
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
-        let fileNameFormatter = DateFormatter()
-        fileNameFormatter.dateFormat = "yyyy-MM-dd"
-        let fileName = "\(fileNameFormatter.string(from: Date())).txt"
-        let fileURL = documentsURL?.appendingPathComponent(fileName)
 
-        if let fileURL = fileURL {
-            if fileManager.fileExists(atPath: fileURL.path) {
-                if let fileHandle = FileHandle(forWritingAtPath: fileURL.path) {
-                    fileHandle.seekToEndOfFile()
-                    fileHandle.write(log.data(using: .utf8)!)
-                    fileHandle.closeFile()
-                    print("written \(type)")
+        var dataContainer: DataContainer = DataContainer()
 
-                }
-            } else {
-                do {
-                    try log.write(to: fileURL, atomically: true, encoding: .utf8)
-                    print("write success to new file")
-
-                } catch {
-                    print("Error writing to file: \(error)")
-                }
+        // Attempt to load existing data for today's date if it exists
+        GPXManager.shared.loadFile(forDate: Date()) { loadedDataContainer in
+            if let loadedData = loadedDataContainer {
+                // If data was loaded successfully, use it
+                dataContainer = loadedData
             }
+
+            let newWaypoint = Waypoint(
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude,
+                elevation: location.altitude,
+                time: Date()
+            )
+
+            if type == "WP" {
+                if var lastTrack = dataContainer.tracks.last, var lastSegment = lastTrack.segments.last {
+                    lastSegment.trackPoints.append(newWaypoint)
+                    lastTrack.segments[lastTrack.segments.count - 1] = lastSegment
+                    dataContainer.tracks[dataContainer.tracks.count - 1] = lastTrack
+                } else {
+                    let newSegment = TrackSegment(trackPoints: [newWaypoint])
+                    let newTrack = Track(segments: [newSegment])
+                    dataContainer.tracks.append(newTrack)
+                }
+            } else if type == "P" {
+                // Handle stationary points separately
+                dataContainer.waypoints.append(newWaypoint)
+            }
+
+            // Save the updated dataContainer using GPXManager
+            GPXManager.shared.saveLocationData(dataContainer, forDate: Date())
         }
     }
+    
 }
