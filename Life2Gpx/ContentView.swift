@@ -22,13 +22,9 @@ struct ContentView: View {
                 position: .constant(MapCameraPosition.region(region)),
                 interactionModes: .all
             ) {
-                ForEach(stopLocations) { location in
-                    Annotation("Stop", coordinate: location.coordinate) {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 10, height: 10)
-                    }
-                }
+                // Use MapPolyline to display the path
+                MapPolyline(coordinates: pathCoordinates)
+                    .stroke(.blue, lineWidth: 8)
             }
             .edgesIgnoringSafeArea(.all)
             .toolbar {
@@ -50,9 +46,11 @@ struct ContentView: View {
     private func recenter() {
         if let userLocation = locationManager.currentLocation {
             region.center = userLocation.coordinate
+            // Optionally, adjust the region's span here if you want to zoom in closer
+            region.span = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         }
     }
-    
+
     private func refreshData() {
         loadFileForDate(Date())
     }
@@ -66,13 +64,9 @@ struct ContentView: View {
                 allWaypoints += track.segments.flatMap { $0.trackPoints }
             }
 
-            // Sort by time and update UI
             let sortedWaypoints = allWaypoints.sorted(by: { $0.time < $1.time })
             DispatchQueue.main.async {
                 self.pathCoordinates = sortedWaypoints.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
-                self.stopLocations = sortedWaypoints.map {
-                    IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude))
-                }
                 if let firstCoordinate = self.pathCoordinates.first {
                     self.region.center = firstCoordinate
                 }
