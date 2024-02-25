@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */ = {isa = PBXBuildFile; productRef = A9492B462B8A7FD10059DAB6 /* CoreGPX */; };
 		A95FDABB2B810CC100097276 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABA2B810CC100097276 /* Models.swift */; };
 		A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABC2B82257A00097276 /* GPXManager.swift */; };
 		A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA52B66E692004A010E /* Life2GpxApp.swift */; };
@@ -58,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,6 +156,9 @@
 			dependencies = (
 			);
 			name = Life2Gpx;
+			packageProductDependencies = (
+				A9492B462B8A7FD10059DAB6 /* CoreGPX */,
+			);
 			productName = Life2Gpx;
 			productReference = A9B62FA22B66E692004A010E /* Life2Gpx.app */;
 			productType = "com.apple.product-type.application";
@@ -226,6 +231,9 @@
 				Base,
 			);
 			mainGroup = A9B62F992B66E692004A010E;
+			packageReferences = (
+				A9492B452B8A7FD10059DAB6 /* XCRemoteSwiftPackageReference "CoreGPX" */,
+			);
 			productRefGroup = A9B62FA32B66E692004A010E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -610,6 +618,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A9492B452B8A7FD10059DAB6 /* XCRemoteSwiftPackageReference "CoreGPX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vincentneo/CoreGPX.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A9492B462B8A7FD10059DAB6 /* CoreGPX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A9492B452B8A7FD10059DAB6 /* XCRemoteSwiftPackageReference "CoreGPX" */;
+			productName = CoreGPX;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A9B62F9A2B66E692004A010E /* Project object */;
 }
