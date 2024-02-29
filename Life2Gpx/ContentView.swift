@@ -21,11 +21,7 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
-                DatePicker("Select Date", selection: $selectedDate, displayedComponents: .date)
-                    .onChange(of: selectedDate) { newDate in
-                        refreshData() // Load data for the newly selected date
-                    }
-                    .padding()
+
 
                 if hasDataForSelectedDate {
                     Map(
@@ -35,6 +31,12 @@ struct ContentView: View {
                         // Use MapPolyline to display the path
                         MapPolyline(coordinates: pathCoordinates)
                             .stroke(.blue, lineWidth: 8)
+                        ForEach(stopLocations) { location in
+                            MapCircle(center: location.coordinate, radius: CLLocationDistance(20))
+                                .foregroundStyle(.white .opacity(1.0))
+                            MapCircle(center: location.coordinate, radius: CLLocationDistance(15))
+                                .foregroundStyle(.black .opacity(1.0))
+                        }
                     }
                     .edgesIgnoringSafeArea(.all)
                 } else {
@@ -47,16 +49,27 @@ struct ContentView: View {
                     Button(action: recenter) {
                         Text("Recenter")
                     }
+                    Spacer()
                 }
+                ToolbarItem() {
+                    DatePicker("", selection: $selectedDate, displayedComponents: .date)
+                        .onChange(of: selectedDate) { newDate in
+                            refreshData()
+                        }
+                    Spacer() 
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: refreshData) {
                         Text("Refresh")
                     }
+                    
                 }
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
+            recenter()
             refreshData() // Load initial data for the current date
         }
     }
@@ -86,6 +99,7 @@ struct ContentView: View {
             for track in dataContainer.tracks {
                 allWaypoints += track.segments.flatMap { $0.trackPoints }
             }
+            stopLocations = dataContainer.waypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude))}
 
             let sortedWaypoints = allWaypoints.sorted(by: { $0.time < $1.time })
             DispatchQueue.main.async {

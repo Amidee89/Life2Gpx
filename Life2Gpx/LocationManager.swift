@@ -36,6 +36,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
            if let previousLocation = previousLocation {
                let distanceFromPrevious = previousLocation.distance(from: newLocation)
+
                if distanceFromPrevious >= customDistanceFilter {
                    // Movement significant enough to trigger updates and reset timer
                    currentLocation = newLocation
