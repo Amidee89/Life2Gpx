@@ -6,6 +6,7 @@
 //
 import SwiftUI
 import MapKit
+import CoreGPX
 
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
@@ -16,7 +17,9 @@ struct ContentView: View {
     )
     @State private var pathCoordinates: [CLLocationCoordinate2D] = []
     @State private var stopLocations: [IdentifiableCoordinate] = []
-    @State private var hasDataForSelectedDate = true // Track if there's data for the selected date
+    @State private var gpxWaypoints: [GPXWaypoint] = []
+    @State private var gpxTracks: [GPXTrack] = []
+    @State private var hasDataForSelectedDate = false // Initially assume no data available
 
     var body: some View {
         NavigationView {
@@ -30,7 +33,7 @@ struct ContentView: View {
                         MapPolyline(coordinates: pathCoordinates)
                             .stroke(.blue, lineWidth: 8)
                         ForEach(stopLocations) { location in
-                            Annotation("Stop", coordinate: location.coordinate) {
+                            Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
                                 ZStack {
                                     Circle()
                                         .fill(Color.white)
@@ -93,8 +96,8 @@ struct ContentView: View {
     }
     
     private func loadFileForDate(_ date: Date) {
-        GPXManager.shared.loadFile(forDate: date) { dataContainer in
-            guard let dataContainer = dataContainer else {
+        GPXManager.shared.loadFile(forDate: date) { gpxWaypoints, gpxTracks in
+            if (gpxWaypoints.isEmpty && gpxTracks.isEmpty){
                 DispatchQueue.main.async {
                     self.hasDataForSelectedDate = false // Indicate no data for this day
                     self.pathCoordinates = [] // Clear any existing pathCoordinates
@@ -102,15 +105,15 @@ struct ContentView: View {
                 return
             }
 
-            var allWaypoints: [Waypoint] = dataContainer.waypoints
-            for track in dataContainer.tracks {
-                allWaypoints += track.segments.flatMap { $0.trackPoints }
+            var allWaypoints: [GPXWaypoint] = gpxWaypoints
+            for track in gpxTracks {
+                allWaypoints += track.segments.flatMap { $0.points }
             }
-            stopLocations = dataContainer.waypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude), name: $0.name ?? "Stop")}
+            stopLocations = gpxWaypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!), waypoint: $0)}
 
-            let sortedWaypoints = allWaypoints.sorted(by: { $0.time < $1.time })
+            let sortedWaypoints = allWaypoints.sorted(by: { $0.time! < $1.time! })
             DispatchQueue.main.async {
-                self.pathCoordinates = sortedWaypoints.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+                self.pathCoordinates = sortedWaypoints.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
                 if let firstCoordinate = self.pathCoordinates.first {
                     self.region.center = firstCoordinate
                 }
@@ -124,5 +127,5 @@ struct ContentView: View {
 struct IdentifiableCoordinate: Identifiable {
     let id = UUID()
     var coordinate: CLLocationCoordinate2D
-    var name: String
+    var waypoint: GPXWaypoint
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import CoreGPX
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
@@ -32,7 +33,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
            
          let newUpdateDate = Date()
          if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
-             appendLocationToFile(type: "P")
+             appendLocationToFile(type: "Stationary")
          }
         let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
 
@@ -44,7 +45,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                    // Movement significant enough to trigger updates and reset timer
                    currentLocation = newLocation
                    adjustSettingsForMovement()
-                   appendLocationToFile(type: "WP")
+                   appendLocationToFile(type: "Moving")
                    self.previousLocation = currentLocation
                    lastUpdateTimestamp = newUpdateDate
                }
@@ -53,7 +54,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                // No previous location means this is the first update
                currentLocation = newLocation
                adjustSettingsForMovement()
-               appendLocationToFile(type: "WP")
+               appendLocationToFile(type: "Moving")
                previousLocation = currentLocation
                lastUpdateTimestamp = newUpdateDate
            }
@@ -82,7 +83,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         //locationManager.distanceFilter = 60
         //locationManager.startUpdatingLocation()
         customDistanceFilter = 60 // Reset custom distance filter for movement
-        appendLocationToFile(type: "P")
+        appendLocationToFile(type: "Stationary")
     }
     
     private func appendLocationToFile(type: String) {
@@ -91,40 +92,53 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
 
-        var dataContainer: DataContainer = DataContainer()
-
-        // Attempt to load existing data for today's date if it exists
-        GPXManager.shared.loadFile(forDate: Date()) { loadedDataContainer in
-            if let loadedData = loadedDataContainer {
-                // If data was loaded successfully, use it
-                dataContainer = loadedData
-            }
-
-            let newWaypoint = Waypoint(
-                latitude: location.coordinate.latitude,
-                longitude: location.coordinate.longitude,
-                elevation: location.altitude,
-                time: Date()
-            )
-
-            if type == "WP" {
-                if var lastTrack = dataContainer.tracks.last, var lastSegment = lastTrack.segments.last {
-                    lastSegment.trackPoints.append(newWaypoint)
-                    lastTrack.segments[lastTrack.segments.count - 1] = lastSegment
-                    dataContainer.tracks[dataContainer.tracks.count - 1] = lastTrack
+        GPXManager.shared.loadFile(forDate: Date()) { loadedGpxWaypoints, loadedGpxTracks in
+            var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
+            var gpxWaypoints = loadedGpxWaypoints
+            if type == "Moving" {
+                let newTrackPoint = GPXTrackPoint(
+                    latitude: location.coordinate.latitude,
+                    longitude: location.coordinate.longitude
+                )
+                newTrackPoint.time = Date()
+                newTrackPoint.elevation = location.altitude
+                newTrackPoint.horizontalDilution = location.horizontalAccuracy
+                newTrackPoint.verticalDilution = location.verticalAccuracy
+                
+                if let lastTrack = gpxTracks.last, let lastSegment = lastTrack.segments.last {
+                    // If we can mutate lastTrack and its segments directly, do so.
+                    // Otherwise, create a mutable copy, modify it, and replace the last track in gpxTracks.
+                    var modifiedLastTrack = lastTrack // Assume this creates a mutable copy
+                    var modifiedLastSegment = lastSegment // Assume this creates a mutable copy
+                    modifiedLastSegment.add(trackpoint: newTrackPoint)
+                    modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
+                    gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
                 } else {
-                    let newSegment = TrackSegment(trackPoints: [newWaypoint])
-                    let newTrack = Track(segments: [newSegment])
-                    dataContainer.tracks.append(newTrack)
+                    // No tracks or segments found, so create and add them
+                    let newSegment = GPXTrackSegment()
+                    newSegment.add(trackpoint: newTrackPoint)
+                    let newTrack = GPXTrack()
+                    newTrack.add(trackSegment: newSegment)
+                    gpxTracks.append(newTrack) // Now appending to the mutable copy
                 }
-            } else if type == "P" {
-                // Handle stationary points separately
-                dataContainer.waypoints.append(newWaypoint)
+            } else if type == "Stationary" {
+                let newWaypoint = GPXWaypoint(
+                    latitude: location.coordinate.latitude,
+                    longitude: location.coordinate.longitude
+                )
+                newWaypoint.time = Date()
+                newWaypoint.elevation = location.altitude
+                newWaypoint.horizontalDilution = location.horizontalAccuracy
+                newWaypoint.verticalDilution = location.verticalAccuracy
+                
+                // Assuming gpxWaypoints is also provided as a mutable array, or you have similar logic for it
+                gpxWaypoints.append(newWaypoint)
             }
 
-            // Save the updated dataContainer using GPXManager
-            GPXManager.shared.saveLocationData(dataContainer, forDate: Date())
+            // Save the updated data using GPXManager
+            GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
         }
     }
+
     
 }

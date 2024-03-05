@@ -4,7 +4,6 @@
 //
 //  Created by Marco Carandente on 18.2.2024.
 //
-
 import Foundation
 import CoreGPX
 
@@ -13,36 +12,16 @@ class GPXManager {
 
     private init() {}
 
-    func saveLocationData(_ dataContainer: DataContainer, forDate date: Date) {
+    // Saves locations directly using CoreGPX models
+    func saveLocationData(_ waypoints: [GPXWaypoint], tracks: [GPXTrack], forDate date: Date) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
 
         let gpx = GPXRoot(creator: "Life2Gpx App")
-        dataContainer.waypoints.forEach { waypoint in
-            let gpxWaypoint = GPXWaypoint(latitude: waypoint.latitude, longitude: waypoint.longitude)
-            gpxWaypoint.elevation = waypoint.elevation
-            gpxWaypoint.time = waypoint.time
-            // Add additional waypoint details here
-            gpx.add(waypoint: gpxWaypoint)
-        }
-
-        dataContainer.tracks.forEach { track in
-            let gpxTrack = GPXTrack()
-            track.segments.forEach { segment in
-                let gpxSegment = GPXTrackSegment()
-                segment.trackPoints.forEach { trackPoint in
-                    let gpxTrackPoint = GPXTrackPoint(latitude: trackPoint.latitude, longitude: trackPoint.longitude)
-                    gpxTrackPoint.elevation = trackPoint.elevation
-                    gpxTrackPoint.time = trackPoint.time
-                    // Add additional track point details here
-                    gpxSegment.add(trackpoint: gpxTrackPoint)
-                }
-                gpxTrack.add(trackSegment: gpxSegment)
-            }
-            gpx.add(track: gpxTrack)
-        }
+        waypoints.forEach { gpx.add(waypoint: $0) }
+        tracks.forEach { gpx.add(track: $0) }
 
         do {
             let gpxString = gpx.gpx() // Serialize the GPXRoot object to a GPX format string
@@ -51,55 +30,21 @@ class GPXManager {
         } catch {
             print("Error writing GPX file: \(error)")
         }
-        print("GPX data saved successfully.")
-        
     }
 
-    func loadFile(forDate date: Date, completion: @escaping (DataContainer?) -> Void) {
+    // Loads GPX file and returns CoreGPX objects
+    func loadFile(forDate date: Date, completion: @escaping ([GPXWaypoint], [GPXTrack]) -> Void) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
 
-        guard let gpx = GPXParser(withPath: fileURL.path)?.parsedData() else {
-            completion(nil) // File does not exist or can't be parsed
+        guard let gpx = GPXParser(withURL: fileURL)?.parsedData() else {
+            completion([], []) // File does not exist or can't be parsed
             return
         }
 
-        var dataContainer = DataContainer()
-
-        gpx.waypoints.forEach { gpxWaypoint in
-            let waypoint = Waypoint(
-                latitude: gpxWaypoint.latitude ?? 0,
-                longitude: gpxWaypoint.longitude ?? 0,
-                elevation: gpxWaypoint.elevation,
-                time: gpxWaypoint.time ?? Date(),
-                name: gpxWaypoint.name ?? "Unnamed location"
-                // Map other details as necessary
-            )
-            dataContainer.waypoints.append(waypoint)
-        }
-
-        gpx.tracks.forEach { gpxTrack in
-            var track = Track(segments: [])
-            gpxTrack.segments.forEach { gpxSegment in
-                var segment = TrackSegment(trackPoints: [])
-                gpxSegment.points.forEach { gpxTrackPoint in
-                    let trackPoint = Waypoint(
-                        latitude: gpxTrackPoint.latitude ?? 0,
-                        longitude: gpxTrackPoint.longitude ?? 0,
-                        elevation: gpxTrackPoint.elevation,
-                        time: gpxTrackPoint.time ?? Date()
-                        // Map other details as necessary
-                    )
-                    segment.trackPoints.append(trackPoint)
-                }
-                track.segments.append(segment)
-            }
-            dataContainer.tracks.append(track)
-        }
-
-        completion(dataContainer)
+        completion(gpx.waypoints, gpx.tracks)
     }
 
     private func fileURL(forName fileName: String) -> URL {
@@ -108,4 +53,3 @@ class GPXManager {
         return documentsURL.appendingPathComponent(fileName)
     }
 }
-
