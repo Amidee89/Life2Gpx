@@ -21,8 +21,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
-
-
                 if hasDataForSelectedDate {
                     Map(
                         position: .constant(MapCameraPosition.region(region)),
@@ -32,10 +30,19 @@ struct ContentView: View {
                         MapPolyline(coordinates: pathCoordinates)
                             .stroke(.blue, lineWidth: 8)
                         ForEach(stopLocations) { location in
-                            MapCircle(center: location.coordinate, radius: CLLocationDistance(20))
+                            Annotation("Stop", coordinate: location.coordinate) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.black)
+                                        .padding(4)
+                                }
+                            }
+                            /*MapCircle(center: location.coordinate, radius: CLLocationDistance(20))
                                 .foregroundStyle(.white .opacity(1.0))
                             MapCircle(center: location.coordinate, radius: CLLocationDistance(15))
-                                .foregroundStyle(.black .opacity(1.0))
+                                .foregroundStyle(.black .opacity(1.0))*/
                         }
                     }
                     .edgesIgnoringSafeArea(.all)
@@ -99,7 +106,7 @@ struct ContentView: View {
             for track in dataContainer.tracks {
                 allWaypoints += track.segments.flatMap { $0.trackPoints }
             }
-            stopLocations = dataContainer.waypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude))}
+            stopLocations = dataContainer.waypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude), name: $0.name ?? "Stop")}
 
             let sortedWaypoints = allWaypoints.sorted(by: { $0.time < $1.time })
             DispatchQueue.main.async {
@@ -117,4 +124,5 @@ struct ContentView: View {
 struct IdentifiableCoordinate: Identifiable {
     let id = UUID()
     var coordinate: CLLocationCoordinate2D
+    var name: String
 }

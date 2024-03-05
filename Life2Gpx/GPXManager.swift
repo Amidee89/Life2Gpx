@@ -73,7 +73,8 @@ class GPXManager {
                 latitude: gpxWaypoint.latitude ?? 0,
                 longitude: gpxWaypoint.longitude ?? 0,
                 elevation: gpxWaypoint.elevation,
-                time: gpxWaypoint.time ?? Date()
+                time: gpxWaypoint.time ?? Date(),
+                name: gpxWaypoint.name ?? "Unnamed location"
                 // Map other details as necessary
             )
             dataContainer.waypoints.append(waypoint)
