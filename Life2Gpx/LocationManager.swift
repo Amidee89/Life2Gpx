@@ -4,10 +4,12 @@ import CoreLocation
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     @Published var currentLocation: CLLocation?
-    private var previousLocation: CLLocation? // Store the previous location
+    private var previousLocation: CLLocation?
     private var locationUpdateTimer: Timer?
     private var customDistanceFilter: CLLocationDistance = 20 // Default to 20 meters
     private var currentDate: Date?
+    private let minimumUpdateInterval: TimeInterval = 30
+    private var lastUpdateTimestamp: Date?
 
     override init() {
         super.init()
@@ -32,25 +34,28 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
          if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
              appendLocationToFile(type: "P")
          }
-        
+        let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
+
         
            if let previousLocation = previousLocation {
                let distanceFromPrevious = previousLocation.distance(from: newLocation)
 
-               if distanceFromPrevious >= customDistanceFilter {
+               if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval{
                    // Movement significant enough to trigger updates and reset timer
                    currentLocation = newLocation
                    adjustSettingsForMovement()
                    appendLocationToFile(type: "WP")
                    self.previousLocation = currentLocation
+                   lastUpdateTimestamp = newUpdateDate
                }
                // If distance is not enough, don't update settings or reset the timer
            } else {
                // No previous location means this is the first update
                currentLocation = newLocation
-               adjustSettingsForMovement() // Initial setting adjustments
+               adjustSettingsForMovement()
                appendLocationToFile(type: "WP")
-               previousLocation = currentLocation // Update the previous location after appending
+               previousLocation = currentLocation
+               lastUpdateTimestamp = newUpdateDate
            }
         currentDate = newUpdateDate
 
