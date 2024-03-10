@@ -31,7 +31,7 @@ struct ContentView: View {
                         // Use MapPolyline to display the path
                         ForEach(tracks, id: \.id) { track in
                             MapPolyline(coordinates: track.coordinates)
-                                .stroke(track.trackType.lowercased() == "walking" ? .green : .blue, lineWidth: 8)
+                                .stroke(track.trackType.lowercased() == "walking" ? .green : .blue, style: StrokeStyle(lineWidth: 8,lineJoin: .miter, miterLimit: 1))
                         }
                         ForEach(stopLocations) { location in
                             Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
@@ -95,28 +95,32 @@ struct ContentView: View {
     
     private func loadFileForDate(_ date: Date) {
         GPXManager.shared.loadFile(forDate: date) { gpxWaypoints, gpxTracks in
-            if (gpxWaypoints.isEmpty && gpxTracks.isEmpty){
+            if gpxWaypoints.isEmpty && gpxTracks.isEmpty {
                 DispatchQueue.main.async {
                     self.hasDataForSelectedDate = false // Indicate no data for this day
                 }
                 return
             }
 
-            var allWaypoints: [GPXWaypoint] = gpxWaypoints
-            stopLocations = gpxWaypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!), waypoint: $0)}
-            let sortedWaypoints = allWaypoints.sorted(by: { $0.time! < $1.time! })
+            stopLocations = gpxWaypoints.map { IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!), waypoint: $0) }
             
             var trackDataArray: [TrackData] = []
             
-            for track in gpxTracks {
-                let trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
-                // Here, determine the track's type; for now, assume it's a property of `GPXTrack`
+            for (index, track) in gpxTracks.enumerated() {
+                var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
+                
+                // Check if this is not the last track and append the first point of the next track if necessary
+                if index < gpxTracks.count - 1 {
+                    let nextTrackFirstPoint = gpxTracks[index + 1].segments.first?.points.first
+                    if let nextTrackFirstCoordinate = nextTrackFirstPoint {
+                        trackCoordinates.append(CLLocationCoordinate2D(latitude: nextTrackFirstCoordinate.latitude!, longitude: nextTrackFirstCoordinate.longitude!))
+                    }
+                }
+                
                 let trackType = track.type // This should be adjusted based on your actual data model
                 trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: trackType ?? ""))
             }
 
-            
-            
             DispatchQueue.main.async {
                 self.tracks = trackDataArray
                 if let firstTrack = trackDataArray.first, let firstCoordinate = firstTrack.coordinates.first {
@@ -126,6 +130,7 @@ struct ContentView: View {
             }
         }
     }
+
 }
 
 
