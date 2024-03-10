@@ -15,11 +15,10 @@ struct ContentView: View {
         center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
         span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
     )
-    @State private var pathCoordinates: [CLLocationCoordinate2D] = []
+    @State private var tracks: [TrackData] = [] // Changed to store tracks with type information
     @State private var stopLocations: [IdentifiableCoordinate] = []
-    @State private var gpxWaypoints: [GPXWaypoint] = []
-    @State private var gpxTracks: [GPXTrack] = []
-    @State private var hasDataForSelectedDate = false // Initially assume no data available
+    @State private var hasDataForSelectedDate = false
+
 
     var body: some View {
         NavigationView {
@@ -30,8 +29,10 @@ struct ContentView: View {
                         interactionModes: .all
                     ) {
                         // Use MapPolyline to display the path
-                        MapPolyline(coordinates: pathCoordinates)
-                            .stroke(.blue, lineWidth: 8)
+                        ForEach(tracks, id: \.id) { track in
+                            MapPolyline(coordinates: track.coordinates)
+                                .stroke(track.trackType.lowercased() == "walking" ? .green : .blue, lineWidth: 8)
+                        }
                         ForEach(stopLocations) { location in
                             Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
                                 ZStack {
@@ -42,11 +43,8 @@ struct ContentView: View {
                                         .padding(4)
                                 }
                             }
-                            /*MapCircle(center: location.coordinate, radius: CLLocationDistance(20))
-                                .foregroundStyle(.white .opacity(1.0))
-                            MapCircle(center: location.coordinate, radius: CLLocationDistance(15))
-                                .foregroundStyle(.black .opacity(1.0))*/
                         }
+
                     }
                     .edgesIgnoringSafeArea(.all)
                 } else {
@@ -100,21 +98,28 @@ struct ContentView: View {
             if (gpxWaypoints.isEmpty && gpxTracks.isEmpty){
                 DispatchQueue.main.async {
                     self.hasDataForSelectedDate = false // Indicate no data for this day
-                    self.pathCoordinates = [] // Clear any existing pathCoordinates
                 }
                 return
             }
 
             var allWaypoints: [GPXWaypoint] = gpxWaypoints
-            for track in gpxTracks {
-                allWaypoints += track.segments.flatMap { $0.points }
-            }
             stopLocations = gpxWaypoints.map{IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!), waypoint: $0)}
-
             let sortedWaypoints = allWaypoints.sorted(by: { $0.time! < $1.time! })
+            
+            var trackDataArray: [TrackData] = []
+            
+            for track in gpxTracks {
+                let trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
+                // Here, determine the track's type; for now, assume it's a property of `GPXTrack`
+                let trackType = track.type // This should be adjusted based on your actual data model
+                trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: trackType ?? ""))
+            }
+
+            
+            
             DispatchQueue.main.async {
-                self.pathCoordinates = sortedWaypoints.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
-                if let firstCoordinate = self.pathCoordinates.first {
+                self.tracks = trackDataArray
+                if let firstTrack = trackDataArray.first, let firstCoordinate = firstTrack.coordinates.first {
                     self.region.center = firstCoordinate
                 }
                 self.hasDataForSelectedDate = true // Indicate data is available for this day
@@ -128,4 +133,9 @@ struct IdentifiableCoordinate: Identifiable {
     let id = UUID()
     var coordinate: CLLocationCoordinate2D
     var waypoint: GPXWaypoint
+}
+struct TrackData: Identifiable {
+    let id = UUID()
+    var coordinates: [CLLocationCoordinate2D]
+    var trackType: String // "walking", etc.
 }

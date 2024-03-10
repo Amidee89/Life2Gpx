@@ -102,14 +102,17 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 )
                 newTrackPoint.time = Date()
                 newTrackPoint.elevation = location.altitude
-                newTrackPoint.horizontalDilution = location.horizontalAccuracy
-                newTrackPoint.verticalDilution = location.verticalAccuracy
+                let customExtensionData: [String: String] = [
+                    "HorizontalPrecision": String(location.horizontalAccuracy),
+                    "VerticalPrecision": String(location.verticalAccuracy)
+                ]
+                let extensions = GPXExtensions()
+                extensions.append(at: nil, contents: customExtensionData)
+                newTrackPoint.extensions = extensions
                 
                 if let lastTrack = gpxTracks.last, let lastSegment = lastTrack.segments.last {
-                    // If we can mutate lastTrack and its segments directly, do so.
-                    // Otherwise, create a mutable copy, modify it, and replace the last track in gpxTracks.
-                    var modifiedLastTrack = lastTrack // Assume this creates a mutable copy
-                    var modifiedLastSegment = lastSegment // Assume this creates a mutable copy
+                    var modifiedLastTrack = lastTrack
+                    var modifiedLastSegment = lastSegment
                     modifiedLastSegment.add(trackpoint: newTrackPoint)
                     modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
                     gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
@@ -119,7 +122,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     newSegment.add(trackpoint: newTrackPoint)
                     let newTrack = GPXTrack()
                     newTrack.add(trackSegment: newSegment)
-                    gpxTracks.append(newTrack) // Now appending to the mutable copy
+                    gpxTracks.append(newTrack)
                 }
             } else if type == "Stationary" {
                 let newWaypoint = GPXWaypoint(
@@ -128,10 +131,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 )
                 newWaypoint.time = Date()
                 newWaypoint.elevation = location.altitude
-                newWaypoint.horizontalDilution = location.horizontalAccuracy
-                newWaypoint.verticalDilution = location.verticalAccuracy
-                
-                // Assuming gpxWaypoints is also provided as a mutable array, or you have similar logic for it
+                let customExtensionData: [String: String] = [
+                    "HorizontalPrecision": String(location.horizontalAccuracy),
+                    "VerticalPrecision": String(location.verticalAccuracy)
+                ]
+                let extensions = GPXExtensions()
+                extensions.append(at: nil, contents: customExtensionData)
+                newWaypoint.extensions = extensions
                 gpxWaypoints.append(newWaypoint)
             }
 
