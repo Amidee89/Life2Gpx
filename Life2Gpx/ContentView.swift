@@ -28,10 +28,11 @@ struct ContentView: View {
                         position: .constant(MapCameraPosition.region(region)),
                         interactionModes: .all
                     ) {
+                        
                         // Use MapPolyline to display the path
                         ForEach(tracks, id: \.id) { track in
                             MapPolyline(coordinates: track.coordinates)
-                                .stroke(track.trackType.lowercased() == "walking" ? .green : .blue, style: StrokeStyle(lineWidth: 8,lineJoin: .miter, miterLimit: 1))
+                                .stroke(track.trackType.lowercased() == "walking" ? .green : .blue, style: StrokeStyle(lineWidth: 8,lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         }
                         ForEach(stopLocations) { location in
                             Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
