@@ -18,6 +18,8 @@ struct ContentView: View {
     @State private var tracks: [TrackData] = [] // Changed to store tracks with type information
     @State private var stopLocations: [IdentifiableCoordinate] = []
     @State private var hasDataForSelectedDate = false
+    @State private var minDate: Date = Date()
+    @State private var maxDate: Date = Date()
 
 
     var body: some View {
@@ -61,8 +63,8 @@ struct ContentView: View {
                     Spacer()
                 }
                 ToolbarItem() {
-                    DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                        .onChange(of: selectedDate) { newDate in
+                    DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
+                        .onChange(of: selectedDate) {
                             refreshData()
                         }
                     Spacer() 
@@ -91,6 +93,12 @@ struct ContentView: View {
     }
 
     private func refreshData() {
+        GPXManager.shared.getDateRange { earliest, latest in
+            if let earliestDate = earliest, let latestDate = latest {
+                minDate = earliestDate
+                maxDate = latestDate
+            }
+        }
         loadFileForDate(selectedDate)
     }
     

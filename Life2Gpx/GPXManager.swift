@@ -52,4 +52,33 @@ class GPXManager {
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         return documentsURL.appendingPathComponent(fileName)
     }
+    
+    func fileExists(forDate date: Date) -> Bool {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let fileName = "\(dateFormatter.string(from: date)).gpx"
+        let fileURL = self.fileURL(forName: fileName)
+        return FileManager.default.fileExists(atPath: fileURL.path)
+    }
+    func getDateRange(completion: @escaping (Date?, Date?) -> Void) {
+        let fileManager = FileManager.default
+        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let files = try? fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
+
+        let dates = files?.compactMap { fileURL -> Date? in
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateString = fileURL.deletingPathExtension().lastPathComponent
+            return dateFormatter.date(from: dateString)
+        }
+
+        let sortedDates = dates?.sorted()
+        let earliestDate = sortedDates?.first
+        let latestDate = sortedDates?.last
+
+        DispatchQueue.main.async {
+            completion(earliestDate, latestDate)
+        }
+    }
+
 }
