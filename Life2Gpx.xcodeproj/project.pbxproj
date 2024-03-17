@@ -450,6 +450,7 @@
 				INFOPLIST_FILE = Life2Gpx/Info.plist;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "This app requires constant access to your location to track and log your position even when the app is not in the foreground.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs access to your location to record your movements throughout the day when the app is in use.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "This app needs to access your fitness data to correctly classify movement types";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -483,6 +484,7 @@
 				INFOPLIST_FILE = Life2Gpx/Info.plist;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "This app requires constant access to your location to track and log your position even when the app is not in the foreground.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "This app needs access to your location to record your movements throughout the day when the app is in use.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "This app needs to access your fitness data to correctly classify movement types";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

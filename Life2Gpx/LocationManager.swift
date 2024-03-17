@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreLocation
 import CoreGPX
+import CoreMotion
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
@@ -11,13 +12,33 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var currentDate: Date?
     private let minimumUpdateInterval: TimeInterval = 30
     private var lastUpdateTimestamp: Date?
-
+    private let motionActivityManager = CMMotionActivityManager()
+    private let motionManager = CMMotionManager()
+    private var latestActivity: CMMotionActivity?
+    
     override init() {
         super.init()
         setupLocationManager()
+        setupMotionActivityManager() // Make sure to call this
         currentDate = Date()
     }
-
+    
+    private func setupMotionActivityManager() {
+        if CMMotionActivityManager.isActivityAvailable() {
+            motionActivityManager.startActivityUpdates(to: .main) { [weak self] activity in
+                self?.processActivity(activity)
+            }
+        }
+    }
+    
+    private func processActivity(_ activity: CMMotionActivity?) {
+        // Determine the most probable current activity
+        var activityType = "Unknown"
+        if let activity = activity {
+            latestActivity = activity
+        }
+    }
+    
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.requestAlwaysAuthorization()
@@ -102,10 +123,33 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 )
                 newTrackPoint.time = Date()
                 newTrackPoint.elevation = location.altitude
-                let customExtensionData: [String: String] = [
+                
+                var customExtensionData: [String: String] = [
                     "HorizontalPrecision": String(location.horizontalAccuracy),
-                    "VerticalPrecision": String(location.verticalAccuracy)
+                    "VerticalPrecision": String(location.verticalAccuracy),
+                    "Speed": String(location.speed),
+                    "SpeedAccuracy": String(location.speedAccuracy),
                 ]
+                
+                // Convert CMMotionActivityConfidence to a string
+                if let activity = self.latestActivity {
+                    let activityConfidence: String = {
+                        switch activity.confidence {
+                        case .low: return "Low"
+                        case .medium: return "Medium"
+                        case .high: return "High"
+                        @unknown default: return "Unknown"
+                        }
+                    }()
+                    customExtensionData["ActivityConfidence"] = activityConfidence
+                    
+                    if activity.walking { customExtensionData["Walking"] = "True" }
+                    if activity.running { customExtensionData["Running"] = "True" }
+                    if activity.cycling { customExtensionData["Cycling"] = "True" }
+                    if activity.automotive { customExtensionData["Automotive"] = "True" }
+                    if activity.stationary { customExtensionData["Stationary"] = "True" }
+                }
+                
                 let extensions = GPXExtensions()
                 extensions.append(at: nil, contents: customExtensionData)
                 newTrackPoint.extensions = extensions
@@ -122,6 +166,20 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     newSegment.add(trackpoint: newTrackPoint)
                     let newTrack = GPXTrack()
                     newTrack.add(trackSegment: newSegment)
+                    if let activity = self.latestActivity {
+                        if activity.automotive {
+                            newTrack.type = "automotive"
+                        } 
+                        else if activity.running{
+                            newTrack.type = "running"
+                        }                      
+                        else if activity.walking{
+                            newTrack.type = "walking"
+                        }                      
+                        else if activity.cycling{
+                            newTrack.type = "cycling"
+                        }
+                    }
                     gpxTracks.append(newTrack)
                 }
             } else if type == "Stationary" {
