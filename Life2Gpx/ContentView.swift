@@ -17,6 +17,10 @@ struct ContentView: View {
     @State private var hasDataForSelectedDate = false
     @State private var minDate: Date = Date()
     @State private var maxDate: Date = Date()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var lastBackgroundTime: Date? = nil
+    let defaults = UserDefaults.standard
+    let lastActiveKey = "LastActiveTime"
 
 
     var body: some View {
@@ -82,6 +86,9 @@ struct ContentView: View {
             refreshData()
             recenter()
         }
+        .onChange(of: scenePhase) { newPhase in
+            handleScenePhaseChange(newPhase)
+        }
     }
 
     private func recenter() {
@@ -89,8 +96,6 @@ struct ContentView: View {
         let allCoordinates = tracks.flatMap { $0.coordinates } + stopLocations.map { $0.coordinate }
 
         guard !allCoordinates.isEmpty else { return }
-        print ("recentering")
-
 
         // Find the max and min latitudes and longitudes
         let maxLat = allCoordinates.map { $0.latitude }.max()!
@@ -151,7 +156,30 @@ struct ContentView: View {
 
         }
     }
-
+    
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        switch newPhase {
+        case .active:
+            checkAndLoadTodayIfNeeded()
+        case .background:
+            defaults.set(Date(), forKey: lastActiveKey)
+        default:
+            break
+        }
+    }
+    
+    private func checkAndLoadTodayIfNeeded() {
+        guard let lastActiveDate = defaults.object(forKey: lastActiveKey) as? Date else { return }
+        let currentDate = Date()
+        let elapsedTime = currentDate.timeIntervalSince(lastActiveDate)
+        
+        // If more than 1 hour has passed
+        if elapsedTime > 3600 {
+            // Set selectedDate to today and load the file
+            selectedDate = currentDate
+            loadFileForDate(selectedDate)
+        }
+    }
 }
 
 
