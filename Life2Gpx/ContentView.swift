@@ -11,10 +11,7 @@ import CoreGPX
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var selectedDate = Date()
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
-        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-    )
+    @State private var cameraPosition: MapCameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)))
     @State private var tracks: [TrackData] = [] // Changed to store tracks with type information
     @State private var stopLocations: [IdentifiableCoordinate] = []
     @State private var hasDataForSelectedDate = false
@@ -27,7 +24,7 @@ struct ContentView: View {
             VStack {
                 if hasDataForSelectedDate {
                     Map(
-                        position: .constant(MapCameraPosition.region(region)),
+                        position: $cameraPosition,
                         interactionModes: .all
                     ) {
                         
@@ -67,6 +64,7 @@ struct ContentView: View {
                     DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                         .onChange(of: selectedDate) {
                             refreshData()
+                            recenter()
                         }
                     Spacer() 
                 }
@@ -81,18 +79,39 @@ struct ContentView: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
+            refreshData()
             recenter()
-            refreshData() // Load initial data for the current date
         }
     }
 
     private func recenter() {
-        if let userLocation = locationManager.currentLocation {
-            region.center = userLocation.coordinate
-            region.span = MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-        }
-    }
+        // Combine all coordinates from tracks and stop locations
+        let allCoordinates = tracks.flatMap { $0.coordinates } + stopLocations.map { $0.coordinate }
 
+        guard !allCoordinates.isEmpty else { return }
+        print ("recentering")
+
+
+        // Find the max and min latitudes and longitudes
+        let maxLat = allCoordinates.map { $0.latitude }.max()!
+        let minLat = allCoordinates.map { $0.latitude }.min()!
+        let maxLon = allCoordinates.map { $0.longitude }.max()!
+        let minLon = allCoordinates.map { $0.longitude }.min()!
+
+        // Calculate the span to include all points
+        let latDelta = maxLat - minLat
+        let lonDelta = maxLon - minLon
+
+        //Calculate the center. Does this work if we pass from -180 to +180? I guess Fiji users will find out nicely.
+        let centerLat = (maxLat + minLat) / 2
+        let centerLon = (maxLon + minLon) / 2
+        let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
+
+        
+        // Increase the span slightly to ensure all points are comfortably within view
+        let span = MKCoordinateSpan(latitudeDelta: latDelta * 1.4, longitudeDelta: lonDelta * 1.4)
+        self.cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
+    }
     private func refreshData() {
         GPXManager.shared.getDateRange { earliest, latest in
             if let earliestDate = earliest, let latestDate = latest {
@@ -106,9 +125,7 @@ struct ContentView: View {
     private func loadFileForDate(_ date: Date) {
         GPXManager.shared.loadFile(forDate: date) { gpxWaypoints, gpxTracks in
             if gpxWaypoints.isEmpty && gpxTracks.isEmpty {
-                DispatchQueue.main.async {
-                    self.hasDataForSelectedDate = false // Indicate no data for this day
-                }
+                self.hasDataForSelectedDate = false // Indicate no data for this day
                 return
             }
 
@@ -127,17 +144,11 @@ struct ContentView: View {
                     }
                 }
                 
-                let trackType = track.type // This should be adjusted based on your actual data model
-                trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: trackType ?? ""))
+                trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: track.type ?? ""))
             }
+            self.tracks = trackDataArray
+            self.hasDataForSelectedDate = true // Indicate data is available for this day
 
-            DispatchQueue.main.async {
-                self.tracks = trackDataArray
-                if let firstTrack = trackDataArray.first, let firstCoordinate = firstTrack.coordinates.first {
-                    self.region.center = firstCoordinate
-                }
-                self.hasDataForSelectedDate = true // Indicate data is available for this day
-            }
         }
     }
 
