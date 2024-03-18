@@ -154,32 +154,54 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 extensions.append(at: nil, contents: customExtensionData)
                 newTrackPoint.extensions = extensions
                 
+                var lastMajorActivityType = ""
+                if let activity = self.latestActivity {
+                    if activity.automotive {
+                        lastMajorActivityType = "automotive"
+                    }
+                    else if activity.running{
+                        lastMajorActivityType = "running"
+                    }
+                    else if activity.walking{
+                        lastMajorActivityType = "walking"
+                    }
+                    else if activity.cycling{
+                        lastMajorActivityType = "cycling"
+                    }
+                }
+                
                 if let lastTrack = gpxTracks.last, let lastSegment = lastTrack.segments.last {
-                    var modifiedLastTrack = lastTrack
-                    var modifiedLastSegment = lastSegment
-                    modifiedLastSegment.add(trackpoint: newTrackPoint)
-                    modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
-                    gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
+
+                    if lastMajorActivityType != "" && lastMajorActivityType != lastTrack.type
+                        && (self.latestActivity?.confidence == CMMotionActivityConfidence.high || self.latestActivity?.confidence == CMMotionActivityConfidence.medium)
+                    {
+                        let newSegment = GPXTrackSegment()
+                        newSegment.add(trackpoint: newTrackPoint)
+                        let newTrack = GPXTrack()
+                        newTrack.add(trackSegment: newSegment)
+                        newTrack.type = lastMajorActivityType
+                        gpxTracks.append(newTrack)
+                    }
+                    else
+                    {
+                        let modifiedLastTrack = lastTrack
+                        let modifiedLastSegment = lastSegment
+                        modifiedLastSegment.add(trackpoint: newTrackPoint)
+                        modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
+                        gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
+                    }
+
                 } else {
                     // No tracks or segments found, so create and add them
                     let newSegment = GPXTrackSegment()
                     newSegment.add(trackpoint: newTrackPoint)
                     let newTrack = GPXTrack()
                     newTrack.add(trackSegment: newSegment)
-                    if let activity = self.latestActivity {
-                        if activity.automotive {
-                            newTrack.type = "automotive"
-                        } 
-                        else if activity.running{
-                            newTrack.type = "running"
-                        }                      
-                        else if activity.walking{
-                            newTrack.type = "walking"
-                        }                      
-                        else if activity.cycling{
-                            newTrack.type = "cycling"
-                        }
+                    if (lastMajorActivityType != "" )
+                    {
+                        newTrack.type = lastMajorActivityType
                     }
+                    
                     gpxTracks.append(newTrack)
                 }
             } else if type == "Stationary" {
