@@ -15,11 +15,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let motionActivityManager = CMMotionActivityManager()
     private let motionManager = CMMotionManager()
     private var latestActivity: CMMotionActivity?
+    private let pedometer = CMPedometer()
+    private var pedometerStartDate: Date?
     
     override init() {
         super.init()
         setupLocationManager()
-        setupMotionActivityManager() // Make sure to call this
+        setupMotionActivityManager()
+        setupPedometer()
         currentDate = Date()
     }
     
@@ -31,9 +34,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    private func setupPedometer() {
+        if CMPedometer.isStepCountingAvailable() {
+            pedometerStartDate = Date()
+        } else {
+            print("Step counting not available")
+        }
+    }
     private func processActivity(_ activity: CMMotionActivity?) {
-        // Determine the most probable current activity
-        var activityType = "Unknown"
         if let activity = activity {
             latestActivity = activity
         }
@@ -83,12 +91,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
        }
     private func adjustSettingsForMovement() {
-        print("moving")
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        //locationManager.distanceFilter = 20
-        //locationManager.startUpdatingLocation()
         customDistanceFilter = 20
         resetLocationUpdateTimer()
+        pedometerStartDate = Date()
     }
     
     private func resetLocationUpdateTimer() {
@@ -99,10 +105,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func adjustSettingsForStationary() {
-        print("stationary")
-        //locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        //locationManager.distanceFilter = 60
-        //locationManager.startUpdatingLocation()
+        pedometerStartDate = Date() // Reset the start date for step counting
         customDistanceFilter = 60 // Reset custom distance filter for movement
         appendLocationToFile(type: "Stationary")
     }
@@ -112,7 +115,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             print("Error with location")
             return
         }
-
+        
         GPXManager.shared.loadFile(forDate: Date()) { loadedGpxWaypoints, loadedGpxTracks in
             var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
             var gpxWaypoints = loadedGpxWaypoints
@@ -149,7 +152,18 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     if activity.automotive { customExtensionData["Automotive"] = "True" }
                     if activity.stationary { customExtensionData["Stationary"] = "True" }
                 }
-                
+                if let startDate = self.pedometerStartDate {
+                    self.pedometer.queryPedometerData(from: startDate, to: Date()) { [weak self] data, error in
+                        guard let self = self, error == nil, let pedometerData = data else {
+                            print("Pedometer data error: \(error?.localizedDescription ?? "unknown error")")
+                            return
+                        }
+                    let steps = pedometerData.numberOfSteps.intValue
+                       customExtensionData["Steps"] = String(steps)
+                   }
+                }
+                self.pedometerStartDate = Date()
+
                 let extensions = GPXExtensions()
                 extensions.append(at: nil, contents: customExtensionData)
                 newTrackPoint.extensions = extensions
