@@ -115,8 +115,19 @@ struct ContentView: View {
                         )
                         
                     } else {
-                        Text("No data for this day")
-                            .foregroundColor(.secondary)
+                        Map(
+                            position: $cameraPosition,
+                            interactionModes: .all
+                        )
+                        .overlay(
+                            Text("No data for this day")
+                                .padding()
+                                .background(Color.black.opacity(0.8)) 
+                                .foregroundColor(Color.white)
+                                .cornerRadius(8)
+                                .padding(),
+                            alignment: .center
+                        )
                     }
                     HStack {
                         Spacer()
