@@ -123,10 +123,21 @@ struct ContentView: View {
                         Button(action: {
                             self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
                         }) {
-                            Image(systemName: "chevron.left")
-                                .padding(8)
-                                .foregroundColor(.blue)
+                            if (Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
+                            {
+                                Image(systemName: "chevron.left")
+                                    .padding(8)
+                                    .foregroundColor(.gray)
+                            }else
+                            {
+                                Image(systemName: "chevron.left")
+                                    .padding(8)
+                                    .foregroundColor(.blue)
+                            }
+                            
                         }
+                        .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
+
                         
                         DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                             .onChange(of: selectedDate) {
@@ -134,14 +145,27 @@ struct ContentView: View {
                                 recenter()
                             }
                             .frame(width: 100)
-                            .background(.clear)
+
                         Button(action: {
                             self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
                         }) {
-                            Image(systemName: "chevron.right")
+
+                            if (Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
+                            {                            
+                                Image(systemName: "chevron.right")
+                                .padding(8)
+                                .foregroundColor(.gray)
+
+                            }else
+                                {
+                                Image(systemName: "chevron.right")
                                 .padding(8)
                                 .foregroundColor(.blue)
+
+                            }
                         }
+                        .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
+
                         Spacer()
                     }
                    
