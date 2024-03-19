@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var lastBackgroundTime: Date? = nil
     let defaults = UserDefaults.standard
     let lastActiveKey = "LastActiveTime"
+    let calendar = Calendar.current
 
 
     var body: some View {
@@ -52,6 +53,60 @@ struct ContentView: View {
 
                     }
                     .edgesIgnoringSafeArea(.all)
+                    .overlay(
+                        VStack {
+                            HStack{
+                                Spacer()
+                                if !calendar.isDate(selectedDate, inSameDayAs: Date()){
+                                    Button(action: {
+                                        self.selectedDate = Date()
+                                    }
+                                    ){
+                                        Image(systemName: "forward")
+                                            .font(.title)
+                                            .padding()
+                                            .background(Color.orange)
+                                            .foregroundColor(.white)
+                                            .clipShape(Circle())
+                                            .shadow(radius: 3)
+                                    }
+                                    .padding(.trailing, 50)
+                                    .padding(.top,50)
+                                    .transition(.scale)
+                                }
+                            }
+                            Spacer() // Pushes the buttons to the bottom
+                            HStack {
+                                Button(action: recenter) {
+                                    Image(systemName: "location.viewfinder")
+                                        .font(.title)
+                                        .padding()
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 3)
+                                }
+                                .padding(.leading, 50) // Left padding for recenter button
+                                .padding(.bottom, 50)
+                                
+                                Spacer() // Pushes the recenter button to the left and the refresh button to the right
+                                
+                                Button(action: refreshData) {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.title)
+                                        .padding()
+                                        .background(Color.green)
+                                        .foregroundColor(.white)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 3)
+                                }
+                                .padding(.trailing, 50) // Right padding for refresh button
+                                .padding(.bottom, 50)
+                            }
+                        },
+                        alignment: .bottom // Aligns the VStack to the bottom of the parent view
+                    )
+
                 } else {
                     Text("No data for this day")
                         .foregroundColor(.secondary)
@@ -59,25 +114,12 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: recenter) {
-                        Text("Recenter")
-                    }
-                    Spacer()
-                }
-                ToolbarItem() {
                     DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                         .onChange(of: selectedDate) {
                             refreshData()
                             recenter()
                         }
                     Spacer() 
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: refreshData) {
-                        Text("Refresh")
-                    }
-                    
                 }
             }
         }
@@ -86,7 +128,7 @@ struct ContentView: View {
             refreshData()
             recenter()
         }
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { oldPhase, newPhase in
             handleScenePhaseChange(newPhase)
         }
     }
@@ -94,7 +136,6 @@ struct ContentView: View {
     private func recenter() {
         // Combine all coordinates from tracks and stop locations
         let allCoordinates = tracks.flatMap { $0.coordinates } + stopLocations.map { $0.coordinate }
-
         guard !allCoordinates.isEmpty else { return }
 
         // Find the max and min latitudes and longitudes

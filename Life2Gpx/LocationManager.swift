@@ -65,7 +65,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
              appendLocationToFile(type: "Stationary")
          }
         let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
-
         
            if let previousLocation = previousLocation {
                let distanceFromPrevious = previousLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
@@ -156,6 +155,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     self.pedometer.queryPedometerData(from: startDate, to: Date()) { [weak self] data, error in
                         guard let self = self, error == nil, let pedometerData = data else {
                             print("Pedometer data error: \(error?.localizedDescription ?? "unknown error")")
+                            customExtensionData["Error"] = "Pedometer error"
                             return
                         }
                     let steps = pedometerData.numberOfSteps.intValue
