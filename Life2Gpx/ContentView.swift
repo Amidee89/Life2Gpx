@@ -22,114 +22,140 @@ struct ContentView: View {
     let defaults = UserDefaults.standard
     let lastActiveKey = "LastActiveTime"
     let calendar = Calendar.current
+    @State private var timelineHeight: CGFloat = 300
 
 
     var body: some View {
-        NavigationView {
-            VStack {
-                if hasDataForSelectedDate {
-                    Map(
-                        position: $cameraPosition,
-                        interactionModes: .all
-                    ) {
-                        
-                        // Use MapPolyline to display the path
-                        ForEach(tracks, id: \.id) { track in
-                            MapPolyline(coordinates: track.coordinates)
-                                .stroke(trackTypeColorMapping[track.trackType.lowercased()] ?? .purple,
-                                        style: StrokeStyle(lineWidth: 8,lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                        }
-                        ForEach(stopLocations) { location in
-                            Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.white)
-                                    Circle()
-                                        .fill(Color.black)
-                                        .padding(4)
+        GeometryReader { geometry in
+            NavigationView {
+                VStack
+                {
+                    if hasDataForSelectedDate {
+                        Map(
+                            position: $cameraPosition,
+                            interactionModes: .all
+                        ) {
+                            
+                            // Use MapPolyline to display the path
+                            ForEach(tracks, id: \.id) { track in
+                                MapPolyline(coordinates: track.coordinates)
+                                    .stroke(trackTypeColorMapping[track.trackType.lowercased()] ?? .purple,
+                                            style: StrokeStyle(lineWidth: 8,lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                            }
+                            ForEach(stopLocations) { location in
+                                Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                        Circle()
+                                            .fill(Color.black)
+                                            .padding(4)
+                                    }
                                 }
                             }
+                            
                         }
-
-                    }
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        VStack {
-                            HStack{
-                                Spacer()
-                                if !calendar.isDate(selectedDate, inSameDayAs: Date()){
-                                    Button(action: {
-                                        self.selectedDate = Date()
+                        .edgesIgnoringSafeArea(.all)
+                        .overlay(
+                            VStack {
+                                HStack{
+                                    Spacer()
+                                    if !calendar.isDate(selectedDate, inSameDayAs: Date()){
+                                        Button(action: {
+                                            self.selectedDate = Date()
+                                        }
+                                        ){
+                                            Image(systemName: "forward")
+                                                .font(.title)
+                                                .padding()
+                                                .background(Color.orange)
+                                                .foregroundColor(.white)
+                                                .clipShape(Circle())
+                                                .shadow(radius: 3)
+                                                .scaleEffect(0.8)
+                                        }
+                                        .padding(.trailing, 30)
+                                        .padding(.top,30)
+                                        .transition(.scale)
                                     }
-                                    ){
-                                        Image(systemName: "forward")
+                                }
+                                Spacer()
+                                HStack {
+                                    Button(action: recenter) {
+                                        Image(systemName: "location.viewfinder")
                                             .font(.title)
                                             .padding()
-                                            .background(Color.orange)
+                                            .background(Color.blue)
                                             .foregroundColor(.white)
                                             .clipShape(Circle())
                                             .shadow(radius: 3)
+                                            .scaleEffect(0.8)
                                     }
-                                    .padding(.trailing, 50)
-                                    .padding(.top,50)
-                                    .transition(.scale)
-                                }
-                            }
-                            Spacer() // Pushes the buttons to the bottom
-                            HStack {
-                                Button(action: recenter) {
-                                    Image(systemName: "location.viewfinder")
-                                        .font(.title)
-                                        .padding()
-                                        .background(Color.blue)
-                                        .foregroundColor(.white)
-                                        .clipShape(Circle())
-                                        .shadow(radius: 3)
-                                }
-                                .padding(.leading, 50) // Left padding for recenter button
-                                .padding(.bottom, 50)
-                                
-                                Spacer() // Pushes the recenter button to the left and the refresh button to the right
-                                
-                                Button(action: refreshData) {
-                                    Image(systemName: "arrow.clockwise")
-                                        .font(.title)
-                                        .padding()
-                                        .background(Color.green)
-                                        .foregroundColor(.white)
-                                        .clipShape(Circle())
-                                        .shadow(radius: 3)
-                                }
-                                .padding(.trailing, 50) // Right padding for refresh button
-                                .padding(.bottom, 50)
-                            }
-                        },
-                        alignment: .bottom // Aligns the VStack to the bottom of the parent view
-                    )
+                                    .padding(.leading, 30)
+                                    .padding(.bottom, 30)
+                                    Spacer()
+                                    
+                                    Button(action: refreshData) {
+                                        Image(systemName: "arrow.clockwise")
+                                            .font(.title)
+                                            .padding()
+                                            .background(Color.green)
+                                            .foregroundColor(.white)
+                                            .clipShape(Circle())
+                                            .shadow(radius: 3)
+                                            .scaleEffect(0.8)
 
-                } else {
-                    Text("No data for this day")
-                        .foregroundColor(.secondary)
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
-                        .onChange(of: selectedDate) {
-                            refreshData()
-                            recenter()
+
+                                    }
+                                    .padding(.trailing, 30) // Right padding for refresh button
+                                    .padding(.bottom, 30)
+                                }
+                            },
+                            alignment: .bottom // Aligns the VStack to the bottom of the parent view
+                        )
+                        
+                    } else {
+                        Text("No data for this day")
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .padding(8)
+                                .foregroundColor(.blue)
                         }
-                    Spacer() 
+                        
+                        DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
+                            .onChange(of: selectedDate) {
+                                refreshData()
+                                recenter()
+                            }
+                            .frame(width: 100)
+                            .background(.clear)
+                        Button(action: {
+                            self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
+                        }) {
+                            Image(systemName: "chevron.right")
+                                .padding(8)
+                                .foregroundColor(.blue)
+                        }
+                        Spacer()
+                    }
+                   
+
                 }
             }
-        }
-        .navigationViewStyle(StackNavigationViewStyle())
-        .onAppear {
-            refreshData()
-            recenter()
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            handleScenePhaseChange(newPhase)
+            .navigationViewStyle(StackNavigationViewStyle())
+            .onAppear {
+                refreshData()
+                recenter()
+            }
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                handleScenePhaseChange(newPhase)
+            }
         }
     }
 
@@ -214,9 +240,7 @@ struct ContentView: View {
         let currentDate = Date()
         let elapsedTime = currentDate.timeIntervalSince(lastActiveDate)
         
-        // If more than 1 hour has passed
         if elapsedTime > 3600 {
-            // Set selectedDate to today and load the file
             selectedDate = currentDate
             loadFileForDate(selectedDate)
         }
