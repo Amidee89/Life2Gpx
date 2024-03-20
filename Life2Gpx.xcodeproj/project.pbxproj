@@ -18,6 +18,7 @@
 		A9B62FC12B66E694004A010E /* Life2GpxUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */; };
 		A9B62FC32B66E694004A010E /* Life2GpxUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */; };
 		A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FD02B682E99004A010E /* LocationManager.swift */; };
+		A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F47B8D2BAB735D001355A9 /* Preview.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +53,7 @@
 		A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		A9B62FCF2B682E1B004A010E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A9B62FD02B682E99004A010E /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
+		A9F47B8D2BAB735D001355A9 /* Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +113,7 @@
 				A9B62FAB2B66E694004A010E /* Preview Content */,
 				A95FDABA2B810CC100097276 /* Models.swift */,
 				A95FDABC2B82257A00097276 /* GPXManager.swift */,
+				A9F47B8D2BAB735D001355A9 /* Preview.swift */,
 			);
 			path = Life2Gpx;
 			sourceTree = "<group>";
@@ -280,6 +283,7 @@
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
 				A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */,
 				A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */,
+				A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */,
 				A95FDABB2B810CC100097276 /* Models.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
