@@ -58,7 +58,6 @@ struct ContentView: View {
                     .overlay(
                         VStack {
                             HStack{
-
                                 Spacer()
                                 if !calendar.isDate(selectedDate, inSameDayAs: Date()){
                                     Button(action: {
@@ -142,13 +141,14 @@ struct ContentView: View {
                             
                         }
                         .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
-
                         DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                             .onChange(of: selectedDate) {
                                 refreshData()
                                 recenter()
                             }
-                            .frame(width: 100)
+                            
+                            .frame(maxWidth: 100/*, alignment: .center*/)
+                        
 
                         Button(action: {
                             self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
@@ -199,17 +199,15 @@ struct ContentView: View {
         let minLon = allCoordinates.map { $0.longitude }.min()!
 
         // Calculate the span to include all points
-        let latDelta = maxLat - minLat
-        let lonDelta = maxLon - minLon
+        let latDelta = max(maxLat - minLat, 0.001) * 1.4
+        let lonDelta = max(maxLon - minLon, 0.001) * 1.4
 
         //Calculate the center. Does this work if we pass from -180 to +180? I guess Fiji users will find out nicely.
         let centerLat = (maxLat + minLat) / 2
         let centerLon = (maxLon + minLon) / 2
         let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
 
-        
-        // Increase the span slightly to ensure all points are comfortably within view
-        let span = MKCoordinateSpan(latitudeDelta: latDelta * 1.4, longitudeDelta: lonDelta * 1.4)
+        let span = MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
         self.cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
     }
     private func refreshData() {
