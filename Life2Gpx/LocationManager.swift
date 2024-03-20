@@ -5,8 +5,8 @@ import CoreMotion
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
-    @Published var currentLocation: CLLocation?
-    private var previousLocation: CLLocation?
+    @Published var currentFilteredLocation: CLLocation?
+    private var previousSavedLocation: CLLocation?
     private var locationUpdateTimer: Timer?
     private var customDistanceFilter: CLLocationDistance = 20 // Default to 20 meters
     private var currentDate: Date?
@@ -20,6 +20,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     override init() {
         super.init()
+        if let savedTimestamp = UserDefaults.standard.object(forKey: "lastUpdateTimestamp") as? Date {
+             lastUpdateTimestamp = savedTimestamp
+         }
+        let previousLatitude = UserDefaults.standard.double(forKey: "previousLocationLatitude")
+        let previousLongitude = UserDefaults.standard.double(forKey: "previousLocationLongitude")
+
+        previousSavedLocation = CLLocation(latitude: previousLatitude, longitude: previousLongitude)
         setupLocationManager()
         setupMotionActivityManager()
         setupPedometer()
@@ -58,37 +65,53 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-           guard let newLocation = locations.last else { return }
+    
+        guard let newLocation = locations.last else { return }
            
-         let newUpdateDate = Date()
-         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
-             appendLocationToFile(type: "Stationary")
-         }
+        let newUpdateDate = Date()
+        if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
+            appendLocationToFile(type: "Stationary")
+        }
+        
         let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
         
-           if let previousLocation = previousLocation {
-               let distanceFromPrevious = previousLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
-
-               if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval{
-                   // Movement significant enough to trigger updates and reset timer
-                   currentLocation = newLocation
-                   adjustSettingsForMovement()
-                   appendLocationToFile(type: "Moving")
-                   self.previousLocation = currentLocation
-                   lastUpdateTimestamp = newUpdateDate
-               }
-               // If distance is not enough, don't update settings or reset the timer
-           } else {
-               // No previous location means this is the first update
-               currentLocation = newLocation
-               adjustSettingsForMovement()
-               appendLocationToFile(type: "Moving")
-               previousLocation = currentLocation
-               lastUpdateTimestamp = newUpdateDate
-           }
+        
+        if let previousSavedLocation = previousSavedLocation
+        {
+            //sometimes this gets triggered before we actually have time to read the coordinates
+            if  previousSavedLocation.coordinate.latitude != 0.0, previousSavedLocation.coordinate.longitude != 0.0
+                {
+                    let distanceFromPrevious = previousSavedLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
+                    if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval{
+                        // Movement significant enough to trigger updates and reset timer
+                        adjustSettingsForMovement()
+                        currentFilteredLocation = newLocation
+                        self.previousSavedLocation = newLocation
+                        UserDefaults.standard.set(previousSavedLocation.coordinate.latitude, forKey: "previousLocationLatitude")
+                        UserDefaults.standard.set(previousSavedLocation.coordinate.longitude, forKey: "previousLocationLongitude")
+                        appendLocationToFile(type: "Moving")
+                        lastUpdateTimestamp = newUpdateDate
+                        UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
+                }
+            }
+        }
+        else
+        {
+               // No previous location means this is the first update ever
+            if timeSinceLastUpdate >= minimumUpdateInterval
+            {
+                adjustSettingsForMovement()
+                currentFilteredLocation = newLocation
+                previousSavedLocation = newLocation
+                UserDefaults.standard.set(previousSavedLocation!.coordinate.latitude, forKey: "previousLocationLatitude")
+                UserDefaults.standard.set(previousSavedLocation!.coordinate.longitude, forKey: "previousLocationLongitude")
+                appendLocationToFile(type: "Moving")
+                lastUpdateTimestamp = newUpdateDate
+                UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
+            }
+        }
         currentDate = newUpdateDate
-
-       }
+    }
     private func adjustSettingsForMovement() {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         customDistanceFilter = 20
@@ -110,8 +133,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func appendLocationToFile(type: String) {
-        guard let location = currentLocation else {
-            print("Error with location")
+        guard let location = currentFilteredLocation else {
+            print("No location to save")
             return
         }
         
