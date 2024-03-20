@@ -30,105 +30,99 @@ struct ContentView: View {
             NavigationView {
                 VStack
                 {
-                    if hasDataForSelectedDate {
-                        Map(
-                            position: $cameraPosition,
-                            interactionModes: .all
-                        ) {
-                            
-                            // Use MapPolyline to display the path
-                            ForEach(tracks, id: \.id) { track in
-                                MapPolyline(coordinates: track.coordinates)
-                                    .stroke(trackTypeColorMapping[track.trackType.lowercased()] ?? .purple,
-                                            style: StrokeStyle(lineWidth: 8,lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                            }
-                            ForEach(stopLocations) { location in
-                                Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                        Circle()
-                                            .fill(Color.black)
-                                            .padding(4)
-                                    }
-                                }
-                            }
-                            
-                        }
-                        .edgesIgnoringSafeArea(.all)
-                        .overlay(
-                            VStack {
-                                HStack{
-                                    Spacer()
-                                    if !calendar.isDate(selectedDate, inSameDayAs: Date()){
-                                        Button(action: {
-                                            self.selectedDate = Date()
-                                        }
-                                        ){
-                                            Image(systemName: "forward")
-                                                .font(.title)
-                                                .padding()
-                                                .background(Color.orange)
-                                                .foregroundColor(.white)
-                                                .clipShape(Circle())
-                                                .shadow(radius: 3)
-                                                .scaleEffect(0.8)
-                                        }
-                                        .padding(.trailing, 30)
-                                        .padding(.top,30)
-                                        .transition(.scale)
-                                    }
-                                }
-                                Spacer()
-                                HStack {
-                                    Button(action: recenter) {
-                                        Image(systemName: "location.viewfinder")
-                                            .font(.title)
-                                            .padding()
-                                            .background(Color.blue)
-                                            .foregroundColor(.white)
-                                            .clipShape(Circle())
-                                            .shadow(radius: 3)
-                                            .scaleEffect(0.8)
-                                    }
-                                    .padding(.leading, 30)
-                                    .padding(.bottom, 30)
-                                    Spacer()
-                                    
-                                    Button(action: refreshData) {
-                                        Image(systemName: "arrow.clockwise")
-                                            .font(.title)
-                                            .padding()
-                                            .background(Color.green)
-                                            .foregroundColor(.white)
-                                            .clipShape(Circle())
-                                            .shadow(radius: 3)
-                                            .scaleEffect(0.8)
-
-
-                                    }
-                                    .padding(.trailing, 30) // Right padding for refresh button
-                                    .padding(.bottom, 30)
-                                }
-                            },
-                            alignment: .bottom // Aligns the VStack to the bottom of the parent view
-                        )
+                    Map(
+                        position: $cameraPosition,
+                        interactionModes: .all
+                    ) {
                         
-                    } else {
-                        Map(
-                            position: $cameraPosition,
-                            interactionModes: .all
-                        )
-                        .overlay(
-                            Text("No data for this day")
-                                .padding()
-                                .background(Color.black.opacity(0.8)) 
-                                .foregroundColor(Color.white)
-                                .cornerRadius(8)
-                                .padding(),
-                            alignment: .center
-                        )
+                        // Use MapPolyline to display the path
+                        ForEach(tracks, id: \.id) { track in
+                            MapPolyline(coordinates: track.coordinates)
+                                .stroke(trackTypeColorMapping[track.trackType.lowercased()] ?? .purple,
+                                        style: StrokeStyle(lineWidth: 8,lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        }
+                        ForEach(stopLocations) { location in
+                            Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.black)
+                                        .padding(4)
+                                }
+                            }
+                        }
+                        
                     }
+                    .edgesIgnoringSafeArea(.all)
+                    .overlay(
+                        VStack {
+                            HStack{
+
+                                Spacer()
+                                if !calendar.isDate(selectedDate, inSameDayAs: Date()){
+                                    Button(action: {
+                                        self.selectedDate = Date()
+                                    }
+                                    ){
+                                        Image(systemName: "forward")
+                                            .font(.title)
+                                            .padding()
+                                            .background(Color.orange)
+                                            .foregroundColor(.white)
+                                            .clipShape(Circle())
+                                            .shadow(radius: 3)
+                                            .scaleEffect(0.8)
+                                    }
+                                    .padding(.trailing, 30)
+                                    .padding(.top,30)
+                                    .transition(.scale)
+                                }
+                            }                            
+                            Group{
+                                if !hasDataForSelectedDate{
+                                    Text("No data for this day")
+                                            .padding()
+                                            .background(Color.black.opacity(0.8))
+                                            .foregroundColor(Color.white)
+                                            .cornerRadius(8)
+                                            .padding()
+                                }
+                            }
+                            Spacer()
+                            HStack {
+                                Button(action: recenter) {
+                                    Image(systemName: "location.viewfinder")
+                                        .font(.title)
+                                        .padding()
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 3)
+                                        .scaleEffect(0.8)
+                                }
+                                .padding(.leading, 30)
+                                .padding(.bottom, 30)
+                                Spacer()
+                                
+                                Button(action: refreshData) {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.title)
+                                        .padding()
+                                        .background(Color.green)
+                                        .foregroundColor(.white)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 3)
+                                        .scaleEffect(0.8)
+
+
+                                }
+                                .padding(.trailing, 30)
+                                .padding(.bottom, 30)
+                            }
+                        },
+                        alignment: .bottom
+                    )
                     HStack {
                         Spacer()
                         Button(action: {
@@ -149,7 +143,6 @@ struct ContentView: View {
                         }
                         .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
 
-                        
                         DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                             .onChange(of: selectedDate) {
                                 refreshData()
@@ -232,7 +225,9 @@ struct ContentView: View {
     private func loadFileForDate(_ date: Date) {
         GPXManager.shared.loadFile(forDate: date) { gpxWaypoints, gpxTracks in
             if gpxWaypoints.isEmpty && gpxTracks.isEmpty {
-                self.hasDataForSelectedDate = false // Indicate no data for this day
+                self.hasDataForSelectedDate = false
+                self.tracks = []
+                self.stopLocations = []
                 return
             }
 
