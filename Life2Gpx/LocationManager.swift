@@ -17,16 +17,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var latestActivity: CMMotionActivity?
     private let pedometer = CMPedometer()
     private var pedometerStartDate: Date?
+    private var latestPedometerSteps: Int = 0
     
     override init() {
         super.init()
         if let savedTimestamp = UserDefaults.standard.object(forKey: "lastUpdateTimestamp") as? Date {
              lastUpdateTimestamp = savedTimestamp
          }
-        let previousLatitude = UserDefaults.standard.double(forKey: "previousLocationLatitude")
-        let previousLongitude = UserDefaults.standard.double(forKey: "previousLocationLongitude")
-
-        previousSavedLocation = CLLocation(latitude: previousLatitude, longitude: previousLongitude)
         setupLocationManager()
         setupMotionActivityManager()
         setupPedometer()
@@ -78,37 +75,31 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         if let previousSavedLocation = previousSavedLocation
         {
-            //sometimes this gets triggered before we actually have time to read the coordinates
-            if  previousSavedLocation.coordinate.latitude != 0.0, previousSavedLocation.coordinate.longitude != 0.0
-                {
-                    let distanceFromPrevious = previousSavedLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
-                    if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval{
-                        // Movement significant enough to trigger updates and reset timer
-                        adjustSettingsForMovement()
-                        currentFilteredLocation = newLocation
-                        self.previousSavedLocation = newLocation
-                        UserDefaults.standard.set(previousSavedLocation.coordinate.latitude, forKey: "previousLocationLatitude")
-                        UserDefaults.standard.set(previousSavedLocation.coordinate.longitude, forKey: "previousLocationLongitude")
-                        appendLocationToFile(type: "Moving")
-                        lastUpdateTimestamp = newUpdateDate
-                        UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
-                }
+            let distanceFromPrevious = previousSavedLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
+            if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval
+            {
+                // Movement significant enough to trigger updates and reset timer
+                adjustSettingsForMovement()
+                currentFilteredLocation = newLocation
+                self.previousSavedLocation = newLocation
+                appendLocationToFile(type: "Moving")
+                lastUpdateTimestamp = newUpdateDate
+                UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
+            
             }
         }
         else
         {
-               // No previous location means this is the first update ever
+            // No previous location means this is the first update ever
             if timeSinceLastUpdate >= minimumUpdateInterval
             {
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
-                previousSavedLocation = newLocation
-                UserDefaults.standard.set(previousSavedLocation!.coordinate.latitude, forKey: "previousLocationLatitude")
-                UserDefaults.standard.set(previousSavedLocation!.coordinate.longitude, forKey: "previousLocationLongitude")
                 appendLocationToFile(type: "Moving")
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
             }
+            self.previousSavedLocation = newLocation
         }
         currentDate = newUpdateDate
     }
@@ -137,65 +128,71 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             print("No location to save")
             return
         }
-        
-        GPXManager.shared.loadFile(forDate: Date()) { loadedGpxWaypoints, loadedGpxTracks in
-            var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
-            var gpxWaypoints = loadedGpxWaypoints
-            if type == "Moving" {
-                let newTrackPoint = GPXTrackPoint(
-                    latitude: location.coordinate.latitude,
-                    longitude: location.coordinate.longitude
-                )
-                newTrackPoint.time = Date()
-                newTrackPoint.elevation = location.altitude
-                
-                var customExtensionData: [String: String] = [
-                    "HorizontalPrecision": String(location.horizontalAccuracy),
-                    "VerticalPrecision": String(location.verticalAccuracy),
-                    "Speed": String(location.speed),
-                    "SpeedAccuracy": String(location.speedAccuracy),
-                ]
-                
-                // Convert CMMotionActivityConfidence to a string
-                if let activity = self.latestActivity {
-                    let activityConfidence: String = {
-                        switch activity.confidence {
-                        case .low: return "Low"
-                        case .medium: return "Medium"
-                        case .high: return "High"
-                        @unknown default: return "Unknown"
-                        }
-                    }()
-                    customExtensionData["ActivityConfidence"] = activityConfidence
-                    
-                    if activity.walking { customExtensionData["Walking"] = "True" }
-                    if activity.running { customExtensionData["Running"] = "True" }
-                    if activity.cycling { customExtensionData["Cycling"] = "True" }
-                    if activity.automotive { customExtensionData["Automotive"] = "True" }
-                    if activity.stationary { customExtensionData["Stationary"] = "True" }
-                }
-                
-                let dispatchGroup = DispatchGroup()
+        let dispatchGroup = DispatchGroup()
 
-                if let startDate = self.pedometerStartDate {
-                    dispatchGroup.enter()
-                    
-                    self.pedometer.queryPedometerData(from: startDate, to: Date()) { data, error in
-                        defer {
-                            dispatchGroup.leave()
-                        }
-                        
-                        if let pedometerData = data, error == nil {
-                            let steps = pedometerData.numberOfSteps.intValue
-                            customExtensionData["Steps"] = String(steps)
-                        } else {
-                            print("Pedometer data error: \(error?.localizedDescription ?? "unknown error")")
-                            customExtensionData["Error"] = "Pedometer error"
-                        }
-                    }
+        if let startDate = self.pedometerStartDate {
+            dispatchGroup.enter()
+            
+            self.pedometer.queryPedometerData(from: startDate, to: Date()) { data, error in
+                defer {
+                    dispatchGroup.leave()
                 }
-                dispatchGroup.notify(queue: .main) 
+                
+                if let pedometerData = data, error == nil {
+                    self.latestPedometerSteps = pedometerData.numberOfSteps.intValue
+                } else {
+                    print("Pedometer data error: \(error?.localizedDescription ?? "unknown error")")
+                }
+            }
+        }
+        dispatchGroup.notify(queue: .main)
+        {
+            GPXManager.shared.loadFile(forDate: Date()) 
+            {
+                loadedGpxWaypoints, loadedGpxTracks in
+                var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
+                var gpxWaypoints = loadedGpxWaypoints
+                if type == "Moving"
                 {
+                    let newTrackPoint = GPXTrackPoint(
+                        latitude: location.coordinate.latitude,
+                        longitude: location.coordinate.longitude
+                    )
+                    newTrackPoint.time = Date()
+                    newTrackPoint.elevation = location.altitude
+                    
+                    var customExtensionData: [String: String] = [
+                        "HorizontalPrecision": String(location.horizontalAccuracy),
+                        "VerticalPrecision": String(location.verticalAccuracy),
+                        "Speed": String(location.speed),
+                        "SpeedAccuracy": String(location.speedAccuracy),
+                    ]
+                    if self.latestPedometerSteps > 0
+                    {
+                        customExtensionData["Steps"] = String(self.latestPedometerSteps)
+                        self.latestPedometerSteps = 0
+                    }
+                    // Convert CMMotionActivityConfidence to a string
+                    if let activity = self.latestActivity {
+                        let activityConfidence: String = {
+                            switch activity.confidence {
+                            case .low: return "Low"
+                            case .medium: return "Medium"
+                            case .high: return "High"
+                            @unknown default: return "Unknown"
+                            }
+                        }()
+                        customExtensionData["ActivityConfidence"] = activityConfidence
+                        
+                        if activity.walking { customExtensionData["Walking"] = "True" }
+                        if activity.running { customExtensionData["Running"] = "True" }
+                        if activity.cycling { customExtensionData["Cycling"] = "True" }
+                        if activity.automotive { customExtensionData["Automotive"] = "True" }
+                        if activity.stationary { customExtensionData["Stationary"] = "True" }
+                    }
+                    
+                    
+                    
                     self.pedometerStartDate = Date()
                     
                     let extensions = GPXExtensions()
@@ -253,27 +250,31 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         gpxTracks.append(newTrack)
                     }
                 }
-            } else if type == "Stationary" {
-                let newWaypoint = GPXWaypoint(
-                    latitude: location.coordinate.latitude,
-                    longitude: location.coordinate.longitude
-                )
-                newWaypoint.time = Date()
-                newWaypoint.elevation = location.altitude
-                let customExtensionData: [String: String] = [
-                    "HorizontalPrecision": String(location.horizontalAccuracy),
-                    "VerticalPrecision": String(location.verticalAccuracy)
-                ]
-                let extensions = GPXExtensions()
-                extensions.append(at: nil, contents: customExtensionData)
-                newWaypoint.extensions = extensions
-                gpxWaypoints.append(newWaypoint)
+                else if type == "Stationary" {
+                    let newWaypoint = GPXWaypoint(
+                        latitude: location.coordinate.latitude,
+                        longitude: location.coordinate.longitude
+                    )
+                    newWaypoint.time = Date()
+                    newWaypoint.elevation = location.altitude
+                    var customExtensionData: [String: String] = [
+                        "HorizontalPrecision": String(location.horizontalAccuracy),
+                        "VerticalPrecision": String(location.verticalAccuracy)
+                    ]
+                    if self.latestPedometerSteps > 0
+                    {
+                        customExtensionData["Steps"] = String(self.latestPedometerSteps)
+                        self.latestPedometerSteps = 0
+                    }
+                    let extensions = GPXExtensions()
+                    extensions.append(at: nil, contents: customExtensionData)
+                    newWaypoint.extensions = extensions
+                    gpxWaypoints.append(newWaypoint)
+                }
+                
+                // Save the updated data using GPXManager
+                GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
             }
-
-            // Save the updated data using GPXManager
-            GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
         }
     }
-
-    
 }
