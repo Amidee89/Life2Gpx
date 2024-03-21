@@ -20,9 +20,9 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var lastBackgroundTime: Date? = nil
     let defaults = UserDefaults.standard
-    let lastActiveKey = "LastActiveTime"
     let calendar = Calendar.current
     @State private var timelineHeight: CGFloat = 300
+    @State private var timelineObjects: [TimelineObject] = []
 
 
     var body: some View {
@@ -52,7 +52,6 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        
                     }
                     .edgesIgnoringSafeArea(.all)
                     .overlay(
@@ -124,6 +123,7 @@ struct ContentView: View {
                     )
                     HStack {
                         Spacer()
+                        
                         Button(action: {
                             self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
                         }) {
@@ -141,6 +141,7 @@ struct ContentView: View {
                             
                         }
                         .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
+                        
                         DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                             .onChange(of: selectedDate) {
                                 refreshData()
@@ -171,7 +172,33 @@ struct ContentView: View {
 
                         Spacer()
                     }
-                   
+                    List(timelineObjects) { item in
+                        HStack {
+     
+                            VStack{
+                                if let startDate = item.startDate {
+                                    Text("\(formatDateToHoursMinutes(startDate))")
+                                        
+                                }
+                                
+                                Text(item.duration)
+                                
+                            }
+                            .frame(minWidth: 90)
+                            if (item.type == .waypoint){
+                                Image(systemName: "smallcircle.filled.circle")
+                                    .foregroundColor(.gray)
+
+                            }
+                            else
+                            {
+                                Image(systemName: "smallcircle.filled.circle")
+                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
+
+                            }
+
+                        }
+                    }
 
                 }
             }
@@ -209,6 +236,7 @@ struct ContentView: View {
         let span = MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
         self.cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
     }
+    
     private func refreshData() {
         GPXManager.shared.getDateRange { earliest, latest in
             if let earliestDate = earliest, let latestDate = latest {
@@ -229,7 +257,7 @@ struct ContentView: View {
             }
 
             stopLocations = gpxWaypoints.map { IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!), waypoint: $0) }
-            
+            timelineObjects = gpxWaypoints.map {TimelineObject(type:.waypoint, startDate: $0.time, endDate: $0.time, name: $0.name)}
             var trackDataArray: [TrackData] = []
             
             for (index, track) in gpxTracks.enumerated() {
@@ -242,12 +270,30 @@ struct ContentView: View {
                         trackCoordinates.append(CLLocationCoordinate2D(latitude: nextTrackFirstCoordinate.latitude!, longitude: nextTrackFirstCoordinate.longitude!))
                     }
                 }
+                let trackStartDate = track.segments.first?.points.first?.time ?? Date()
+                let trackEndDate = track.segments.last?.points.last?.time ?? Date()
+                let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type)
+                timelineObjects.append(trackObject)
                 
                 trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: track.type ?? ""))
             }
+            self.timelineObjects = self.timelineObjects.sorted(by: { $0.startDate ?? Date.distantPast < $1.startDate ?? Date.distantPast })
+            for (index, item) in timelineObjects.enumerated() {
+                if item.type == .waypoint{
+                    if index + 1 < timelineObjects.count {
+                        item.endDate = timelineObjects[index + 1].startDate
+                    }
+                }
+                if item.startDate != nil && item.endDate != nil
+                {
+                    item.duration = calculateDuration (from: item.startDate!, to: item.endDate!)
+                }
+
+            }
+        
+            
             self.tracks = trackDataArray
             self.hasDataForSelectedDate = true // Indicate data is available for this day
-
         }
     }
     
@@ -256,14 +302,14 @@ struct ContentView: View {
         case .active:
             checkAndLoadTodayIfNeeded()
         case .background:
-            defaults.set(Date(), forKey: lastActiveKey)
+            defaults.set(Date(), forKey: "LastActiveTime")
         default:
             break
         }
     }
     
     private func checkAndLoadTodayIfNeeded() {
-        guard let lastActiveDate = defaults.object(forKey: lastActiveKey) as? Date else { return }
+        guard let lastActiveDate = defaults.object(forKey: "LastActiveTime") as? Date else { return }
         let currentDate = Date()
         let elapsedTime = currentDate.timeIntervalSince(lastActiveDate)
         
@@ -272,8 +318,25 @@ struct ContentView: View {
             loadFileForDate(selectedDate)
         }
     }
-}
+    
+    private func formatDateToHoursMinutes(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm" // Hour:Minutes format
+        return formatter.string(from: date)
+    }
+    
+    private func calculateDuration(from startDate: Date, to endDate: Date) -> String {
+        let interval = endDate.timeIntervalSince(startDate)
+        let hours = Int(interval) / 3600 // Total seconds divided by number of seconds in an hour
+        let minutes = Int(interval) % 3600 / 60 // Remainder of the above division, divided by number of seconds in a minute
+        if (hours > 0){
+            return String(format: "%01dh %01dm", hours, minutes)
+        }else{
+            return String(format: "%01dm",  minutes)
 
+        }
+    }
+}
 
 struct IdentifiableCoordinate: Identifiable {
     let id = UUID()
