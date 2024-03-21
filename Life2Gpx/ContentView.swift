@@ -146,10 +146,9 @@ struct ContentView: View {
                                 refreshData()
                                 recenter()
                             }
-                            
-                            .frame(maxWidth: 100/*, alignment: .center*/)
+                            .fixedSize()
+                            .labelsHidden()
                         
-
                         Button(action: {
                             self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
                         }) {
