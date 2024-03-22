@@ -174,11 +174,11 @@ struct ContentView: View {
                     }
                     List(timelineObjects) { item in
                         HStack {
-     
+                            
                             VStack{
                                 if let startDate = item.startDate {
                                     Text("\(formatDateToHoursMinutes(startDate))")
-                                        
+                                    
                                 }
                                 
                                 Text(item.duration)
@@ -186,22 +186,41 @@ struct ContentView: View {
                             }
                             .frame(minWidth: 90)
                             if (item.type == .waypoint){
+                                
                                 Image(systemName: "smallcircle.filled.circle")
                                     .foregroundColor(.gray)
-
+                                
                             }
                             else
                             {
-                                Image(systemName: "smallcircle.filled.circle")
-                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
-
+                                switch item.trackType
+                                {
+                                case "cycling":
+                                    Image(systemName: "figure.outdoor.cycle")
+                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "cycling"])
+                                    
+                                case "walking":
+                                    Image(systemName: "figure.walk")
+                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "walking"])
+                                    
+                                case "running":
+                                    Image(systemName: "figure.run")
+                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "running"])
+                                    
+                                case "automotive":
+                                    Image(systemName: "car.fill")
+                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "automotive"])
+                                default:
+                                    Image(systemName: "arrow.down")
+                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
+                                }
                             }
-
                         }
                     }
-
                 }
+
             }
+            
             .navigationViewStyle(StackNavigationViewStyle())
             .onAppear {
                 refreshData()
@@ -271,6 +290,7 @@ struct ContentView: View {
                     }
                 }
                 let trackStartDate = track.segments.first?.points.first?.time ?? Date()
+                //TODO here if day of date is different from day of track, put midnight of that day.
                 let trackEndDate = track.segments.last?.points.last?.time ?? Date()
                 let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type)
                 timelineObjects.append(trackObject)
@@ -286,6 +306,7 @@ struct ContentView: View {
                 }
                 if item.startDate != nil && item.endDate != nil
                 {
+
                     item.duration = calculateDuration (from: item.startDate!, to: item.endDate!)
                 }
 

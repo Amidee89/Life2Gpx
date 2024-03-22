@@ -148,8 +148,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         dispatchGroup.notify(queue: .main)
         {
             GPXManager.shared.loadFile(forDate: Date()) 
-            {
-                loadedGpxWaypoints, loadedGpxTracks in
+            {   loadedGpxWaypoints, loadedGpxTracks in
+               
                 var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
                 var gpxWaypoints = loadedGpxWaypoints
                 if type == "Moving"
@@ -191,8 +191,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         if activity.stationary { customExtensionData["Stationary"] = "True" }
                     }
                     
-                    
-                    
                     self.pedometerStartDate = Date()
                     
                     let extensions = GPXExtensions()
@@ -215,7 +213,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         }
                     }
                     
-                    if let lastTrack = gpxTracks.last, let lastSegment = lastTrack.segments.last {
+                    if let lastTrack = gpxTracks.last, 
+                        let lastSegment = lastTrack.segments.last,
+                        lastSegment.points.last?.time ?? Date.distantFuture > gpxWaypoints.last?.time ?? Date.distantPast
+                    {
                         
                         if lastMajorActivityType != "" && lastMajorActivityType != lastTrack.type
                             && (self.latestActivity?.confidence == CMMotionActivityConfidence.high || self.latestActivity?.confidence == CMMotionActivityConfidence.medium)
@@ -237,7 +238,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         }
                         
                     } else {
-                        // No tracks or segments found, so create and add them
+                        // No tracks or segments found, or the last track was earlier than the last point so create and add a new track and segment
                         let newSegment = GPXTrackSegment()
                         newSegment.add(trackpoint: newTrackPoint)
                         let newTrack = GPXTrack()

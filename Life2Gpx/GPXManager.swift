@@ -38,7 +38,7 @@ class GPXManager {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
-
+        //print(fileURL.path) //when we need to find current data folder for simulator
         guard let gpx = GPXParser(withURL: fileURL)?.parsedData() else {
             completion([], []) // File does not exist or can't be parsed
             return
