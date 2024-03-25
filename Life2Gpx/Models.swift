@@ -26,12 +26,14 @@ class TimelineObject: Identifiable {
     var trackType: String?
     var name: String?
     var duration: String
-    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "") {
+    var steps: Int
+    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0) {
         self.type = type
         self.startDate = startDate
         self.endDate = endDate
         self.trackType = trackType
         self.name = name
         self.duration = duration
+        self.steps = steps
     }
 }

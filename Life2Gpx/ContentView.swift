@@ -173,49 +173,73 @@ struct ContentView: View {
                         Spacer()
                     }
                     List(timelineObjects) { item in
-                        HStack {
+                        HStack{
                             
                             VStack{
                                 if let startDate = item.startDate {
                                     Text("\(formatDateToHoursMinutes(startDate))")
+                                        .bold()
                                     
                                 }
                                 
                                 Text(item.duration)
+                                    
                                 
                             }
                             .frame(minWidth: 90)
-                            if (item.type == .waypoint){
-                                
-                                Image(systemName: "smallcircle.filled.circle")
-                                    .foregroundColor(.gray)
-                                
-                            }
-                            else
+                            Group
                             {
-                                switch item.trackType
-                                {
-                                case "cycling":
-                                    Image(systemName: "figure.outdoor.cycle")
-                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "cycling"])
+                                if (item.type == .waypoint){
                                     
-                                case "walking":
-                                    Image(systemName: "figure.walk")
-                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "walking"])
+                                    Image(systemName: "smallcircle.filled.circle")
+                                        .foregroundColor(.gray)
                                     
-                                case "running":
-                                    Image(systemName: "figure.run")
-                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "running"])
-                                    
-                                case "automotive":
-                                    Image(systemName: "car.fill")
-                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "automotive"])
-                                default:
-                                    Image(systemName: "arrow.down")
-                                        .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
                                 }
+                                else
+                                {
+                                    switch item.trackType
+                                    {
+                                    case "cycling":
+                                        Image(systemName: "figure.outdoor.cycle")
+                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "cycling"])
+                                        
+                                    case "walking":
+                                        Image(systemName: "figure.walk")
+                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "walking"])
+                                        
+                                    case "running":
+                                        Image(systemName: "figure.run")
+                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "running"])
+                                        
+                                    case "automotive":
+                                        Image(systemName: "car.fill")
+                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "automotive"])
+                                    default:
+                                        Image(systemName: "arrow.down")
+                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
+                                    }
+                                }
+                            }    
+                            .frame(minWidth: 20)
+
+                            VStack (alignment:.leading)
+                            {
+                                if item.type == .waypoint
+                                {
+                                    Text(item.name ?? "Unknown place")
+                                }
+                                else
+                                {
+                                    Text(item.trackType?.capitalized ?? "Movement")
+                                }
+                                Text("Steps: \(item.steps)")
+
                             }
+
                         }
+                    }
+                    .refreshable {
+                       refreshData()
                     }
                 }
 
@@ -275,10 +299,22 @@ struct ContentView: View {
                 return
             }
 
-            stopLocations = gpxWaypoints.map { IdentifiableCoordinate(coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!), waypoint: $0) }
-            timelineObjects = gpxWaypoints.map {TimelineObject(type:.waypoint, startDate: $0.time, endDate: $0.time, name: $0.name)}
-            var trackDataArray: [TrackData] = []
+            stopLocations = gpxWaypoints.map {
+                IdentifiableCoordinate(
+                    coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!),
+                    waypoint: $0)
+            }
+            timelineObjects = gpxWaypoints.map {TimelineObject(
+                type:.waypoint,
+                startDate: $0.time,
+                endDate: $0.time,
+                name: $0.name,
+                steps: Int($0.extensions?["Steps"].text ?? "0") ?? 0
+                )
+            }
             
+            var trackDataArray: [TrackData] = []
+            var steps = 0
             for (index, track) in gpxTracks.enumerated() {
                 var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
                 
@@ -292,9 +328,15 @@ struct ContentView: View {
                 let trackStartDate = track.segments.first?.points.first?.time ?? Date()
                 //TODO here if day of date is different from day of track, put midnight of that day.
                 let trackEndDate = track.segments.last?.points.last?.time ?? Date()
-                let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type)
-                timelineObjects.append(trackObject)
+                for trackSegment in track.segments {
+                    for trackPoint in trackSegment.points
+                    {
+                        steps += trackPoint.extensions?["Steps"] as? Int ?? 0
+                    }
+                }
                 
+                let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type, steps: steps)
+                timelineObjects.append(trackObject)
                 trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: track.type ?? ""))
             }
             self.timelineObjects = self.timelineObjects.sorted(by: { $0.startDate ?? Date.distantPast < $1.startDate ?? Date.distantPast })
@@ -302,6 +344,10 @@ struct ContentView: View {
                 if item.type == .waypoint{
                     if index + 1 < timelineObjects.count {
                         item.endDate = timelineObjects[index + 1].startDate
+                    } else
+                    {
+                        //TODO here if day of date is different from day of track, put midnight of that day.
+                        item.endDate = Date()
                     }
                 }
                 if item.startDate != nil && item.endDate != nil
@@ -309,9 +355,7 @@ struct ContentView: View {
 
                     item.duration = calculateDuration (from: item.startDate!, to: item.endDate!)
                 }
-
             }
-        
             
             self.tracks = trackDataArray
             self.hasDataForSelectedDate = true // Indicate data is available for this day

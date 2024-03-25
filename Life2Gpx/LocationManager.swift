@@ -23,7 +23,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         if let savedTimestamp = UserDefaults.standard.object(forKey: "lastUpdateTimestamp") as? Date {
              lastUpdateTimestamp = savedTimestamp
-         }
+        }
+        
         setupLocationManager()
         setupMotionActivityManager()
         setupPedometer()
@@ -73,6 +74,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
         
         
+        if previousSavedLocation == nil{
+            GPXManager.shared.loadFile(forDate: Date())
+            {   loadedGpxWaypoints, loadedGpxTracks in
+                
+            }
+        }
         if let previousSavedLocation = previousSavedLocation
         {
             let distanceFromPrevious = previousSavedLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
@@ -95,7 +102,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             {
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
-                appendLocationToFile(type: "Moving")
+                appendLocationToFile(type: "Moving", debug: "No PreviousLocation")
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
             }
@@ -123,7 +130,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         appendLocationToFile(type: "Stationary")
     }
     
-    private func appendLocationToFile(type: String) {
+    private func appendLocationToFile(type: String, debug: String = "") {
         guard let location = currentFilteredLocation else {
             print("No location to save")
             return
@@ -171,6 +178,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     {
                         customExtensionData["Steps"] = String(self.latestPedometerSteps)
                         self.latestPedometerSteps = 0
+                    }
+                    
+                    if debug != "" {
+                        customExtensionData["Debug"] = debug
                     }
                     // Convert CMMotionActivityConfidence to a string
                     if let activity = self.latestActivity {
@@ -262,6 +273,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         "HorizontalPrecision": String(location.horizontalAccuracy),
                         "VerticalPrecision": String(location.verticalAccuracy)
                     ]
+                    
+                    if debug != "" {
+                        customExtensionData["Debug"] = debug
+                    }
+                    
                     if self.latestPedometerSteps > 0
                     {
                         customExtensionData["Steps"] = String(self.latestPedometerSteps)
