@@ -74,10 +74,33 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
         
         
-        if previousSavedLocation == nil{
-            GPXManager.shared.loadFile(forDate: Date())
-            {   loadedGpxWaypoints, loadedGpxTracks in
-                
+        if previousSavedLocation == nil {
+            GPXManager.shared.loadFile(forDate: Date()) { [weak self] loadedGpxWaypoints, loadedGpxTracks in
+                var allLocations: [(location: CLLocation, date: Date)] = []
+
+                // Add waypoints to the collection
+                for waypoint in loadedGpxWaypoints {
+                    if let date = waypoint.time {
+                        allLocations.append((CLLocation(latitude: waypoint.latitude ?? 0, longitude: waypoint.longitude ?? 0), date))
+                    }
+                }
+
+                // Add trackpoints to the collection
+                for track in loadedGpxTracks {
+                    for segment in track.segments {
+                        for trackpoint in segment.points {
+                            if let date = trackpoint.time {
+                                allLocations.append((CLLocation(latitude: trackpoint.latitude ?? 0, longitude: trackpoint.longitude ?? 0), date))
+                            }
+                        }
+                    }
+                }
+
+                // Sort all locations by date
+                allLocations.sort { $0.date < $1.date }
+
+                // Update previousSavedLocation with the most recent location, if available
+                self?.previousSavedLocation = allLocations.last?.location
             }
         }
         if let previousSavedLocation = previousSavedLocation
