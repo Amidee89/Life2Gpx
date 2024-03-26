@@ -16,7 +16,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let motionManager = CMMotionManager()
     private var latestActivity: CMMotionActivity?
     private let pedometer = CMPedometer()
-    private var pedometerStartDate: Date?
+    private var lastPedometerCheckDate: Date?
     private var latestPedometerSteps: Int = 0
     
     override init() {
@@ -41,9 +41,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func setupPedometer() {
         if CMPedometer.isStepCountingAvailable() {
-            pedometerStartDate = Date()
+            lastPedometerCheckDate = Date()
         } else {
             print("Step counting not available")
+            latestPedometerSteps = -1
         }
     }
     private func processActivity(_ activity: CMMotionActivity?) {
@@ -137,7 +138,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         customDistanceFilter = 20
         resetLocationUpdateTimer()
-        pedometerStartDate = Date()
     }
     
     private func resetLocationUpdateTimer() {
@@ -148,7 +148,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func adjustSettingsForStationary() {
-        pedometerStartDate = Date() // Reset the start date for step counting
+
         customDistanceFilter = 60 // Reset custom distance filter for movement
         appendLocationToFile(type: "Stationary")
     }
@@ -160,7 +160,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         let dispatchGroup = DispatchGroup()
 
-        if let startDate = self.pedometerStartDate {
+        if let startDate = self.lastPedometerCheckDate {
             dispatchGroup.enter()
             
             self.pedometer.queryPedometerData(from: startDate, to: Date()) { data, error in
@@ -183,6 +183,24 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                
                 var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
                 var gpxWaypoints = loadedGpxWaypoints
+                
+                //steps we add to the previous element
+                var stepsExtensionData: [String: String] = [:]
+                if self.latestPedometerSteps > 0
+                {
+                    stepsExtensionData["Steps"] = String(self.latestPedometerSteps)
+                    if let lastElement = self.getMostRecentGPXElement(waypoints: gpxWaypoints, tracks: gpxTracks){
+                        lastElement.extensions?.append(at: nil, contents: stepsExtensionData)
+                    }
+                    self.lastPedometerCheckDate = Date()
+                }
+                else if self.latestPedometerSteps == -1{
+                    stepsExtensionData["Debug"] = "Steps error"
+                    if let lastElement = self.getMostRecentGPXElement(waypoints: gpxWaypoints, tracks: gpxTracks){
+                        lastElement.extensions?.append(at: nil, contents: stepsExtensionData)
+                    }
+                }
+
                 if type == "Moving"
                 {
                     let newTrackPoint = GPXTrackPoint(
@@ -198,13 +216,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         "Speed": String(location.speed),
                         "SpeedAccuracy": String(location.speedAccuracy),
                     ]
-                    if self.latestPedometerSteps > 0
-                    {
-                        customExtensionData["Steps"] = String(self.latestPedometerSteps)
-                        self.latestPedometerSteps = 0
-                    } else if self.latestPedometerSteps == -1{
-                        customExtensionData["Debug"] = "Steps error"
-                    }
                     
                     if debug != "" {
                         customExtensionData["Debug"] = debug
@@ -227,8 +238,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         if activity.automotive { customExtensionData["Automotive"] = "True" }
                         if activity.stationary { customExtensionData["Stationary"] = "True" }
                     }
-                    
-                    self.pedometerStartDate = Date()
                     
                     let extensions = GPXExtensions()
                     extensions.append(at: nil, contents: customExtensionData)
@@ -284,7 +293,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         {
                             newTrack.type = lastMajorActivityType
                         }
-                        
                         gpxTracks.append(newTrack)
                     }
                 }
@@ -303,24 +311,33 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     if debug != "" {
                         customExtensionData["Debug"] = debug
                     }
-                    
-                    if self.latestPedometerSteps > 0
-                    {
-                        customExtensionData["Steps"] = String(self.latestPedometerSteps)
-                        self.latestPedometerSteps = 0
-                    }
-                    else if self.latestPedometerSteps == -1{
-                        customExtensionData["Debug"] = "Steps error"
-                    }
                     let extensions = GPXExtensions()
                     extensions.append(at: nil, contents: customExtensionData)
                     newWaypoint.extensions = extensions
                     gpxWaypoints.append(newWaypoint)
                 }
+
                 
                 // Save the updated data using GPXManager
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
             }
         }
+    }
+    func getMostRecentGPXElement(waypoints: [GPXWaypoint], tracks: [GPXTrack]) -> (GPXWaypoint?) {
+        let lastWaypoint = waypoints.last
+        let lastTrackPoint = tracks.last?.segments.last?.points.last
+
+        if let waypointTime = lastWaypoint?.time, let trackpointTime = lastTrackPoint?.time {
+            if waypointTime > trackpointTime {
+                return (lastWaypoint)
+            } else {
+                return (lastTrackPoint)
+            }
+        } else if lastWaypoint != nil {
+            return (lastWaypoint )
+        } else if lastTrackPoint != nil {
+            return (lastTrackPoint as GPXWaypoint?)
+        }
+        return (nil)
     }
 }
