@@ -326,8 +326,7 @@ struct ContentView: View {
                     }
                 }
                 let trackStartDate = track.segments.first?.points.first?.time ?? Date()
-                //TODO here if day of date is different from day of track, put midnight of that day.
-                let trackEndDate = track.segments.last?.points.last?.time ?? Date()
+                let trackEndDate = track.segments.last?.points.last?.time ?? trackStartDate
                 for trackSegment in track.segments {
                     for trackPoint in trackSegment.points
                     {
@@ -346,8 +345,7 @@ struct ContentView: View {
                         item.endDate = timelineObjects[index + 1].startDate
                     } else
                     {
-                        //TODO here if day of date is different from day of track, put midnight of that day.
-                        item.endDate = Date()
+                        item.endDate = adjustDateToEndOfDayIfNeeded(date: Date(), comparedToDate: selectedDate)
                     }
                 }
                 if item.startDate != nil && item.endDate != nil
@@ -390,6 +388,19 @@ struct ContentView: View {
         return formatter.string(from: date)
     }
     
+    private func adjustDateToEndOfDayIfNeeded(date: Date, comparedToDate selectedDate: Date) -> Date {
+        let calendar = Calendar.current
+        if !calendar.isDate(date, inSameDayAs: selectedDate) {
+            // If the date is not in the same day as selectedDate, adjust to end of selectedDate
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+            dateComponents.hour = 23
+            dateComponents.minute = 59
+            dateComponents.second = 59
+            return calendar.date(from: dateComponents) ?? date
+        }
+        return date
+    }
+
     private func calculateDuration(from startDate: Date, to endDate: Date) -> String {
         let interval = endDate.timeIntervalSince(startDate)
         let hours = Int(interval) / 3600 // Total seconds divided by number of seconds in an hour
