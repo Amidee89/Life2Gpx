@@ -179,12 +179,8 @@ struct ContentView: View {
                                 if let startDate = item.startDate {
                                     Text("\(formatDateToHoursMinutes(startDate))")
                                         .bold()
-                                    
                                 }
-                                
                                 Text(item.duration)
-                                    
-                                
                             }
                             .frame(minWidth: 90)
                             Group
@@ -193,7 +189,6 @@ struct ContentView: View {
                                     
                                     Image(systemName: "smallcircle.filled.circle")
                                         .foregroundColor(.gray)
-                                    
                                 }
                                 else
                                 {
@@ -220,7 +215,7 @@ struct ContentView: View {
                                     }
                                 }
                             }    
-                            .frame(minWidth: 20)
+                            .frame(minWidth: 30)
 
                             VStack (alignment:.leading)
                             {
@@ -232,9 +227,22 @@ struct ContentView: View {
                                 {
                                     Text(item.trackType?.capitalized ?? "Movement")
                                 }
-                                Text("Steps: \(item.steps)")
-
-                            }
+                                HStack{
+                                    if item.meters > 0 {
+                                        if item.meters < 1000{
+                                            Text("\(item.meters) m")
+                                                .font(.footnote)
+                                        }else{
+                                            Text("\(item.meters/1000) km")
+                                                .font(.footnote)
+                                        }
+                                    }
+                                    if item.steps > 0{
+                                        Text("\(item.steps) steps")
+                                            .font(.footnote)
+                                    }
+                                }
+                            }.padding(3)
 
                         }
                     }
@@ -314,8 +322,10 @@ struct ContentView: View {
             }
             
             var trackDataArray: [TrackData] = []
-            var steps = 0
+            
             for (index, track) in gpxTracks.enumerated() {
+                var steps = 0
+                var totalDistanceMeters: Double = 0
                 var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
                 
                 // Check if this is not the last track and append the first point of the next track if necessary
@@ -328,13 +338,16 @@ struct ContentView: View {
                 let trackStartDate = track.segments.first?.points.first?.time ?? Date()
                 let trackEndDate = track.segments.last?.points.last?.time ?? trackStartDate
                 for trackSegment in track.segments {
-                    for trackPoint in trackSegment.points
+                    for (index, trackPoint) in trackSegment.points.enumerated()
                     {
+                        if index < trackSegment.points.count - 1 {
+                            totalDistanceMeters += calculateDistance(from: trackPoint, to: trackSegment.points[index+1])
+                        }
                         steps += trackPoint.extensions?["Steps"] as? Int ?? 0
                     }
                 }
                 
-                let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type, steps: steps)
+                let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type, steps: steps, meters: Int(totalDistanceMeters))
                 timelineObjects.append(trackObject)
                 trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: track.type ?? ""))
             }
@@ -412,6 +425,12 @@ struct ContentView: View {
 
         }
     }
+    private func calculateDistance(from startCoordinate: GPXTrackPoint, to endCoordinate: GPXTrackPoint) -> Double {
+        let startLocation = CLLocation(latitude: startCoordinate.latitude ?? 0, longitude: startCoordinate.longitude ?? 0)
+        let endLocation = CLLocation(latitude: endCoordinate.latitude ?? 0, longitude: endCoordinate.longitude ?? 0)
+        return startLocation.distance(from: endLocation) // Returns distance in meters
+    }
+
 }
 
 struct IdentifiableCoordinate: Identifiable {
