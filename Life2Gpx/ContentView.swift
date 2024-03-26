@@ -241,6 +241,18 @@ struct ContentView: View {
                                         Text("\(item.steps) steps")
                                             .font(.footnote)
                                     }
+                                    if item.averageSpeed > 0 {
+                                        Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
+                                            .font(.footnote)
+                                    }
+                                    if item.numberOfPoints == 1 {
+                                        Text("\(item.numberOfPoints) point")
+                                            .font(.footnote)
+                                    } else if item.numberOfPoints > 1 {
+                                        Text("\(item.numberOfPoints) points")
+                                            .font(.footnote)
+                                    }
+                                    
                                 }
                             }.padding(3)
 
@@ -327,6 +339,7 @@ struct ContentView: View {
                 var steps = 0
                 var totalDistanceMeters: Double = 0
                 var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
+                let numberOfPoints = trackCoordinates.count
                 
                 // Check if this is not the last track and append the first point of the next track if necessary
                 if index < gpxTracks.count - 1 {
@@ -346,8 +359,16 @@ struct ContentView: View {
                         steps += trackPoint.extensions?["Steps"] as? Int ?? 0
                     }
                 }
-                
-                let trackObject = TimelineObject(type: .track, startDate: trackStartDate, endDate: trackEndDate, trackType: track.type, steps: steps, meters: Int(totalDistanceMeters))
+                let averageSpeed = (totalDistanceMeters / 1000) / (trackEndDate.timeIntervalSince(trackStartDate) / 3600)
+                let trackObject = TimelineObject(
+                    type: .track,
+                    startDate: trackStartDate,
+                    endDate: trackEndDate,
+                    trackType: track.type,
+                    steps: steps,
+                    meters: Int(totalDistanceMeters),
+                    numberOfPoints: numberOfPoints,
+                    averageSpeed: averageSpeed)
                 timelineObjects.append(trackObject)
                 trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: track.type ?? ""))
             }

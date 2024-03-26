@@ -28,7 +28,10 @@ class TimelineObject: Identifiable {
     var duration: String
     var steps: Int
     var meters: Int
-    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0) {
+    var numberOfPoints : Int
+    var averageSpeed: Double //kmh
+    
+    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0, numberOfPoints : Int = 0, averageSpeed : Double = 0) {
         self.type = type
         self.startDate = startDate
         self.endDate = endDate
@@ -37,5 +40,7 @@ class TimelineObject: Identifiable {
         self.duration = duration
         self.steps = steps
         self.meters = meters
+        self.numberOfPoints = numberOfPoints
+        self.averageSpeed = averageSpeed
     }
 }

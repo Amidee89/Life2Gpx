@@ -172,6 +172,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     self.latestPedometerSteps = pedometerData.numberOfSteps.intValue
                 } else {
                     print("Pedometer data error: \(error?.localizedDescription ?? "unknown error")")
+                    self.latestPedometerSteps = -1
                 }
             }
         }
@@ -201,6 +202,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     {
                         customExtensionData["Steps"] = String(self.latestPedometerSteps)
                         self.latestPedometerSteps = 0
+                    } else if self.latestPedometerSteps == -1{
+                        customExtensionData["Debug"] = "Steps error"
                     }
                     
                     if debug != "" {
@@ -305,6 +308,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     {
                         customExtensionData["Steps"] = String(self.latestPedometerSteps)
                         self.latestPedometerSteps = 0
+                    }
+                    else if self.latestPedometerSteps == -1{
+                        customExtensionData["Debug"] = "Steps error"
                     }
                     let extensions = GPXExtensions()
                     extensions.append(at: nil, contents: customExtensionData)
