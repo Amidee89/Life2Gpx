@@ -178,51 +178,54 @@ struct ContentView: View {
                         Spacer()
                     }
                     List(timelineObjects) { item in
-                        HStack{
+                        
+                        HStack {
                             
-                            VStack{
+                            VStack (alignment: .trailing ){
                                 if let startDate = item.startDate {
                                     Text("\(formatDateToHoursMinutes(startDate))")
                                         .bold()
                                 }
                                 Text(item.duration)
                             }
-                            .frame(minWidth: 90)
-                            Group
-                            {
-                                if (item.type == .waypoint){
-                                    
-                                    Image(systemName: "smallcircle.filled.circle")
-                                        .foregroundColor(.gray)
-                                }
-                                else
+                            .frame(minWidth:80, alignment: .trailing)
+                            HStack {
+                                VStack(alignment: .center)
                                 {
-                                    switch item.trackType
+                                    if (item.type == .waypoint){
+                                        
+                                        Image(systemName: "smallcircle.filled.circle")
+                                            .foregroundColor(.gray)
+                                    }
+                                    else
                                     {
-                                    case "cycling":
-                                        Image(systemName: "figure.outdoor.cycle")
-                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "cycling"])
-                                        
-                                    case "walking":
-                                        Image(systemName: "figure.walk")
-                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "walking"])
-                                        
-                                    case "running":
-                                        Image(systemName: "figure.run")
-                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "running"])
-                                        
-                                    case "automotive":
-                                        Image(systemName: "car.fill")
-                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "automotive"])
-                                    default:
-                                        Image(systemName: "arrow.down")
-                                            .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
+                                        switch item.trackType
+                                        {
+                                        case "cycling":
+                                            Image(systemName: "figure.outdoor.cycle")
+                                                .foregroundColor(trackTypeColorMapping[item.trackType ?? "cycling"])
+                                            
+                                        case "walking":
+                                            Image(systemName: "figure.walk")
+                                                .foregroundColor(trackTypeColorMapping[item.trackType ?? "walking"])
+                                            
+                                        case "running":
+                                            Image(systemName: "figure.run")
+                                                .foregroundColor(trackTypeColorMapping[item.trackType ?? "running"])
+                                            
+                                        case "automotive":
+                                            Image(systemName: "car.fill")
+                                                .foregroundColor(trackTypeColorMapping[item.trackType ?? "automotive"])
+                                        default:
+                                            Image(systemName: "arrow.down")
+                                                .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
+                                        }
                                     }
                                 }
-                            }    
-                            .frame(minWidth: 30)
+                                .frame(width: 35, alignment: .center)
+                            }
 
-                            VStack (alignment:.leading)
+                            VStack (alignment: .leading)
                             {
                                 if item.type == .waypoint
                                 {
@@ -237,7 +240,8 @@ struct ContentView: View {
                                         if item.meters < 1000{
                                             Text("\(item.meters) m")
                                                 .font(.footnote)
-                                        }else{
+                                        }
+                                        else{
                                             Text("\(item.meters/1000) km")
                                                 .font(.footnote)
                                         }
@@ -250,22 +254,24 @@ struct ContentView: View {
                                         Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
                                             .font(.footnote)
                                     }
-                                    if item.numberOfPoints == 1 {
-                                        Text("\(item.numberOfPoints) point")
-                                            .font(.footnote)
-                                    } else if item.numberOfPoints > 1 {
-                                        Text("\(item.numberOfPoints) points")
-                                            .font(.footnote)
-                                    }
+                                    
                                     
                                 }
-                            }.padding(3)
-
+                                if item.numberOfPoints == 1 {
+                                    Text("\(item.numberOfPoints) point")
+                                        .font(.footnote)
+                                } 
+                                else if item.numberOfPoints > 1 {
+                                    Text("\(item.numberOfPoints) points")
+                                        .font(.footnote)
+                                }
+                            }
                         }
                     }
                     .refreshable {
                        refreshData()
                     }
+                    .listStyle(PlainListStyle())
                 }
 
             }

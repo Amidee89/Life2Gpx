@@ -50,7 +50,7 @@ func loadTimelineForDate (_ selectedDate: Date, completion: @escaping ([Timeline
                     if index < trackSegment.points.count - 1 {
                         totalDistanceMeters += calculateDistance(from: trackPoint, to: trackSegment.points[index+1])
                     }
-                    steps += trackPoint.extensions?["Steps"] as? Int ?? 0
+                    steps += Int(trackPoint.extensions?["Steps"].text ?? "0") ?? 0
                 }
             }
             let averageSpeed = (totalDistanceMeters / 1000) / (trackEndDate.timeIntervalSince(trackStartDate) / 3600)
