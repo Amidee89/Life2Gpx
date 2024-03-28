@@ -5,6 +5,9 @@
 //  Created by Marco Carandente on 17.2.2024.
 //
 import SwiftUI
+import CoreLocation
+
+import CoreGPX
 
 let trackTypeColorMapping: [String: Color] = [
     "walking": .green,
@@ -30,8 +33,9 @@ class TimelineObject: Identifiable {
     var meters: Int
     var numberOfPoints : Int
     var averageSpeed: Double //kmh
+    var identifiableCoordinates: [IdentifiableCoordinates]
     
-    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0, numberOfPoints : Int = 0, averageSpeed : Double = 0) {
+    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0, numberOfPoints : Int = 0, averageSpeed : Double = 0, coordinates: [IdentifiableCoordinates] = []) {
         self.type = type
         self.startDate = startDate
         self.endDate = endDate
@@ -42,5 +46,11 @@ class TimelineObject: Identifiable {
         self.meters = meters
         self.numberOfPoints = numberOfPoints
         self.averageSpeed = averageSpeed
+        self.identifiableCoordinates = coordinates
     }
+}
+
+struct IdentifiableCoordinates: Identifiable {
+    let id = UUID()
+    var coordinates: [CLLocationCoordinate2D]
 }

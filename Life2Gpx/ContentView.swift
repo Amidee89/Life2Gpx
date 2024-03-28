@@ -9,21 +9,19 @@ import MapKit
 import CoreGPX
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     @StateObject private var locationManager = LocationManager()
+
     @State private var selectedDate = Date()
     @State private var cameraPosition: MapCameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)))
-    @State private var tracks: [TrackData] = [] // Changed to store tracks with type information
-    @State private var stopLocations: [IdentifiableCoordinate] = []
-    @State private var hasDataForSelectedDate = false
     @State private var minDate: Date = Date()
     @State private var maxDate: Date = Date()
-    @Environment(\.scenePhase) private var scenePhase
     @State private var lastBackgroundTime: Date? = nil
+    @State private var timelineObjects: [TimelineObject] = []
+    
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
-    @State private var timelineHeight: CGFloat = 300
-    @State private var timelineObjects: [TimelineObject] = []
-
 
     var body: some View {
         GeometryReader { geometry in
@@ -36,19 +34,26 @@ struct ContentView: View {
                     ) {
                         
                         // Use MapPolyline to display the path
-                        ForEach(tracks, id: \.id) { track in
-                            MapPolyline(coordinates: track.coordinates)
-                                .stroke(trackTypeColorMapping[track.trackType.lowercased()] ?? .purple,
-                                        style: StrokeStyle(lineWidth: 8,lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        ForEach(timelineObjects.filter { $0.type == .track }, id: \.id) { trackObject in
+                              ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
+                                  MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                                      .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple, 
+                                              style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                              }
                         }
-                        ForEach(stopLocations) { location in
-                            Annotation(location.waypoint.name ?? "Stop", coordinate: location.coordinate) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.white)
-                                    Circle()
-                                        .fill(Color.black)
-                                        .padding(4)
+                        
+                        ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
+                            if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
+                            {
+                                Annotation(waypointObject.name ?? "Stop", coordinate: coordinate)
+                                {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                        Circle()
+                                            .fill(Color.black)
+                                            .padding(4)
+                                    }
                                 }
                             }
                         }
@@ -78,7 +83,7 @@ struct ContentView: View {
                                 }
                             }                            
                             Group{
-                                if !hasDataForSelectedDate{
+                                if timelineObjects.isEmpty{
                                     Text("No data for this day")
                                             .padding()
                                             .background(Color.black.opacity(0.8))
@@ -278,7 +283,7 @@ struct ContentView: View {
 
     private func recenter() {
         // Combine all coordinates from tracks and stop locations
-        let allCoordinates = tracks.flatMap { $0.coordinates } + stopLocations.map { $0.coordinate }
+        let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap {$0.coordinates} }
         guard !allCoordinates.isEmpty else { return }
 
         // Find the max and min latitudes and longitudes
@@ -307,90 +312,8 @@ struct ContentView: View {
                 maxDate = latestDate
             }
         }
-        loadFileForDate(selectedDate)
-    }
-    
-    private func loadFileForDate(_ date: Date) {
-        GPXManager.shared.loadFile(forDate: date) { gpxWaypoints, gpxTracks in
-            if gpxWaypoints.isEmpty && gpxTracks.isEmpty {
-                self.hasDataForSelectedDate = false
-                self.tracks = []
-                self.stopLocations = []
-                return
-            }
-
-            stopLocations = gpxWaypoints.map {
-                IdentifiableCoordinate(
-                    coordinate: CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!),
-                    waypoint: $0)
-            }
-            timelineObjects = gpxWaypoints.map {TimelineObject(
-                type:.waypoint,
-                startDate: $0.time,
-                endDate: $0.time,
-                name: $0.name,
-                steps: Int($0.extensions?["Steps"].text ?? "0") ?? 0
-                )
-            }
-            
-            var trackDataArray: [TrackData] = []
-            
-            for (index, track) in gpxTracks.enumerated() {
-                var steps = 0
-                var totalDistanceMeters: Double = 0
-                var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
-                let numberOfPoints = trackCoordinates.count
-                
-                // Check if this is not the last track and append the first point of the next track if necessary
-                if index < gpxTracks.count - 1 {
-                    let nextTrackFirstPoint = gpxTracks[index + 1].segments.first?.points.first
-                    if let nextTrackFirstCoordinate = nextTrackFirstPoint {
-                        trackCoordinates.append(CLLocationCoordinate2D(latitude: nextTrackFirstCoordinate.latitude!, longitude: nextTrackFirstCoordinate.longitude!))
-                    }
-                }
-                let trackStartDate = track.segments.first?.points.first?.time ?? Date()
-                let trackEndDate = track.segments.last?.points.last?.time ?? trackStartDate
-                for trackSegment in track.segments {
-                    for (index, trackPoint) in trackSegment.points.enumerated()
-                    {
-                        if index < trackSegment.points.count - 1 {
-                            totalDistanceMeters += calculateDistance(from: trackPoint, to: trackSegment.points[index+1])
-                        }
-                        steps += trackPoint.extensions?["Steps"] as? Int ?? 0
-                    }
-                }
-                let averageSpeed = (totalDistanceMeters / 1000) / (trackEndDate.timeIntervalSince(trackStartDate) / 3600)
-                let trackObject = TimelineObject(
-                    type: .track,
-                    startDate: trackStartDate,
-                    endDate: trackEndDate,
-                    trackType: track.type,
-                    steps: steps,
-                    meters: Int(totalDistanceMeters),
-                    numberOfPoints: numberOfPoints,
-                    averageSpeed: averageSpeed)
-                timelineObjects.append(trackObject)
-                trackDataArray.append(TrackData(coordinates: trackCoordinates, trackType: track.type ?? ""))
-            }
-            self.timelineObjects = self.timelineObjects.sorted(by: { $0.startDate ?? Date.distantPast < $1.startDate ?? Date.distantPast })
-            for (index, item) in timelineObjects.enumerated() {
-                if item.type == .waypoint{
-                    if index + 1 < timelineObjects.count {
-                        item.endDate = timelineObjects[index + 1].startDate
-                    } else
-                    {
-                        item.endDate = adjustDateToEndOfDayIfNeeded(date: Date(), comparedToDate: selectedDate)
-                    }
-                }
-                if item.startDate != nil && item.endDate != nil
-                {
-
-                    item.duration = calculateDuration (from: item.startDate!, to: item.endDate!)
-                }
-            }
-            
-            self.tracks = trackDataArray
-            self.hasDataForSelectedDate = true // Indicate data is available for this day
+        loadTimelineForDate(selectedDate) { timelineObjects in
+            self.timelineObjects = timelineObjects
         }
     }
     
@@ -412,7 +335,7 @@ struct ContentView: View {
         
         if elapsedTime > 3600 {
             selectedDate = currentDate
-            loadFileForDate(selectedDate)
+            refreshData()
         }
     }
     
@@ -421,46 +344,4 @@ struct ContentView: View {
         formatter.dateFormat = "HH:mm" // Hour:Minutes format
         return formatter.string(from: date)
     }
-    
-    private func adjustDateToEndOfDayIfNeeded(date: Date, comparedToDate selectedDate: Date) -> Date {
-        let calendar = Calendar.current
-        if !calendar.isDate(date, inSameDayAs: selectedDate) {
-            // If the date is not in the same day as selectedDate, adjust to end of selectedDate
-            var dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
-            dateComponents.hour = 23
-            dateComponents.minute = 59
-            dateComponents.second = 59
-            return calendar.date(from: dateComponents) ?? date
-        }
-        return date
-    }
-
-    private func calculateDuration(from startDate: Date, to endDate: Date) -> String {
-        let interval = endDate.timeIntervalSince(startDate)
-        let hours = Int(interval) / 3600 // Total seconds divided by number of seconds in an hour
-        let minutes = Int(interval) % 3600 / 60 // Remainder of the above division, divided by number of seconds in a minute
-        if (hours > 0){
-            return String(format: "%01dh %01dm", hours, minutes)
-        }else{
-            return String(format: "%01dm",  minutes)
-
-        }
-    }
-    private func calculateDistance(from startCoordinate: GPXTrackPoint, to endCoordinate: GPXTrackPoint) -> Double {
-        let startLocation = CLLocation(latitude: startCoordinate.latitude ?? 0, longitude: startCoordinate.longitude ?? 0)
-        let endLocation = CLLocation(latitude: endCoordinate.latitude ?? 0, longitude: endCoordinate.longitude ?? 0)
-        return startLocation.distance(from: endLocation) // Returns distance in meters
-    }
-
-}
-
-struct IdentifiableCoordinate: Identifiable {
-    let id = UUID()
-    var coordinate: CLLocationCoordinate2D
-    var waypoint: GPXWaypoint
-}
-struct TrackData: Identifiable {
-    let id = UUID()
-    var coordinates: [CLLocationCoordinate2D]
-    var trackType: String // "walking", etc.
 }

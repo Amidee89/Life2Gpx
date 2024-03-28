@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */ = {isa = PBXBuildFile; productRef = A9492B462B8A7FD10059DAB6 /* CoreGPX */; };
+		A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */; };
 		A95FDABB2B810CC100097276 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABA2B810CC100097276 /* Models.swift */; };
 		A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABC2B82257A00097276 /* GPXManager.swift */; };
 		A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA52B66E692004A010E /* Life2GpxApp.swift */; };
@@ -39,6 +40,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineManager.swift; sourceTree = "<group>"; };
 		A95FDABA2B810CC100097276 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		A95FDABC2B82257A00097276 /* GPXManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPXManager.swift; sourceTree = "<group>"; };
 		A9B62FA22B66E692004A010E /* Life2Gpx.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Life2Gpx.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -114,6 +116,7 @@
 				A95FDABA2B810CC100097276 /* Models.swift */,
 				A95FDABC2B82257A00097276 /* GPXManager.swift */,
 				A9F47B8D2BAB735D001355A9 /* Preview.swift */,
+				A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */,
 			);
 			path = Life2Gpx;
 			sourceTree = "<group>";
@@ -279,6 +282,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */,
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
 				A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */,

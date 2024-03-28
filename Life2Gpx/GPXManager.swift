@@ -43,7 +43,6 @@ class GPXManager {
             completion([], []) // File does not exist or can't be parsed
             return
         }
-
         completion(gpx.waypoints, gpx.tracks)
     }
 
