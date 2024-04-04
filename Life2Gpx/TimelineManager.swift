@@ -77,9 +77,11 @@ func loadTimelineForDate (_ selectedDate: Date, completion: @escaping ([Timeline
                     item.endDate = adjustDateToEndOfDayIfNeeded(date: Date(), comparedToDate: selectedDate)
                 }
             }
-            if item.startDate != nil && item.endDate != nil
+            if item.startDate != nil && index + 1 < timelineObjects.count
             {
                 
+                item.duration = calculateDuration (from: item.startDate!, to: timelineObjects[index+1].startDate!)
+            } else if (item.startDate != nil && item.endDate != nil){
                 item.duration = calculateDuration (from: item.startDate!, to: item.endDate!)
             }
         }
