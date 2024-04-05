@@ -267,11 +267,17 @@ struct ContentView: View {
                                 }
                             }
                         }
+                        //.listRowSeparator(.hidden)
+                        .alignmentGuide(.listRowSeparatorLeading) 
+                            { viewDimensions in viewDimensions[.leading] }
+                            
                     }
                     .refreshable {
                        refreshData()
                     }
                     .listStyle(PlainListStyle())
+                    
+    
                 }
 
             }
