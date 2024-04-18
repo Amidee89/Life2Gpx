@@ -19,7 +19,8 @@ struct ContentView: View {
     @State private var maxDate: Date = Date()
     @State private var lastBackgroundTime: Date? = nil
     @State private var timelineObjects: [TimelineObject] = []
-    
+    @State private var selectedTimelineObjectID: UUID?
+
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
 
@@ -268,12 +269,24 @@ struct ContentView: View {
                             }
                         }
                         //.listRowSeparator(.hidden)
-                        .alignmentGuide(.listRowSeparatorLeading) 
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading) // Extend HStack
+                        .contentShape(Rectangle()) // Make the entire area tappable
+
+                        .alignmentGuide(.listRowSeparatorLeading)
                             { viewDimensions in viewDimensions[.leading] }
-                            
+                        //.background(item.id == selectedTimelineObjectID ? Color.blue.opacity(0.3) : Color.clear)
+                        .onTapGesture {
+                            withAnimation {
+                                selectAndCenter(item)
+                            }
+                        }
+
+                        .listRowBackground(item.id == selectedTimelineObjectID ? Color.blue.opacity(0.3) : Color.clear)
+
                     }
                     .refreshable {
                        refreshData()
+                        
                     }
                     .listStyle(PlainListStyle())
                     
@@ -294,28 +307,38 @@ struct ContentView: View {
     }
 
     private func recenter() {
-        // Combine all coordinates from tracks and stop locations
-        let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap {$0.coordinates} }
+        let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
         guard !allCoordinates.isEmpty else { return }
 
-        // Find the max and min latitudes and longitudes
-        let maxLat = allCoordinates.map { $0.latitude }.max()!
-        let minLat = allCoordinates.map { $0.latitude }.min()!
-        let maxLon = allCoordinates.map { $0.longitude }.max()!
-        let minLon = allCoordinates.map { $0.longitude }.min()!
-
-        // Calculate the span to include all points
-        let latDelta = max(maxLat - minLat, 0.001) * 1.4
-        let lonDelta = max(maxLon - minLon, 0.001) * 1.4
-
-        //Calculate the center. Does this work if we pass from -180 to +180? I guess Fiji users will find out nicely.
-        let centerLat = (maxLat + minLat) / 2
-        let centerLon = (maxLon + minLon) / 2
+        let centerLat = (allCoordinates.map { $0.latitude }.max()! + allCoordinates.map { $0.latitude }.min()!) / 2
+        let centerLon = (allCoordinates.map { $0.longitude }.max()! + allCoordinates.map { $0.longitude }.min()!) / 2
         let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
-
-        let span = MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+        let span = calculateSpan(for: allCoordinates)
         self.cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
     }
+    
+    private func selectAndCenter(_ item: TimelineObject) {
+         // Deselect all and select the current one
+         for index in timelineObjects.indices {
+             timelineObjects[index].selected = false
+         }
+         if let index = timelineObjects.firstIndex(where: { $0.id == item.id }) {
+             timelineObjects[index].selected = true
+             selectedTimelineObjectID = item.id
+             recenterOn(coordinates: timelineObjects[index].identifiableCoordinates.flatMap { $0.coordinates })
+         }
+     }
+    
+    private func recenterOn(coordinates: [CLLocationCoordinate2D]) {
+        guard !coordinates.isEmpty else { return }
+        let centerLat = (coordinates.map { $0.latitude }.max()! + coordinates.map { $0.latitude }.min()!) / 2
+        let centerLon = (coordinates.map { $0.longitude }.max()! + coordinates.map { $0.longitude }.min()!) / 2
+        let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
+        let span = calculateSpan(for: coordinates)
+        cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
+    }
+
+    
     
     private func refreshData() {
         GPXManager.shared.getDateRange { earliest, latest in
@@ -356,4 +379,19 @@ struct ContentView: View {
         formatter.dateFormat = "HH:mm" // Hour:Minutes format
         return formatter.string(from: date)
     }
+    
+    func calculateSpan(for coordinates: [CLLocationCoordinate2D]) -> MKCoordinateSpan {
+        guard !coordinates.isEmpty else { return MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05) }
+
+        let maxLat = coordinates.map { $0.latitude }.max()!
+        let minLat = coordinates.map { $0.latitude }.min()!
+        let maxLon = coordinates.map { $0.longitude }.max()!
+        let minLon = coordinates.map { $0.longitude }.min()!
+
+        let latDelta = max(maxLat - minLat, 0.001) * 1.4
+        let lonDelta = max(maxLon - minLon, 0.001) * 1.4
+
+        return MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+    }
+
 }
