@@ -95,7 +95,7 @@ struct ContentView: View {
                             }
                             Spacer()
                             HStack {
-                                Button(action: recenter) {
+                                Button(action: centerAllData) {
                                     Image(systemName: "location.viewfinder")
                                         .font(.title)
                                         .padding()
@@ -151,7 +151,7 @@ struct ContentView: View {
                         DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
                             .onChange(of: selectedDate) {
                                 refreshData()
-                                recenter()
+                                centerAllData()
                             }
                             .fixedSize()
                             .labelsHidden()
@@ -298,7 +298,7 @@ struct ContentView: View {
             .navigationViewStyle(StackNavigationViewStyle())
             .onAppear {
                 refreshData()
-                recenter()
+                centerAllData()
             }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(newPhase)
@@ -306,15 +306,14 @@ struct ContentView: View {
         }
     }
 
-    private func recenter() {
+    private func centerAllData() {
         let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
-        guard !allCoordinates.isEmpty else { return }
-
-        let centerLat = (allCoordinates.map { $0.latitude }.max()! + allCoordinates.map { $0.latitude }.min()!) / 2
-        let centerLon = (allCoordinates.map { $0.longitude }.max()! + allCoordinates.map { $0.longitude }.min()!) / 2
-        let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
-        let span = calculateSpan(for: allCoordinates)
-        self.cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
+        if !allCoordinates.isEmpty {
+            withAnimation (.easeInOut(duration: 0.5)){
+                recenterOn(coordinates: allCoordinates)
+            }
+            self.selectedTimelineObjectID = nil
+        }
     }
     
     private func selectAndCenter(_ item: TimelineObject) {
@@ -325,7 +324,9 @@ struct ContentView: View {
          if let index = timelineObjects.firstIndex(where: { $0.id == item.id }) {
              timelineObjects[index].selected = true
              selectedTimelineObjectID = item.id
-             recenterOn(coordinates: timelineObjects[index].identifiableCoordinates.flatMap { $0.coordinates })
+             withAnimation (.easeInOut(duration: 0.5)){
+                 recenterOn(coordinates: timelineObjects[index].identifiableCoordinates.flatMap { $0.coordinates })
+             }
          }
      }
     
@@ -335,7 +336,9 @@ struct ContentView: View {
         let centerLon = (coordinates.map { $0.longitude }.max()! + coordinates.map { $0.longitude }.min()!) / 2
         let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
         let span = calculateSpan(for: coordinates)
+        
         cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
+        
     }
 
     
