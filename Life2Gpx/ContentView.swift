@@ -255,9 +255,7 @@ struct ContentView: View {
                                         Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
                                             .font(.footnote)
                                     }
-                                    
-                                    
-                                }
+                                }.frame(minWidth: 80, alignment: .leading) 
                                 if item.numberOfPoints == 1 {
                                     Text("\(item.numberOfPoints) point")
                                         .font(.footnote)
@@ -268,9 +266,9 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        //.listRowSeparator(.hidden)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading) // Extend HStack
-                        .contentShape(Rectangle()) // Make the entire area tappable
+                        //.listRowSeparator(.hidden) //an option for the future?
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
 
                         .alignmentGuide(.listRowSeparatorLeading)
                             { viewDimensions in viewDimensions[.leading] }
