@@ -24,7 +24,8 @@ func loadTimelineForDate (_ selectedDate: Date, completion: @escaping ([Timeline
                 endDate: waypoint.time,
                 name: waypoint.name,
                 steps: Int(waypoint.extensions?["Steps"].text ?? "0") ?? 0,
-                coordinates: [IdentifiableCoordinates(coordinates: [coordinate])]
+                coordinates: [IdentifiableCoordinates(coordinates: [coordinate])],
+                points: [waypoint as GPXWaypoint]
             )
         }
         timelineObjects.append(contentsOf: waypointObjects)
@@ -44,6 +45,7 @@ func loadTimelineForDate (_ selectedDate: Date, completion: @escaping ([Timeline
             }
             let trackStartDate = track.segments.first?.points.first?.time ?? Date()
             let trackEndDate = track.segments.last?.points.last?.time ?? trackStartDate
+            var waypoints : [GPXWaypoint] = []
             for trackSegment in track.segments {
                 for (index, trackPoint) in trackSegment.points.enumerated()
                 {
@@ -51,6 +53,7 @@ func loadTimelineForDate (_ selectedDate: Date, completion: @escaping ([Timeline
                         totalDistanceMeters += calculateDistance(from: trackPoint, to: trackSegment.points[index+1])
                     }
                     steps += Int(trackPoint.extensions?["Steps"].text ?? "0") ?? 0
+                    waypoints.append(trackPoint)
                 }
             }
             let averageSpeed = (totalDistanceMeters / 1000) / (trackEndDate.timeIntervalSince(trackStartDate) / 3600)
@@ -63,7 +66,8 @@ func loadTimelineForDate (_ selectedDate: Date, completion: @escaping ([Timeline
                 meters: Int(totalDistanceMeters),
                 numberOfPoints: numberOfPoints,
                 averageSpeed: averageSpeed,
-                coordinates: [IdentifiableCoordinates(coordinates: trackCoordinates)]
+                coordinates: [IdentifiableCoordinates(coordinates: trackCoordinates)],
+                points: waypoints
             )
             timelineObjects.append(trackObject)
         }

@@ -6,7 +6,6 @@
 //
 import SwiftUI
 import CoreLocation
-
 import CoreGPX
 
 let trackTypeColorMapping: [String: Color] = [
@@ -34,9 +33,11 @@ class TimelineObject: Identifiable {
     var numberOfPoints : Int
     var averageSpeed: Double //kmh
     var identifiableCoordinates: [IdentifiableCoordinates]
+    var points: [GPXWaypoint]
     var selected: Bool
     
-    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0, numberOfPoints : Int = 0, averageSpeed : Double = 0, coordinates: [IdentifiableCoordinates] = []) {
+    
+    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0, numberOfPoints : Int = 0, averageSpeed : Double = 0, coordinates: [IdentifiableCoordinates] = [], points:[GPXWaypoint]=[]) {
         self.type = type
         self.startDate = startDate
         self.endDate = endDate
@@ -48,6 +49,7 @@ class TimelineObject: Identifiable {
         self.numberOfPoints = numberOfPoints
         self.averageSpeed = averageSpeed
         self.identifiableCoordinates = coordinates
+        self.points = points
         self.selected = false
     }
 }

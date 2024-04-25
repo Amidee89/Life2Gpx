@@ -29,103 +29,17 @@ struct ContentView: View {
             NavigationView {
                 VStack
                 {
-                    Map(
-                        position: $cameraPosition,
-                        interactionModes: .all
-                    ) {
-                        
-                        // Use MapPolyline to display the path
-                        ForEach(timelineObjects.filter { $0.type == .track }, id: \.id) { trackObject in
-                              ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
-                                  MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                                      .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple, 
-                                              style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                              }
-                        }
-                        
-                        ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
-                            if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
-                            {
-                                Annotation(waypointObject.name ?? "Stop", coordinate: coordinate)
-                                {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                        Circle()
-                                            .fill(Color.black)
-                                            .padding(4)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .edgesIgnoringSafeArea(.all)
+                    MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
+                            cameraPosition: $cameraPosition
+                    )
                     .overlay(
-                        VStack {
-                            HStack{
-                                Spacer()
-                                if !calendar.isDate(selectedDate, inSameDayAs: Date()){
-                                    Button(action: {
-                                        self.selectedDate = Date()
-                                    }
-                                    ){
-                                        Image(systemName: "forward")
-                                            .font(.title)
-                                            .padding()
-                                            .background(Color.orange)
-                                            .foregroundColor(.white)
-                                            .clipShape(Circle())
-                                            .shadow(radius: 3)
-                                            .scaleEffect(0.8)
-                                    }
-                                    .padding(.trailing, 30)
-                                    .padding(.top,30)
-                                    .transition(.scale)
-                                }
-                            }                            
-                            Group{
-                                if timelineObjects.isEmpty{
-                                    Text("No data for this day")
-                                            .padding()
-                                            .background(Color.black.opacity(0.8))
-                                            .foregroundColor(Color.white)
-                                            .cornerRadius(8)
-                                            .padding()
-                                }
-                            }
-                            Spacer()
-                            HStack {
-                                Button(action: centerAllData) {
-                                    Image(systemName: "location.viewfinder")
-                                        .font(.title)
-                                        .padding()
-                                        .background(Color.blue)
-                                        .foregroundColor(.white)
-                                        .clipShape(Circle())
-                                        .shadow(radius: 3)
-                                        .scaleEffect(0.8)
-                                }
-                                .padding(.leading, 30)
-                                .padding(.bottom, 30)
-                                Spacer()
-                                
-                                Button(action: refreshData) {
-                                    Image(systemName: "arrow.clockwise")
-                                        .font(.title)
-                                        .padding()
-                                        .background(Color.green)
-                                        .foregroundColor(.white)
-                                        .clipShape(Circle())
-                                        .shadow(radius: 3)
-                                        .scaleEffect(0.8)
-
-
-                                }
-                                .padding(.trailing, 30)
-                                .padding(.bottom, 30)
-                            }
-                        },
-                        alignment: .bottom
+                        MapControlsView(
+                            onRefresh: refreshData,
+                            onCenter: centerAllData,
+                            onSelectToday: { selectedDate = Date() },
+                            selectedDate: $selectedDate,
+                            timelineObjects: $timelineObjects
+                        )
                     )
                     HStack {
                         Spacer()
@@ -396,3 +310,5 @@ struct ContentView: View {
     }
 
 }
+
+
