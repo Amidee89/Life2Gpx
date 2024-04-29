@@ -20,24 +20,35 @@ struct MapView: View {
         ) {
             
             // Use MapPolyline to display the path
-            ForEach(timelineObjects.filter { $0.type == .track }, id: \.id) { trackObject in
+            
+            // First loop for non-selected tracks
+            ForEach(timelineObjects.filter { $0.type == .track && $0.id != selectedTimelineObjectID }, id: \.id) { trackObject in
                 ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
-                    if selectedTimelineObjectID == trackObject.id
-                    {
-                        MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                            .stroke(.black,
-                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    }
-                    else
-                    {
-                        MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                            .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
-                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    }
-                    
+                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                        .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                 }
             }
-            
+            if let selectedObject = timelineObjects.first(where: { $0.type == .track && $0.id == selectedTimelineObjectID }) {
+                // Generate new identifiable coordinates for the selected track
+                let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
+                    IdentifiableCoordinates(coordinates: coordinates.coordinates)
+                }
+
+                ForEach(selectedIdentifiableCoordinates, id: \.id) { identifiableCoordinates in
+                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                        .stroke(.white,
+                                style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                        .stroke(.black,
+                                style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                        .stroke(trackTypeColorMapping[selectedObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
+                                style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+
+                }
+            }
+    
             ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
                 if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
                 {
