@@ -13,13 +13,12 @@ struct MapView: View {
     @Binding var timelineObjects: [TimelineObject]
     @Binding var selectedTimelineObjectID: UUID?
     @Binding var cameraPosition: MapCameraPosition 
+    @Binding var selectedDate: Date
     var body: some View {
         Map(
             position: $cameraPosition,
             interactionModes: .all
         ) {
-            
-            // Use MapPolyline to display the path
             
             // First loop for non-selected tracks
             ForEach(timelineObjects.filter { $0.type == .track && $0.id != selectedTimelineObjectID }, id: \.id) { trackObject in
@@ -30,7 +29,7 @@ struct MapView: View {
                 }
             }
             if let selectedObject = timelineObjects.first(where: { $0.type == .track && $0.id == selectedTimelineObjectID }) {
-                // Generate new identifiable coordinates for the selected track
+                // Generate new identifiable coordinates for the selected track, in order to make it appear on top.
                 let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
                     IdentifiableCoordinates(coordinates: coordinates.coordinates)
                 }
@@ -45,27 +44,43 @@ struct MapView: View {
                     MapPolyline(coordinates: identifiableCoordinates.coordinates)
                         .stroke(trackTypeColorMapping[selectedObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
                                 style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-
                 }
             }
     
             ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
                 if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
                 {
-                    Annotation(waypointObject.name ?? "Stop", coordinate: coordinate)
-                    {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white)
-                            Circle()
-                                .fill(Color.black)
-                                .padding(4)
+                    if (waypointObject.id == selectedTimelineObjectID){
+                        Annotation(waypointObject.name ?? "", coordinate: coordinate)
+                        {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.white)
+                                Circle()
+                                    .fill(Color.orange)
+                                    .padding(4)
+                            }
                         }
                     }
+                    else
+                    {
+                        Annotation(waypointObject.name ?? "", coordinate: coordinate)
+                        {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.white)
+                                Circle()
+                                    .fill(Color.black)
+                                    .padding(4)
+                            }
+                        }
+                    }
+
                 }
             }
         }
         .edgesIgnoringSafeArea(.all)
+        
         
     }
 }

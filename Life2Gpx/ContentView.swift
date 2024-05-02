@@ -14,7 +14,7 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
 
     @State private var selectedDate = Date()
-    @State private var cameraPosition: MapCameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)))
+    @State private var cameraPosition: MapCameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 360, longitudeDelta: 360)))
     @State private var minDate: Date = Date()
     @State private var maxDate: Date = Date()
     @State private var lastBackgroundTime: Date? = nil
@@ -30,7 +30,8 @@ struct ContentView: View {
                 VStack
                 {
                     MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
-                            cameraPosition: $cameraPosition
+                            cameraPosition: $cameraPosition,
+                            selectedDate: $selectedDate
                     )
                     .overlay(
                         MapControlsView(
