@@ -19,7 +19,10 @@ struct MapView: View {
             position: $cameraPosition,
             interactionModes: .all
         ) {
-            
+            if calendar.isDate(selectedDate, inSameDayAs: Date())
+            {
+                UserAnnotation()
+            }
             // First loop for non-selected tracks
             ForEach(timelineObjects.filter { $0.type == .track && $0.id != selectedTimelineObjectID }, id: \.id) { trackObject in
                 ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
@@ -80,7 +83,6 @@ struct MapView: View {
             }
         }
         .edgesIgnoringSafeArea(.all)
-        
-        
+
     }
 }

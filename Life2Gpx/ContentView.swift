@@ -173,14 +173,15 @@ struct ContentView: View {
     }
     
     private func checkAndLoadTodayIfNeeded() {
-        guard let lastActiveDate = defaults.object(forKey: "LastActiveTime") as? Date else { return }
+        let lastActiveDate = defaults.object(forKey: "LastActiveTime") as? Date
         let currentDate = Date()
-        let elapsedTime = currentDate.timeIntervalSince(lastActiveDate)
+        let elapsedTime = currentDate.timeIntervalSince(lastActiveDate ?? Date.distantPast)
         
         if elapsedTime > 3600 {
             selectedDate = currentDate
             refreshData()
         }
+
     }
     
    
