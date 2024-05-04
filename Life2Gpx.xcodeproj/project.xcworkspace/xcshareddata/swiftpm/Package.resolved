@@ -1,4 +1,5 @@
 {
+  "originHash" : "f3534611ac88035618f9e58dfc846d681f492f38a60047af392b1ece8687eedb",
   "pins" : [
     {
       "identity" : "coregpx",
@@ -10,5 +11,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

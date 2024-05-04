@@ -58,13 +58,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestAlwaysAuthorization()
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = kCLDistanceFilterNone
+        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        locationManager.distanceFilter = 20
         locationManager.startUpdatingLocation()
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-    
+        print("location update received")
         guard let newLocation = locations.last else { return }
            
         let newUpdateDate = Date()
@@ -107,6 +107,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let previousSavedLocation = previousSavedLocation
         {
             let distanceFromPrevious = previousSavedLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
+            print("distance: \(distanceFromPrevious)")
             if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval
             {
                 // Movement significant enough to trigger updates and reset timer
@@ -135,7 +136,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         currentDate = newUpdateDate
     }
     private func adjustSettingsForMovement() {
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.stopUpdatingLocation()
+        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        locationManager.distanceFilter = 20
+        locationManager.startUpdatingLocation()
+
         customDistanceFilter = 20
         resetLocationUpdateTimer()
     }
@@ -148,8 +153,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func adjustSettingsForStationary() {
+        locationManager.stopUpdatingLocation()
 
         customDistanceFilter = 60 // Reset custom distance filter for movement
+        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        locationManager.distanceFilter = 60
+        locationManager.startUpdatingLocation()
         appendLocationToFile(type: "Stationary")
     }
     
