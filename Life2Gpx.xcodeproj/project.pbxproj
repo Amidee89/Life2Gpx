@@ -19,6 +19,14 @@
 		A9B62FC12B66E694004A010E /* Life2GpxUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */; };
 		A9B62FC32B66E694004A010E /* Life2GpxUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */; };
 		A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FD02B682E99004A010E /* LocationManager.swift */; };
+		A9C5E5732BEBDDB100110A3A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */; };
+		A9C5E5752BEBDDB100110A3A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */; };
+		A9C5E5782BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */; };
+		A9C5E57A2BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E5792BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift */; };
+		A9C5E57C2BEBDDB100110A3A /* Lockscreen_Widgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E57B2BEBDDB100110A3A /* Lockscreen_Widgets.swift */; };
+		A9C5E57E2BEBDDB100110A3A /* AppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E57D2BEBDDB100110A3A /* AppIntent.swift */; };
+		A9C5E5802BEBDDB500110A3A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9C5E57F2BEBDDB500110A3A /* Assets.xcassets */; };
+		A9C5E5842BEBDDB500110A3A /* Lockscreen WidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A9C5E5702BEBDDB100110A3A /* Lockscreen WidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A9D55E232BDABE4B006B6316 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E222BDABE4B006B6316 /* MapView.swift */; };
 		A9D55E252BDAD372006B6316 /* MapControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E242BDAD372006B6316 /* MapControlsView.swift */; };
 		A9D55E272BDADA09006B6316 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E262BDADA09006B6316 /* TimelineView.swift */; };
@@ -41,7 +49,28 @@
 			remoteGlobalIDString = A9B62FA12B66E692004A010E;
 			remoteInfo = Life2Gpx;
 		};
+		A9C5E5822BEBDDB500110A3A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A9B62F9A2B66E692004A010E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A9C5E56F2BEBDDB100110A3A;
+			remoteInfo = "Lockscreen WidgetsExtension";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A9C5E5852BEBDDB500110A3A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A9C5E5842BEBDDB500110A3A /* Lockscreen WidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineManager.swift; sourceTree = "<group>"; };
@@ -59,6 +88,15 @@
 		A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		A9B62FCF2B682E1B004A010E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A9B62FD02B682E99004A010E /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
+		A9C5E5702BEBDDB100110A3A /* Lockscreen WidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Lockscreen WidgetsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lockscreen_WidgetsBundle.swift; sourceTree = "<group>"; };
+		A9C5E5792BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lockscreen_WidgetsLiveActivity.swift; sourceTree = "<group>"; };
+		A9C5E57B2BEBDDB100110A3A /* Lockscreen_Widgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lockscreen_Widgets.swift; sourceTree = "<group>"; };
+		A9C5E57D2BEBDDB100110A3A /* AppIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntent.swift; sourceTree = "<group>"; };
+		A9C5E57F2BEBDDB500110A3A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A9C5E5812BEBDDB500110A3A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A9D55E222BDABE4B006B6316 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		A9D55E242BDAD372006B6316 /* MapControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapControlsView.swift; sourceTree = "<group>"; };
 		A9D55E262BDADA09006B6316 /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
@@ -90,6 +128,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A9C5E56D2BEBDDB100110A3A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A9C5E5752BEBDDB100110A3A /* SwiftUI.framework in Frameworks */,
+				A9C5E5732BEBDDB100110A3A /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -99,6 +146,8 @@
 				A9B62FA42B66E692004A010E /* Life2Gpx */,
 				A9B62FB52B66E694004A010E /* Life2GpxTests */,
 				A9B62FBF2B66E694004A010E /* Life2GpxUITests */,
+				A9C5E5762BEBDDB100110A3A /* Lockscreen Widgets */,
+				A9C5E5712BEBDDB100110A3A /* Frameworks */,
 				A9B62FA32B66E692004A010E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -109,6 +158,7 @@
 				A9B62FA22B66E692004A010E /* Life2Gpx.app */,
 				A9B62FB22B66E694004A010E /* Life2GpxTests.xctest */,
 				A9B62FBC2B66E694004A010E /* Life2GpxUITests.xctest */,
+				A9C5E5702BEBDDB100110A3A /* Lockscreen WidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -160,6 +210,28 @@
 			path = Life2GpxUITests;
 			sourceTree = "<group>";
 		};
+		A9C5E5712BEBDDB100110A3A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */,
+				A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A9C5E5762BEBDDB100110A3A /* Lockscreen Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */,
+				A9C5E5792BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift */,
+				A9C5E57B2BEBDDB100110A3A /* Lockscreen_Widgets.swift */,
+				A9C5E57D2BEBDDB100110A3A /* AppIntent.swift */,
+				A9C5E57F2BEBDDB500110A3A /* Assets.xcassets */,
+				A9C5E5812BEBDDB500110A3A /* Info.plist */,
+			);
+			path = "Lockscreen Widgets";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -170,10 +242,12 @@
 				A9B62F9E2B66E692004A010E /* Sources */,
 				A9B62F9F2B66E692004A010E /* Frameworks */,
 				A9B62FA02B66E692004A010E /* Resources */,
+				A9C5E5852BEBDDB500110A3A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A9C5E5832BEBDDB500110A3A /* PBXTargetDependency */,
 			);
 			name = Life2Gpx;
 			packageProductDependencies = (
@@ -219,6 +293,23 @@
 			productReference = A9B62FBC2B66E694004A010E /* Life2GpxUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		A9C5E56F2BEBDDB100110A3A /* Lockscreen WidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A9C5E5882BEBDDB500110A3A /* Build configuration list for PBXNativeTarget "Lockscreen WidgetsExtension" */;
+			buildPhases = (
+				A9C5E56C2BEBDDB100110A3A /* Sources */,
+				A9C5E56D2BEBDDB100110A3A /* Frameworks */,
+				A9C5E56E2BEBDDB100110A3A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Lockscreen WidgetsExtension";
+			productName = "Lockscreen WidgetsExtension";
+			productReference = A9C5E5702BEBDDB100110A3A /* Lockscreen WidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -226,7 +317,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1520;
+				LastSwiftUpdateCheck = 1530;
 				LastUpgradeCheck = 1520;
 				TargetAttributes = {
 					A9B62FA12B66E692004A010E = {
@@ -239,6 +330,9 @@
 					A9B62FBB2B66E694004A010E = {
 						CreatedOnToolsVersion = 15.2;
 						TestTargetID = A9B62FA12B66E692004A010E;
+					};
+					A9C5E56F2BEBDDB100110A3A = {
+						CreatedOnToolsVersion = 15.3;
 					};
 				};
 			};
@@ -261,6 +355,7 @@
 				A9B62FA12B66E692004A010E /* Life2Gpx */,
 				A9B62FB12B66E694004A010E /* Life2GpxTests */,
 				A9B62FBB2B66E694004A010E /* Life2GpxUITests */,
+				A9C5E56F2BEBDDB100110A3A /* Lockscreen WidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -287,6 +382,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A9C5E56E2BEBDDB100110A3A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A9C5E5802BEBDDB500110A3A /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -327,6 +430,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A9C5E56C2BEBDDB100110A3A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A9C5E5782BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift in Sources */,
+				A9C5E57E2BEBDDB100110A3A /* AppIntent.swift in Sources */,
+				A9C5E57C2BEBDDB100110A3A /* Lockscreen_Widgets.swift in Sources */,
+				A9C5E57A2BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -339,6 +453,11 @@
 			isa = PBXTargetDependency;
 			target = A9B62FA12B66E692004A010E /* Life2Gpx */;
 			targetProxy = A9B62FBD2B66E694004A010E /* PBXContainerItemProxy */;
+		};
+		A9C5E5832BEBDDB500110A3A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A9C5E56F2BEBDDB100110A3A /* Lockscreen WidgetsExtension */;
+			targetProxy = A9C5E5822BEBDDB500110A3A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -465,6 +584,7 @@
 		A9B62FC72B66E694004A010E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Life2Gpx/Life2Gpx.entitlements;
@@ -499,6 +619,7 @@
 		A9B62FC82B66E694004A010E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Life2Gpx/Life2Gpx.entitlements;
@@ -606,6 +727,62 @@
 			};
 			name = Release;
 		};
+		A9C5E5862BEBDDB500110A3A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ABJ999AJQ2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Lockscreen Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Lockscreen Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.DeltaCygniLabs.Life2Gpx.Lockscreen-Widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A9C5E5872BEBDDB500110A3A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ABJ999AJQ2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Lockscreen Widgets/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Lockscreen Widgets";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.DeltaCygniLabs.Life2Gpx.Lockscreen-Widgets";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -641,6 +818,15 @@
 			buildConfigurations = (
 				A9B62FCD2B66E694004A010E /* Debug */,
 				A9B62FCE2B66E694004A010E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A9C5E5882BEBDDB500110A3A /* Build configuration list for PBXNativeTarget "Lockscreen WidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A9C5E5862BEBDDB500110A3A /* Debug */,
+				A9C5E5872BEBDDB500110A3A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
