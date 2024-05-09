@@ -22,9 +22,7 @@
 		A9C5E5732BEBDDB100110A3A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */; };
 		A9C5E5752BEBDDB100110A3A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */; };
 		A9C5E5782BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */; };
-		A9C5E57A2BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E5792BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift */; };
 		A9C5E57C2BEBDDB100110A3A /* Lockscreen_Widgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E57B2BEBDDB100110A3A /* Lockscreen_Widgets.swift */; };
-		A9C5E57E2BEBDDB100110A3A /* AppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E57D2BEBDDB100110A3A /* AppIntent.swift */; };
 		A9C5E5802BEBDDB500110A3A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9C5E57F2BEBDDB500110A3A /* Assets.xcassets */; };
 		A9C5E5842BEBDDB500110A3A /* Lockscreen WidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A9C5E5702BEBDDB100110A3A /* Lockscreen WidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A9D55E232BDABE4B006B6316 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E222BDABE4B006B6316 /* MapView.swift */; };
@@ -92,11 +90,11 @@
 		A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lockscreen_WidgetsBundle.swift; sourceTree = "<group>"; };
-		A9C5E5792BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lockscreen_WidgetsLiveActivity.swift; sourceTree = "<group>"; };
 		A9C5E57B2BEBDDB100110A3A /* Lockscreen_Widgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lockscreen_Widgets.swift; sourceTree = "<group>"; };
-		A9C5E57D2BEBDDB100110A3A /* AppIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntent.swift; sourceTree = "<group>"; };
 		A9C5E57F2BEBDDB500110A3A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A9C5E5812BEBDDB500110A3A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A9C5E5892BED3EDB00110A3A /* Life2GpxDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Life2GpxDebug.entitlements; sourceTree = "<group>"; };
+		A9C5E58A2BED3F2600110A3A /* Lockscreen WidgetsExtensionDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Lockscreen WidgetsExtensionDebug.entitlements"; sourceTree = "<group>"; };
 		A9D55E222BDABE4B006B6316 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		A9D55E242BDAD372006B6316 /* MapControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapControlsView.swift; sourceTree = "<group>"; };
 		A9D55E262BDADA09006B6316 /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
@@ -143,6 +141,7 @@
 		A9B62F992B66E692004A010E = {
 			isa = PBXGroup;
 			children = (
+				A9C5E58A2BED3F2600110A3A /* Lockscreen WidgetsExtensionDebug.entitlements */,
 				A9B62FA42B66E692004A010E /* Life2Gpx */,
 				A9B62FB52B66E694004A010E /* Life2GpxTests */,
 				A9B62FBF2B66E694004A010E /* Life2GpxUITests */,
@@ -166,6 +165,7 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A9C5E5892BED3EDB00110A3A /* Life2GpxDebug.entitlements */,
 				A9D55E2B2BDED12D006B6316 /* Life2Gpx.entitlements */,
 				A9B62FA72B66E692004A010E /* ContentView.swift */,
 				A9D55E262BDADA09006B6316 /* TimelineView.swift */,
@@ -223,9 +223,7 @@
 			isa = PBXGroup;
 			children = (
 				A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */,
-				A9C5E5792BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift */,
 				A9C5E57B2BEBDDB100110A3A /* Lockscreen_Widgets.swift */,
-				A9C5E57D2BEBDDB100110A3A /* AppIntent.swift */,
 				A9C5E57F2BEBDDB500110A3A /* Assets.xcassets */,
 				A9C5E5812BEBDDB500110A3A /* Info.plist */,
 			);
@@ -435,9 +433,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A9C5E5782BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift in Sources */,
-				A9C5E57E2BEBDDB100110A3A /* AppIntent.swift in Sources */,
 				A9C5E57C2BEBDDB100110A3A /* Lockscreen_Widgets.swift in Sources */,
-				A9C5E57A2BEBDDB100110A3A /* Lockscreen_WidgetsLiveActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -587,7 +583,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Life2Gpx/Life2Gpx.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Life2Gpx/Life2GpxDebug.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Life2Gpx/Preview Content\"";
@@ -732,6 +728,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Lockscreen WidgetsExtensionDebug.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = ABJ999AJQ2;

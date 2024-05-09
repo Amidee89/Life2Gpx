@@ -21,6 +21,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     override init() {
         super.init()
+        
         if let savedTimestamp = UserDefaults.standard.object(forKey: "lastUpdateTimestamp") as? Date {
              lastUpdateTimestamp = savedTimestamp
         }
@@ -68,6 +69,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard let newLocation = locations.last else { return }
            
         let newUpdateDate = Date()
+        //forcing update if it's the new day. This should be done at midnight and be the same as the last activity. Giant TODO.
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             appendLocationToFile(type: "Stationary")
         }
@@ -320,6 +322,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 
                 // Save the updated data using GPXManager
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
+                if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2gpx") {
+                    userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
+                    userDefaults.set(type, forKey: "lastUpdateType")
+                    userDefaults.synchronize()
+                }
             }
         }
     }

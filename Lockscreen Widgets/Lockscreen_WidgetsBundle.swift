@@ -12,6 +12,5 @@ import SwiftUI
 struct Lockscreen_WidgetsBundle: WidgetBundle {
     var body: some Widget {
         Lockscreen_Widgets()
-        Lockscreen_WidgetsLiveActivity()
     }
 }
