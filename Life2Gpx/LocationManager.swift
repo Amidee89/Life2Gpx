@@ -322,7 +322,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 
                 // Save the updated data using GPXManager
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
-                if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2gpx") {
+                if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                     userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
                     userDefaults.set(type, forKey: "lastUpdateType")
                     userDefaults.synchronize()
