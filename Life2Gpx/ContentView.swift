@@ -100,6 +100,12 @@ struct ContentView: View {
                         onSelectItem: selectAndCenter
                     )
                 }
+                .onReceive(locationManager.$dataHasBeenUpdated) { needsRefresh in
+                        if needsRefresh {
+                            refreshData()
+                            locationManager.dataHasBeenUpdated = false // Reset the flag
+                        }
+                    }
             }
             .navigationViewStyle(StackNavigationViewStyle())
             .onAppear {

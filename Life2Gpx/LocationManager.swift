@@ -6,6 +6,8 @@ import CoreMotion
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     @Published var currentFilteredLocation: CLLocation?
+    @Published var dataHasBeenUpdated: Bool = false
+
     private var previousSavedLocation: CLLocation?
     private var locationUpdateTimer: Timer?
     private var customDistanceFilter: CLLocationDistance = 20 // Default to 20 meters
@@ -320,12 +322,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 }
 
                 
-                // Save the updated data using GPXManager
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
                 if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                     userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
                     userDefaults.set(type, forKey: "lastUpdateType")
                     userDefaults.synchronize()
+                    self.dataHasBeenUpdated = true
                 }
             }
         }
