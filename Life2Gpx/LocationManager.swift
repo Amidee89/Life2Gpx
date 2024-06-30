@@ -20,7 +20,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let pedometer = CMPedometer()
     private var lastPedometerCheckDate: Date?
     private var latestPedometerSteps: Int = 0
-    
+    private var midnightTimer: Timer?
+    private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     override init() {
         super.init()
         
@@ -31,7 +32,44 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         setupLocationManager()
         setupMotionActivityManager()
         setupPedometer()
+        scheduleMidnightUpdate()
         currentDate = Date()
+    }
+    private func scheduleMidnightUpdate() {
+            let calendar = Calendar.current
+            let now = Date()
+            
+            var midnightComponents = calendar.dateComponents([.year, .month, .day], from: now)
+            midnightComponents.hour = 0
+            midnightComponents.minute = 0
+            midnightComponents.second = 0
+            
+            guard let midnight = calendar.date(from: midnightComponents) else { return }
+            let timeIntervalUntilMidnight = midnight.timeIntervalSince(now)
+            let adjustedInterval = timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400
+        print ("next midnight update: \(adjustedInterval)")
+            midnightTimer = Timer.scheduledTimer(timeInterval: adjustedInterval, target: self, selector: #selector(forceMidnightUpdate), userInfo: nil, repeats: false)
+        }
+        
+    @objc private func forceMidnightUpdate() {
+        if currentFilteredLocation == nil {
+            if let location = locationManager.location {
+                currentFilteredLocation = location
+            }
+        }
+        let lastUpdate = userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date ?? Date.distantPast
+        let calendar = Calendar.current
+        let lastUpdateDay = calendar.startOfDay(for: lastUpdate)
+        let today = calendar.startOfDay(for: Date())
+        //trying to prevent heisenbug where it will update ad midnight twice.
+        if lastUpdateDay != today {
+            if let lastUpdateType = UserDefaults.standard.string(forKey: "lastUpdateType") {
+                appendLocationToFile(type: lastUpdateType)
+            } else {
+                appendLocationToFile(type: "Stationary")
+            }
+        }
+        scheduleMidnightUpdate()
     }
     
     private func setupMotionActivityManager() {
@@ -71,9 +109,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard let newLocation = locations.last else { return }
            
         let newUpdateDate = Date()
-        //forcing update if it's the new day. This should be done at midnight and be the same as the last activity. Giant TODO.
+        //forcing update if it's the new day and somehow midnight scheduler has screwed.
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
-            appendLocationToFile(type: "Stationary")
+            forceMidnightUpdate()
         }
         
         let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
@@ -120,7 +158,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 appendLocationToFile(type: "Moving")
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
-            
+                UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
+
             }
         }
         else
@@ -133,6 +172,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 appendLocationToFile(type: "Moving", debug: "No PreviousLocation")
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
+                UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
+
             }
             self.previousSavedLocation = newLocation
         }
@@ -155,6 +196,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         customDistanceFilter = 60 // Reset custom distance filter for movement
         appendLocationToFile(type: "Stationary")
+        UserDefaults.standard.set("Stationary", forKey: "lastUpdateType")
+
     }
     
     private func appendLocationToFile(type: String, debug: String = "") {
