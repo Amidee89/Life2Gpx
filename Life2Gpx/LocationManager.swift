@@ -22,6 +22,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var latestPedometerSteps: Int = 0
     private var midnightTimer: Timer?
     private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
+    private var lastAppendCall: Date?
+
     override init() {
         super.init()
         
@@ -47,7 +49,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             guard let midnight = calendar.date(from: midnightComponents) else { return }
             let timeIntervalUntilMidnight = midnight.timeIntervalSince(now)
             let adjustedInterval = timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400
-        print ("next midnight update: \(adjustedInterval)")
             midnightTimer = Timer.scheduledTimer(timeInterval: adjustedInterval, target: self, selector: #selector(forceMidnightUpdate), userInfo: nil, repeats: false)
         }
         
@@ -57,17 +58,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 currentFilteredLocation = location
             }
         }
-        let lastUpdate = userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date ?? Date.distantPast
-        let calendar = Calendar.current
-        let lastUpdateDay = calendar.startOfDay(for: lastUpdate)
-        let today = calendar.startOfDay(for: Date())
-        //trying to prevent heisenbug where it will update ad midnight twice.
-        if lastUpdateDay != today {
-            if let lastUpdateType = UserDefaults.standard.string(forKey: "lastUpdateType") {
-                appendLocationToFile(type: lastUpdateType)
-            } else {
-                appendLocationToFile(type: "Stationary")
-            }
+        if let lastUpdateType = UserDefaults.standard.string(forKey: "lastUpdateType") {
+            appendLocationToFile(type: lastUpdateType)
+        } else {
+            appendLocationToFile(type: "Stationary")
         }
         scheduleMidnightUpdate()
     }
@@ -201,6 +195,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func appendLocationToFile(type: String, debug: String = "") {
+        if lastAppendCall != nil && Date().timeIntervalSince(lastAppendCall!) < 1 {
+            //trying to fix heisenbug
+            print ("Cowardly refusing to double append – debouncing.")
+            return
+        }
+        lastAppendCall = Date()
         guard let location = currentFilteredLocation else {
             print("No location to save")
             return
