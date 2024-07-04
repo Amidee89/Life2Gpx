@@ -58,3 +58,12 @@ struct IdentifiableCoordinates: Identifiable {
     let id = UUID()
     var coordinates: [CLLocationCoordinate2D]
 }
+
+protocol GPXPointProtocol {
+    var latitude: Double? { get }
+    var longitude: Double? { get }
+    var time: Date? { get }
+}
+
+extension GPXWaypoint: GPXPointProtocol {}
+extension GPXTrackPoint: GPXPointProtocol {}

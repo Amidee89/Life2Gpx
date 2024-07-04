@@ -2,6 +2,7 @@ import SwiftUI
 import CoreLocation
 import CoreGPX
 import CoreMotion
+import UserNotifications
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
@@ -23,9 +24,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var midnightTimer: Timer?
     private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     private var lastAppendCall: Date?
+    private var notificationResetTimer: Timer?
 
     override init() {
         super.init()
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Notification permission request error: \(error)")
+            }
+        }
         
         if let savedTimestamp = UserDefaults.standard.object(forKey: "lastUpdateTimestamp") as? Date {
              lastUpdateTimestamp = savedTimestamp
@@ -36,6 +44,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         setupPedometer()
         scheduleMidnightUpdate()
         currentDate = Date()
+        
+        //these are for notifying the
+        scheduleDeadMansSwitchNotification()
+        startNotificationResetTimer()
+
     }
     private func scheduleMidnightUpdate() {
             let calendar = Calendar.current
@@ -66,6 +79,39 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         scheduleMidnightUpdate()
     }
     
+    private func scheduleDeadMansSwitchNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests() // Clear any existing notifications
+
+        let content = UNMutableNotificationContent()
+        content.title = "Recording Stopped"
+        content.body = "Life2Gpx probably crashed and stopped recording. Tap here to restart it. Sorry!"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 300, repeats: false) // 5 minutes
+
+        let request = UNNotificationRequest(identifier: "DeadMansSwitch", content: content, trigger: trigger)
+
+        center.add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error)")
+            }
+        }
+    }
+
+    private func startNotificationResetTimer() {
+        notificationResetTimer?.invalidate() // Invalidate any existing timer
+        notificationResetTimer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in
+            self?.scheduleDeadMansSwitchNotification()
+        }
+    }
+
+    private func stopNotificationResetTimer() {
+        notificationResetTimer?.invalidate()
+        notificationResetTimer = nil
+    }
+
     private func setupMotionActivityManager() {
         if CMMotionActivityManager.isActivityAvailable() {
             motionActivityManager.startActivityUpdates(to: .main) { [weak self] activity in
@@ -107,9 +153,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             forceMidnightUpdate()
         }
-        
-        let timeSinceLastUpdate = lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1 // Default to allow update if no previous timestamp
-        
+        // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval. 
+        let timeSinceLastUpdate = abs(lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1)
+
         
         if previousSavedLocation == nil {
             GPXManager.shared.loadFile(forDate: Date()) { [weak self] loadedGpxWaypoints, loadedGpxTracks in
