@@ -61,7 +61,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             guard let midnight = calendar.date(from: midnightComponents) else { return }
             let timeIntervalUntilMidnight = midnight.timeIntervalSince(now)
-            let adjustedInterval = timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400
+            //extra 10 seconds of grace in case clock ran a little bit too fast. It happened.
+            let adjustedInterval = (timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400) + 10
             midnightTimer = Timer.scheduledTimer(timeInterval: adjustedInterval, target: self, selector: #selector(forceMidnightUpdate), userInfo: nil, repeats: false)
         }
         
@@ -153,7 +154,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             forceMidnightUpdate()
         }
-        // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval. 
+        // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval.
         let timeSinceLastUpdate = abs(lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1)
 
         

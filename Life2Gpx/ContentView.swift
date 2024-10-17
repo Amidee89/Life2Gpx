@@ -20,13 +20,13 @@ struct ContentView: View {
     @State private var lastBackgroundTime: Date? = nil
     @State private var timelineObjects: [TimelineObject] = []
     @State private var selectedTimelineObjectID: UUID?
+    @State private var showSettings = false
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
 
     var body: some View {
         GeometryReader { geometry in
-            NavigationView {
                 VStack
                 {
                     MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
@@ -44,7 +44,9 @@ struct ContentView: View {
                     )
                     HStack {
                         Spacer()
-                        
+                        Spacer()
+                        Spacer()
+
                         Button(action: {
                             self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
                         }) {
@@ -90,7 +92,15 @@ struct ContentView: View {
                             }
                         }
                         .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
+                        Spacer()
 
+                        Button(action: {
+                             self.showSettings = true
+                         }) {
+                             Image(systemName: "gearshape")
+                                 .padding(8)
+                                 .foregroundColor(.blue)
+                         }
                         Spacer()
                     }
                     TimelineView(
@@ -106,15 +116,16 @@ struct ContentView: View {
                             locationManager.dataHasBeenUpdated = false // Reset the flag
                         }
                     }
-            }
-            .navigationViewStyle(StackNavigationViewStyle())
-            .onAppear {
-                refreshData()
-                centerAllData()
-            }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                handleScenePhaseChange(newPhase)
-            }
+                .sheet(isPresented: $showSettings) { // Present the settings view
+                                  SettingsView()
+                              }
+                .onAppear {
+                    refreshData()
+                    centerAllData()
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    handleScenePhaseChange(newPhase)
+                }
         }
     }
 
