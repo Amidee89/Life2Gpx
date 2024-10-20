@@ -54,7 +54,6 @@ struct ManagePlacesView: View {
     }
     
     var body: some View {
-            NavigationView {
                 VStack {
                     if let selectedPlace = selectedPlace {
                        Map(position: $cameraPosition, interactionModes: .all) {
@@ -116,13 +115,13 @@ struct ManagePlacesView: View {
                                     }
                                 }
                                 .padding(.vertical, 4)
-                            }
+                            }.buttonStyle(.plain)
                         }
                     }
                     .navigationTitle("Places")
                     .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search Places")
                 }
-            }
+            
         }
     
     private func setRegion(_ coordinate: CLLocationCoordinate2D) {
