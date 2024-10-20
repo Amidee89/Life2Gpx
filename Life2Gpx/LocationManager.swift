@@ -478,11 +478,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         return (nil)
     }
 }
+
 private func getLogFileURL() -> URL {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd"
     let fileName = formatter.string(from: Date()) + ".log"
+    
     var documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-
-    return documentDirectory.appendingPathComponent(fileName)
+    let logsDirectory = documentDirectory.appendingPathComponent("Logs")
+    if !FileManager.default.fileExists(atPath: logsDirectory.path) {
+        do {
+            try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("Failed to create Logs directory: \(error)")
+        }
+    }
+    
+    // Return the full path to the log file in the "Logs" directory
+    return logsDirectory.appendingPathComponent(fileName)
 }

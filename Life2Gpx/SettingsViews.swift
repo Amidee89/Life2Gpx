@@ -31,11 +31,16 @@ struct SettingsView: View {
 }
 
 struct ManagePlacesView: View {
-    @StateObject private var viewModel = ManagePlacesViewModel()
+    @StateObject private var viewModel: ManagePlacesViewModel
     @State private var searchText = ""
     @State private var selectedPlace: Place?
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var region = MKCoordinateRegion()
+    
+    // Public initializer to allow external setup
+    init(viewModel: ManagePlacesViewModel = ManagePlacesViewModel()) {
+            _viewModel = StateObject(wrappedValue: viewModel)
+        }
     
     var filteredPlaces: [Place] {
         if searchText.isEmpty {
@@ -52,20 +57,30 @@ struct ManagePlacesView: View {
             NavigationView {
                 VStack {
                     if let selectedPlace = selectedPlace {
-                        Map(coordinateRegion: $region, annotationItems: [selectedPlace]) { place in
-                            MapMarker(coordinate: place.coordinate, tint: .red)
-                        }
-                        .onAppear {
-                            setRegion(selectedPlace.coordinate)
-                        }
-                        .onChange(of: selectedPlace) {
-                            let coordinate = selectedPlace.coordinate
-                            setRegion(coordinate)
-                            
-                        }
-                        .frame(height: 300)
+                       Map(position: $cameraPosition, interactionModes: .all) {
+                           // Marker for the selected place
+                           Annotation(selectedPlace.name, coordinate: selectedPlace.coordinate) {
+                               ZStack {
+                                   Circle()
+                                       .fill(Color.red)
+                                       .frame(width: 10, height: 10)
+                               }
+                           }
+                           // Circle to represent the radius
+                           MapCircle(center: selectedPlace.coordinate, radius: selectedPlace.radius)
+                               .stroke(Color.red.opacity(1), lineWidth: 2)
+                               .foregroundStyle(Color.orange.opacity(0.5))
+                           
+                       }
+                       .onAppear {
+                           setRegion(selectedPlace.coordinate)
+                       }
+                       .onChange(of: selectedPlace) {
+                           let coordinate = selectedPlace.coordinate
+                           setRegion(coordinate)
+                       }
+                       .frame(height: 300)
                     }
-
                     List {
                         ForEach(filteredPlaces) { place in
                             // Make the row tappable
@@ -75,7 +90,7 @@ struct ManagePlacesView: View {
 
                                 cameraPosition = .region(MKCoordinateRegion(
                                     center: place.coordinate,
-                                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
                                 ))
                             }) {
                                 VStack(alignment: .leading) {
@@ -115,5 +130,11 @@ struct ManagePlacesView: View {
             center: coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
+    }
+}
+
+struct ManagePlacesView_Previews: PreviewProvider {
+    static var previews: some View {
+        ManagePlacesView(viewModel: ManagePlacesViewModel.preview)
     }
 }
