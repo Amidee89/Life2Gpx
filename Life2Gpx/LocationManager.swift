@@ -25,6 +25,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     private var lastAppendCall: Date?
     private var notificationResetTimer: Timer?
+    private var locationManagerCallCount = 0
 
     override init() {
         super.init()
@@ -146,7 +147,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-    
+        let functionStartTime = Date()
+        locationManagerCallCount += 1
+
         guard let newLocation = locations.last else { return }
            
         let newUpdateDate = Date()
@@ -219,6 +222,41 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.previousSavedLocation = newLocation
         }
         currentDate = newUpdateDate
+        
+        // End time measurement
+        let endTime = Date()
+        let executionTime = endTime.timeIntervalSince(functionStartTime)
+
+        // Log execution time to file
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+
+        let executionTimeString = String(format: "%.10f", executionTime)
+        let logMessage = "\(dateFormatter.string(from: functionStartTime)) - Execution time: \(executionTimeString) seconds - Call count: \(locationManagerCallCount)\n"
+
+        let logFileURL = getLogFileURL()
+
+        if FileManager.default.fileExists(atPath: logFileURL.path) {
+            // Append to existing file
+            if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                fileHandle.seekToEndOfFile()
+                if let data = logMessage.data(using: .utf8) {
+                    fileHandle.write(data)
+                }
+                fileHandle.closeFile()
+            } else {
+                // Handle error opening file
+                print("Could not open file handle for \(logFileURL.path)")
+            }
+        } else {
+            // Create new file and write
+            do {
+                try logMessage.write(to: logFileURL, atomically: true, encoding: .utf8)
+            } catch {
+                print("Failed to write to \(logFileURL.path): \(error)")
+            }
+        }
+        
     }
     private func adjustSettingsForMovement() {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -439,4 +477,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         return (nil)
     }
+}
+private func getLogFileURL() -> URL {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    let fileName = formatter.string(from: Date()) + ".log"
+    var documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+    return documentDirectory.appendingPathComponent(fileName)
 }

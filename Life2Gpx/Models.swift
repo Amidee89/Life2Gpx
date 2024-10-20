@@ -59,6 +59,50 @@ struct IdentifiableCoordinates: Identifiable {
     var coordinates: [CLLocationCoordinate2D]
 }
 
+
+struct Place: Identifiable, Codable, Equatable {
+    let placeId: String
+    let name: String
+    let center: Center
+    let radius: Double
+    let streetAddress: String?
+    let secondsFromGMT: Int?
+    let lastSaved: String?
+    var id: String { placeId }
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
+    }
+}
+
+
+extension Place {
+    var centerCoordinate: CLLocationCoordinate2D {
+        return CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
+    }
+
+    // Helper to compute the bounding rectangle of the place
+    var boundingRect: BoundingRect {
+        let radiusDegrees = radius / 111320.0 // Approximate conversion from meters to degrees latitude
+        let minLat = center.latitude - radiusDegrees
+        let maxLat = center.latitude + radiusDegrees
+        let minLon = center.longitude - radiusDegrees / cos(center.latitude * .pi / 180)
+        let maxLon = center.longitude + radiusDegrees / cos(center.latitude * .pi / 180)
+        return BoundingRect(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon)
+    }
+}
+
+struct Center: Codable, Equatable {
+    let latitude: Double
+    let longitude: Double
+}
+
+struct BoundingRect {
+    let minLat: Double
+    let maxLat: Double
+    let minLon: Double
+    let maxLon: Double
+}
+
 protocol GPXPointProtocol {
     var latitude: Double? { get }
     var longitude: Double? { get }
@@ -67,3 +111,15 @@ protocol GPXPointProtocol {
 
 extension GPXWaypoint: GPXPointProtocol {}
 extension GPXTrackPoint: GPXPointProtocol {}
+
+class ManagePlacesViewModel: ObservableObject {
+    @Published var places: [Place] = []
+    
+    init() {
+        loadPlaces()
+    }
+    
+    private func loadPlaces() {
+        places = PlaceManager.shared.getAllPlaces()
+    }
+}

@@ -12,6 +12,7 @@
 		A95FDABB2B810CC100097276 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABA2B810CC100097276 /* Models.swift */; };
 		A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABC2B82257A00097276 /* GPXManager.swift */; };
 		A98A65412CC1944200061903 /* SettingsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98A65402CC1943F00061903 /* SettingsViews.swift */; };
+		A98A65432CC2DCEC00061903 /* PlaceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98A65422CC2DCE800061903 /* PlaceManager.swift */; };
 		A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA52B66E692004A010E /* Life2GpxApp.swift */; };
 		A9B62FA82B66E692004A010E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA72B66E692004A010E /* ContentView.swift */; };
 		A9B62FAA2B66E694004A010E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9B62FA92B66E694004A010E /* Assets.xcassets */; };
@@ -76,6 +77,7 @@
 		A95FDABA2B810CC100097276 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		A95FDABC2B82257A00097276 /* GPXManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPXManager.swift; sourceTree = "<group>"; };
 		A98A65402CC1943F00061903 /* SettingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViews.swift; sourceTree = "<group>"; };
+		A98A65422CC2DCE800061903 /* PlaceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceManager.swift; sourceTree = "<group>"; };
 		A9B62FA22B66E692004A010E /* Life2Gpx.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Life2Gpx.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9B62FA52B66E692004A010E /* Life2GpxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxApp.swift; sourceTree = "<group>"; };
 		A9B62FA72B66E692004A010E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -167,6 +169,7 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A98A65422CC2DCE800061903 /* PlaceManager.swift */,
 				A98A65402CC1943F00061903 /* SettingsViews.swift */,
 				A9C5E5892BED3EDB00110A3A /* Life2GpxDebug.entitlements */,
 				A9D55E2B2BDED12D006B6316 /* Life2Gpx.entitlements */,
@@ -406,6 +409,7 @@
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
 				A9D55E272BDADA09006B6316 /* TimelineView.swift in Sources */,
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
+				A98A65432CC2DCEC00061903 /* PlaceManager.swift in Sources */,
 				A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */,
 				A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */,
 				A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */,

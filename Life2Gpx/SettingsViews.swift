@@ -6,6 +6,7 @@
 //
 import Foundation
 import SwiftUI
+import MapKit
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -30,9 +31,89 @@ struct SettingsView: View {
 }
 
 struct ManagePlacesView: View {
+    @StateObject private var viewModel = ManagePlacesViewModel()
+    @State private var searchText = ""
+    @State private var selectedPlace: Place?
+    @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var region = MKCoordinateRegion()
+    
+    var filteredPlaces: [Place] {
+        if searchText.isEmpty {
+            return viewModel.places
+        } else {
+            return viewModel.places.filter { place in
+                place.name.localizedCaseInsensitiveContains(searchText) ||
+                (place.streetAddress?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+    }
+    
     var body: some View {
-        Text("Hello World")
-            .font(.largeTitle)
-            .padding()
+            NavigationView {
+                VStack {
+                    if let selectedPlace = selectedPlace {
+                        Map(coordinateRegion: $region, annotationItems: [selectedPlace]) { place in
+                            MapMarker(coordinate: place.coordinate, tint: .red)
+                        }
+                        .onAppear {
+                            setRegion(selectedPlace.coordinate)
+                        }
+                        .onChange(of: selectedPlace) {
+                            let coordinate = selectedPlace.coordinate
+                            setRegion(coordinate)
+                            
+                        }
+                        .frame(height: 300)
+                    }
+
+                    List {
+                        ForEach(filteredPlaces) { place in
+                            // Make the row tappable
+                            Button(action: {
+                                selectedPlace = place
+                                setRegion(place.coordinate)
+
+                                cameraPosition = .region(MKCoordinateRegion(
+                                    center: place.coordinate,
+                                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                                ))
+                            }) {
+                                VStack(alignment: .leading) {
+                                    Text(place.name)
+                                        .font(.headline)
+                                    Text("Radius: \(Int(place.radius)) meters")
+                                        .font(.subheadline)
+                                    Text("Latitude: \(place.center.latitude), Longitude: \(place.center.longitude)")
+                                        .font(.footnote)
+                                    Text("ID: \(place.placeId)")
+                                        .font(.footnote)
+                                    if let streetAddress = place.streetAddress {
+                                        Text("Address: \(streetAddress)")
+                                            .font(.footnote)
+                                    }
+                                    if let secondsFromGMT = place.secondsFromGMT {
+                                        Text("Seconds from GMT: \(secondsFromGMT)")
+                                            .font(.footnote)
+                                    }
+                                    if let lastSaved = place.lastSaved {
+                                        Text("Last Saved: \(lastSaved)")
+                                            .font(.footnote)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .navigationTitle("Places")
+                    .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search Places")
+                }
+            }
+        }
+    
+    private func setRegion(_ coordinate: CLLocationCoordinate2D) {
+        region = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        )
     }
 }
