@@ -44,6 +44,13 @@ class PlaceManager {
             print("Failed to decode places.json: \(error)")
         }
     }
+    func getPreviewPlaces() -> [Place] {
+           return [
+               Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18"),
+               Place(placeId: "2", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486214), radius: 300, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19"),
+               Place(placeId: "3", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486314), radius: 200, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19")
+           ]
+       }
     
     private func buildGridIndex() {
         for place in places {
@@ -83,6 +90,24 @@ class PlaceManager {
         return nil
     }
     
+    func findDuplicatePlaces() -> [(Place, Place)] {
+        var duplicates: [(Place, Place)] = []
+        var seenPlaces: [String: [Place]] = [:]
+        
+        for place in places {
+            seenPlaces[place.name, default: []].append(place)
+        }
+        
+        for (_, placesWithSameName) in seenPlaces where placesWithSameName.count > 1 {
+            for i in 0..<placesWithSameName.count {
+                for j in (i + 1)..<placesWithSameName.count {
+                    duplicates.append((placesWithSameName[i], placesWithSameName[j]))
+                }
+            }
+        }
+        
+        return duplicates
+    }
     
     private func gridCellFor(coordinate: CLLocationCoordinate2D) -> GridCell {
         let row = Int(floor(coordinate.latitude / gridCellSize))
