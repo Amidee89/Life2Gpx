@@ -38,7 +38,7 @@ struct ManagePlacesView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var region = MKCoordinateRegion()
     @State private var duplicatePairs: [(Place, Place)] = []
-
+    
     // Public initializer to allow external setup
     init(viewModel: ManagePlacesViewModel = ManagePlacesViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -147,26 +147,7 @@ struct ManagePlacesView: View {
                                     ))
                                 }) {
                                     VStack(alignment: .leading) {
-                                        Text(place.name)
-                                            .font(.headline)
-                                        Text("Radius: \(Int(place.radius)) meters")
-                                            .font(.subheadline)
-                                        Text("Latitude: \(place.center.latitude), Longitude: \(place.center.longitude)")
-                                            .font(.footnote)
-                                        Text("ID: \(place.placeId)")
-                                            .font(.footnote)
-                                        if let streetAddress = place.streetAddress {
-                                            Text("Address: \(streetAddress)")
-                                                .font(.footnote)
-                                        }
-                                        if let secondsFromGMT = place.secondsFromGMT {
-                                            Text("Seconds from GMT: \(secondsFromGMT)")
-                                                .font(.footnote)
-                                        }
-                                        if let lastSaved = place.lastSaved {
-                                            Text("Last Saved: \(lastSaved)")
-                                                .font(.footnote)
-                                        }
+                                        placeDetails(place: place)
                                     }
                                     .padding(.vertical, 4)
                                 }
@@ -193,33 +174,56 @@ struct ManagePlacesView: View {
             span: coordinateSpan
         )
     }
-
+    
     private func setRegion(_ coordinate: CLLocationCoordinate2D) {
         region = MKCoordinateRegion(
             center: coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     }
-
-    // Helper function to show place details
+    
+    // Helper function to show place details with collapsible section for extra info
     private func placeDetails(place: Place) -> some View {
         VStack(alignment: .leading) {
             Text("Name: \(place.name)")
             Text("Radius: \(Int(place.radius)) meters")
-            Text("Latitude: \(place.center.latitude), Longitude: \(place.center.longitude)")
-            Text("ID: \(place.placeId)")
             if let streetAddress = place.streetAddress {
                 Text("Address: \(streetAddress)")
             }
-            if let secondsFromGMT = place.secondsFromGMT {
-                Text("Seconds from GMT: \(secondsFromGMT)")
+            Text("Latitude: \(place.center.latitude), Longitude: \(place.center.longitude)")
+
+            // Collapsible section for detailed IDs and extra info
+            DisclosureGroup("More details") {
+       
+                if let facebookPlaceId = place.facebookPlaceId {
+                    Text("Facebook ID: \(facebookPlaceId)")
+                }
+                if let mapboxPlaceId = place.mapboxPlaceId {
+                    Text("Mapbox ID: \(mapboxPlaceId)")
+                }
+                if let foursquareVenueId = place.foursquareVenueId {
+                    Text("Foursquare Venue ID: \(foursquareVenueId)")
+                }
+                if let foursquareCategoryId = place.foursquareCategoryId {
+                    Text("Foursquare Category ID: \(foursquareCategoryId)")
+                }
+                if let previousIds = place.previousIds?.compactMap({ $0 }).joined(separator: ", ") {
+                    if !previousIds.isEmpty {
+                        Text("Previous IDs: \(previousIds)")
+                    }
+                }
+                if let secondsFromGMT = place.secondsFromGMT {
+                    Text("Seconds from GMT: \(secondsFromGMT)")
+                }
+                if let lastSaved = place.lastSaved {
+                    Text("Last Saved: \(lastSaved)")
+                }
             }
-            if let lastSaved = place.lastSaved {
-                Text("Last Saved: \(lastSaved)")
-            }
+            .padding(.top, 4)
         }
-        .font(.footnote)
+        .padding(.vertical, 4)
     }
+
 }
 
 

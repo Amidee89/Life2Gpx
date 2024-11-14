@@ -68,6 +68,11 @@ struct Place: Identifiable, Codable, Equatable {
     let streetAddress: String?
     let secondsFromGMT: Int?
     let lastSaved: String?
+    let facebookPlaceId: String?
+    let mapboxPlaceId: String?
+    let foursquareVenueId: String?
+    let foursquareCategoryId: String?
+    let previousIds: [String?]?
     var id: String { placeId }
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
@@ -138,9 +143,9 @@ class ManagePlacesViewModel: ObservableObject {
     static var preview: ManagePlacesViewModel {
         
         let mockPlaces = [
-            Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18"),
-            Place(placeId: "2", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486214), radius: 300, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19"),
-            Place(placeId: "3", name: "Golden Gate Park", center: Center(latitude: 37.769521, longitude: -122.486214), radius: 200, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19")
+            Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18", facebookPlaceId: nil, mapboxPlaceId: nil, foursquareVenueId: nil, foursquareCategoryId: nil, previousIds: [nil]),
+            Place(placeId: "2", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486214), radius: 300, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19", facebookPlaceId: "goldengatepark.sanfrancisco", mapboxPlaceId: nil, foursquareVenueId: "445e36bff964a520fb321fe3", foursquareCategoryId: "16032", previousIds: [nil]),
+            Place(placeId: "3", name: "Golden Gate Park", center: Center(latitude: 37.769521, longitude: -122.486214), radius: 200, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19", facebookPlaceId: "goldengatepark.sanfrancisco", mapboxPlaceId: nil, foursquareVenueId: "445e36bff964a520fb321fe3", foursquareCategoryId: "16032", previousIds: [nil])
         ]
         return ManagePlacesViewModel(places: mockPlaces)
     }

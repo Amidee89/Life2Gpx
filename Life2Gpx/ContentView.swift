@@ -116,13 +116,15 @@ struct ContentView: View {
                             locationManager.dataHasBeenUpdated = false // Reset the flag
                         }
                     }
-                .sheet(isPresented: $showSettings) { // Present the settings view
-                                  SettingsView()
                               }
                 .onAppear {
                     refreshData()
                     centerAllData()
                 }
+                .fullScreenCover(isPresented: $showSettings) {
+                             SettingsView()
+                    
+                    
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     handleScenePhaseChange(newPhase)
                 }

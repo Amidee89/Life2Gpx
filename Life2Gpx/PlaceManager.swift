@@ -46,9 +46,9 @@ class PlaceManager {
     }
     func getPreviewPlaces() -> [Place] {
            return [
-               Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18"),
-               Place(placeId: "2", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486214), radius: 300, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19"),
-               Place(placeId: "3", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486314), radius: 200, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19")
+               Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18", facebookPlaceId: nil, mapboxPlaceId: nil, foursquareVenueId: nil, foursquareCategoryId: nil, previousIds: [nil]),
+               Place(placeId: "2", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486214), radius: 300, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19", facebookPlaceId: "goldengatepark.sanfrancisco", mapboxPlaceId: nil, foursquareVenueId: "445e36bff964a520fb321fe3", foursquareCategoryId: "16032", previousIds: [nil]),
+               Place(placeId: "3", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486314), radius: 200, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19", facebookPlaceId: "goldengatepark.sanfrancisco", mapboxPlaceId: nil, foursquareVenueId: "445e36bff964a520fb321fe3", foursquareCategoryId: "16032", previousIds: [nil])
            ]
        }
     
@@ -94,20 +94,35 @@ class PlaceManager {
         var duplicates: [(Place, Place)] = []
         var seenPlaces: [String: [Place]] = [:]
         
+        // Group places by name
         for place in places {
             seenPlaces[place.name, default: []].append(place)
         }
         
+        // Find duplicates with additional heuristic
         for (_, placesWithSameName) in seenPlaces where placesWithSameName.count > 1 {
             for i in 0..<placesWithSameName.count {
                 for j in (i + 1)..<placesWithSameName.count {
-                    duplicates.append((placesWithSameName[i], placesWithSameName[j]))
+                    let place1 = placesWithSameName[i]
+                    let place2 = placesWithSameName[j]
+                    
+                    // Check if IDs are different
+                    guard place1.placeId != place2.placeId else { continue }
+                    
+                    // Check if the distance between the two is less than or equal to the larger radius
+                    let distance = place1.centerCoordinate.distance(to: place2.centerCoordinate)
+                    let maxRadius = max(place1.radius, place2.radius)
+                    
+                    if distance <= maxRadius {
+                        duplicates.append((place1, place2))
+                    }
                 }
             }
         }
         
         return duplicates
     }
+
     
     private func gridCellFor(coordinate: CLLocationCoordinate2D) -> GridCell {
         let row = Int(floor(coordinate.latitude / gridCellSize))
