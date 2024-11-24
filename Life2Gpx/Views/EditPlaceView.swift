@@ -16,6 +16,10 @@ struct EditPlaceView: View {
     @State private var foursquareVenueId: String
     @State private var foursquareCategoryId: String
     
+    // Add separate state variables for lat/lon input
+    @State private var latitudeString: String
+    @State private var longitudeString: String
+    
     init(place: Place) {
         _place = State(initialValue: place)
         _name = State(initialValue: place.name)
@@ -32,13 +36,17 @@ struct EditPlaceView: View {
         _mapboxPlaceId = State(initialValue: place.mapboxPlaceId ?? "")
         _foursquareVenueId = State(initialValue: place.foursquareVenueId ?? "")
         _foursquareCategoryId = State(initialValue: place.foursquareCategoryId ?? "")
+        
+        // Initialize lat/lon strings
+        _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
+        _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
     }
 
     var body: some View {
         NavigationView {
-            Form {
-                // Map Section
-                Section {
+            VStack(spacing: 0) {
+                // Map View
+                MapReader { reader in
                     Map(position: $cameraPosition, interactionModes: .all) {
                         Annotation("Center", coordinate: center) {
                             Circle()
@@ -50,39 +58,75 @@ struct EditPlaceView: View {
                             .foregroundStyle(Color.orange.opacity(0.5))
                     }
                     .frame(height: 300)
+                    .onTapGesture { screenCoord in
+                        if let coordinate = reader.convert(screenCoord, from: .local) {
+                            center = coordinate
+                            latitudeString = String(format: "%.6f", coordinate.latitude)
+                            longitudeString = String(format: "%.6f", coordinate.longitude)
+                            cameraPosition = .region(MKCoordinateRegion(
+                                center: coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            ))
+                        }
+                    }
+                }
+                
+                // Form with remaining sections
+                Form {
+                    // Basic Details Section
+                    Section(header: Text("Basic Details")) {
+                        TextField("Name", text: $name)
+                        
+                        // Latitude input
+                        TextField("Latitude", text: $latitudeString)
+                            .keyboardType(.decimalPad)
+                            .onChange(of: latitudeString) { newValue in
+                                if let lat = Double(newValue), lat >= -90, lat <= 90 {
+                                    center = CLLocationCoordinate2D(
+                                        latitude: lat,
+                                        longitude: center.longitude
+                                    )
+                                }
+                            }
+                        
+                        // Longitude input
+                        TextField("Longitude", text: $longitudeString)
+                            .keyboardType(.decimalPad)
+                            .onChange(of: longitudeString) { newValue in
+                                if let lon = Double(newValue), lon >= -180, lon <= 180 {
+                                    center = CLLocationCoordinate2D(
+                                        latitude: center.latitude,
+                                        longitude: lon
+                                    )
+                                }
+                            }
+                        
+                        // Radius slider
+                        VStack {
+                            Text("Radius: \(radius) meters")
+                            Slider(
+                                value: Binding(
+                                    get: { Double(radius) },
+                                    set: { radius = Int($0) }
+                                ),
+                                in: 5...2000,
+                                step: 5
+                            )
+                        }
+                    }
                     
-                    Button("Center Map") {
-                        cameraPosition = .region(MKCoordinateRegion(
-                            center: center,
-                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                        ))
+                    // Address Section
+                    Section(header: Text("Address")) {
+                        TextField("Street Address", text: $streetAddress)
                     }
-                }
-                
-                // Basic Details Section
-                Section(header: Text("Basic Details")) {
-                    TextField("Name", text: $name)
-                    HStack {
-                        Text("Latitude: \(center.latitude, specifier: "%.6f")")
-                        Spacer()
-                        Text("Longitude: \(center.longitude, specifier: "%.6f")")
+                    
+                    // External IDs Section
+                    Section(header: Text("External IDs")) {
+                        TextField("Facebook Place ID", text: $facebookPlaceId)
+                        TextField("Mapbox Place ID", text: $mapboxPlaceId)
+                        TextField("Foursquare Venue ID", text: $foursquareVenueId)
+                        TextField("Foursquare Category ID", text: $foursquareCategoryId)
                     }
-                    Stepper(value: $radius, in: 0...2000, step: 10) {
-                        Text("Radius: \(radius) meters")
-                    }
-                }
-                
-                // Address Section
-                Section(header: Text("Address")) {
-                    TextField("Street Address", text: $streetAddress)
-                }
-                
-                // External IDs Section
-                Section(header: Text("External IDs")) {
-                    TextField("Facebook Place ID", text: $facebookPlaceId)
-                    TextField("Mapbox Place ID", text: $mapboxPlaceId)
-                    TextField("Foursquare Venue ID", text: $foursquareVenueId)
-                    TextField("Foursquare Category ID", text: $foursquareCategoryId)
                 }
             }
             .navigationTitle("Edit Place")
