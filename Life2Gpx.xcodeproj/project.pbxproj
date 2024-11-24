@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */; };
+		A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93842352CEBCBDE00004536 /* ManagePlaceView.swift */; };
+		A93842382CEBCC5100004536 /* FindDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93842372CEBCC4300004536 /* FindDuplicatesView.swift */; };
 		A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */ = {isa = PBXBuildFile; productRef = A9492B462B8A7FD10059DAB6 /* CoreGPX */; };
 		A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */; };
 		A95FDABB2B810CC100097276 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABA2B810CC100097276 /* Models.swift */; };
@@ -73,6 +76,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
+		A93842352CEBCBDE00004536 /* ManagePlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagePlaceView.swift; sourceTree = "<group>"; };
+		A93842372CEBCC4300004536 /* FindDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindDuplicatesView.swift; sourceTree = "<group>"; };
 		A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineManager.swift; sourceTree = "<group>"; };
 		A95FDABA2B810CC100097276 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		A95FDABC2B82257A00097276 /* GPXManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPXManager.swift; sourceTree = "<group>"; };
@@ -142,6 +148,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A93842392CEBCC8900004536 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */,
+				A93842372CEBCC4300004536 /* FindDuplicatesView.swift */,
+				A93842352CEBCBDE00004536 /* ManagePlaceView.swift */,
+				A98A65402CC1943F00061903 /* SettingsViews.swift */,
+				A9B62FA72B66E692004A010E /* ContentView.swift */,
+				A9D55E262BDADA09006B6316 /* TimelineView.swift */,
+				A9D55E222BDABE4B006B6316 /* MapView.swift */,
+				A9D55E242BDAD372006B6316 /* MapControlsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		A9B62F992B66E692004A010E = {
 			isa = PBXGroup;
 			children = (
@@ -169,14 +190,10 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A93842392CEBCC8900004536 /* Views */,
 				A98A65422CC2DCE800061903 /* PlaceManager.swift */,
-				A98A65402CC1943F00061903 /* SettingsViews.swift */,
 				A9C5E5892BED3EDB00110A3A /* Life2GpxDebug.entitlements */,
 				A9D55E2B2BDED12D006B6316 /* Life2Gpx.entitlements */,
-				A9B62FA72B66E692004A010E /* ContentView.swift */,
-				A9D55E262BDADA09006B6316 /* TimelineView.swift */,
-				A9D55E222BDABE4B006B6316 /* MapView.swift */,
-				A9D55E242BDAD372006B6316 /* MapControlsView.swift */,
 				A9B62FCF2B682E1B004A010E /* Info.plist */,
 				A9B62FD02B682E99004A010E /* LocationManager.swift */,
 				A9D55E2E2BDED8CC006B6316 /* splash.png */,
@@ -404,6 +421,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */,
 				A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */,
 				A9D55E232BDABE4B006B6316 /* MapView.swift in Sources */,
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
@@ -414,7 +432,9 @@
 				A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */,
 				A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */,
 				A9D55E252BDAD372006B6316 /* MapControlsView.swift in Sources */,
+				A93842382CEBCC5100004536 /* FindDuplicatesView.swift in Sources */,
 				A95FDABB2B810CC100097276 /* Models.swift in Sources */,
+				A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */,
 				A98A65412CC1944200061903 /* SettingsViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
