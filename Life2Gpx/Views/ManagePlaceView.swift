@@ -65,10 +65,14 @@ struct ManagePlacesView: View {
                             }
                             .onTapGesture {
                                 selectedPlace = place
-                                setRegion(place.coordinate)
+                                //111000 meters per degree approx
+                                let radiusInDegrees = (place.radius * 2.2) / 111000 
+                                let minimumSpan = 10.0 / 111000 
+                                let span = max(radiusInDegrees, minimumSpan)
+                                
                                 cameraPosition = .region(MKCoordinateRegion(
                                     center: place.coordinate,
-                                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                                    span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                                 ))
                             }
                             Spacer()
