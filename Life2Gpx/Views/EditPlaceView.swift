@@ -24,6 +24,9 @@ struct EditPlaceView: View {
     @State private var latitudeString: String
     @State private var longitudeString: String
     
+    // Add new state variable
+    @State private var newPreviousId: String = ""
+    
     init(place: Place) {
         _place = State(initialValue: place)
         _name = State(initialValue: place.name)
@@ -198,12 +201,70 @@ struct EditPlaceView: View {
                     TextField("Street Address", text: $streetAddress)
                 }
                 
+                // Identifiers Section
+                Section(header: Text("Identifiers")) {
+                    HStack {
+                        Text("Place ID")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(place.placeId)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Previous IDs")
+                            .foregroundColor(.secondary)
+                        
+                        ForEach(place.previousIds ?? [], id: \.self) { previousId in
+                            if let id = previousId {
+                                Text(id)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                        
+                        HStack {
+                            TextField("Add previous ID", text: $newPreviousId)
+                            Button(action: {
+                                if !newPreviousId.isEmpty {
+                                    // Add logic to append to previousIds
+                                    newPreviousId = ""
+                                }
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+                
                 // External IDs Section
                 Section(header: Text("External IDs")) {
-                    TextField("Facebook Place ID", text: $facebookPlaceId)
-                    TextField("Mapbox Place ID", text: $mapboxPlaceId)
-                    TextField("Foursquare Venue ID", text: $foursquareVenueId)
-                    TextField("Foursquare Category ID", text: $foursquareCategoryId)
+                    VStack(alignment: .leading) {
+                        Text("Facebook Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Facebook Place ID", text: $facebookPlaceId)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text("Mapbox Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Mapbox Place ID", text: $mapboxPlaceId)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text("Foursquare Venue ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Foursquare Venue ID", text: $foursquareVenueId)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text("Foursquare Category ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Foursquare Category ID", text: $foursquareCategoryId)
+                    }
                 }
             }
             .navigationTitle("Edit Place")
