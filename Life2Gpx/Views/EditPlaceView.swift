@@ -3,7 +3,7 @@ import MapKit
 
 struct EditPlaceView: View {
     @Environment(\.presentationMode) var presentationMode
-    @State private var place: Place
+    @State private var editablePlace: Place.EditableCopy
     @State private var name: String
     @State private var streetAddress: String
     @State private var radius: Int
@@ -28,7 +28,7 @@ struct EditPlaceView: View {
     @State private var newPreviousId: String = ""
     
     init(place: Place) {
-        _place = State(initialValue: place)
+        _editablePlace = State(initialValue: Place.EditableCopy(from: place))
         _name = State(initialValue: place.name)
         _streetAddress = State(initialValue: place.streetAddress ?? "")
         _radius = State(initialValue: Int(place.radius))
@@ -88,7 +88,7 @@ struct EditPlaceView: View {
                     ZStack(alignment: .bottomTrailing) {
                         MapReader { reader in
                             Map(position: $cameraPosition, interactionModes: .all) {
-                                Annotation(place.name, coordinate: center) {
+                                Annotation(editablePlace.name, coordinate: center) {
                                     Circle()
                                         .fill(Color.red)
                                         .frame(width: 10, height: 10)
@@ -207,14 +207,14 @@ struct EditPlaceView: View {
                         Text("Place ID")
                             .foregroundColor(.secondary)
                         Spacer()
-                        Text(place.placeId)
+                        Text(editablePlace.placeId)
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Previous IDs")
                             .foregroundColor(.secondary)
                         
-                        ForEach(place.previousIds ?? [], id: \.self) { previousId in
+                        ForEach(editablePlace.previousIds ?? [], id: \.self) { previousId in
                             if let id = previousId {
                                 Text(id)
                                     .padding(.vertical, 4)
@@ -225,7 +225,9 @@ struct EditPlaceView: View {
                             TextField("Add previous ID", text: $newPreviousId)
                             Button(action: {
                                 if !newPreviousId.isEmpty {
-                                    // Add logic to append to previousIds
+                                    var updatedPreviousIds = editablePlace.previousIds ?? []
+                                    updatedPreviousIds.append(newPreviousId)
+                                    editablePlace.previousIds = updatedPreviousIds
                                     newPreviousId = ""
                                 }
                             }) {
@@ -276,7 +278,9 @@ struct EditPlaceView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        // Add your save logic here
+                        // Convert editablePlace back to Place and pass to save handler
+                        let updatedPlace = editablePlace.toPlace()
+                        // Add your save logic here using updatedPlace
                         presentationMode.wrappedValue.dismiss()
                     }
                 }

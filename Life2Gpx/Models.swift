@@ -77,6 +77,54 @@ struct Place: Identifiable, Codable, Equatable {
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
     }
+
+    // Create a mutable copy for editing
+    struct EditableCopy {
+        var placeId: String
+        var name: String
+        var center: Center
+        var radius: Double
+        var streetAddress: String?
+        var secondsFromGMT: Int?
+        var lastSaved: String?
+        var facebookPlaceId: String?
+        var mapboxPlaceId: String?
+        var foursquareVenueId: String?
+        var foursquareCategoryId: String?
+        var previousIds: [String?]?
+        
+        init(from place: Place) {
+            self.placeId = place.placeId
+            self.name = place.name
+            self.center = place.center
+            self.radius = place.radius
+            self.streetAddress = place.streetAddress
+            self.secondsFromGMT = place.secondsFromGMT
+            self.lastSaved = place.lastSaved
+            self.facebookPlaceId = place.facebookPlaceId
+            self.mapboxPlaceId = place.mapboxPlaceId
+            self.foursquareVenueId = place.foursquareVenueId
+            self.foursquareCategoryId = place.foursquareCategoryId
+            self.previousIds = place.previousIds
+        }
+        
+        func toPlace() -> Place {
+            Place(
+                placeId: placeId,
+                name: name,
+                center: center,
+                radius: radius,
+                streetAddress: streetAddress,
+                secondsFromGMT: secondsFromGMT,
+                lastSaved: lastSaved,
+                facebookPlaceId: facebookPlaceId,
+                mapboxPlaceId: mapboxPlaceId,
+                foursquareVenueId: foursquareVenueId,
+                foursquareCategoryId: foursquareCategoryId,
+                previousIds: previousIds
+            )
+        }
+    }
 }
 
 
