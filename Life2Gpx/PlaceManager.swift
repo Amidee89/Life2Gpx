@@ -133,6 +133,32 @@ class PlaceManager {
     private func getDocumentsDirectory() -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
+    
+    func editPlace(original: Place, edited: Place) throws {
+        // Find the index of the original place
+        guard let index = places.firstIndex(where: { $0.placeId == original.placeId }) else {
+            throw PlaceError.placeNotFound
+        }
+        places[index] = edited
+    
+        try savePlaces()
+        
+        buildGridIndex()
+    }
+    
+    private func savePlaces() throws {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        
+        let data = try encoder.encode(places)
+        let fileURL = getDocumentsDirectory().appendingPathComponent("places.json")
+        
+        try data.write(to: fileURL)
+    }
+}
+
+enum PlaceError: Error {
+    case placeNotFound
 }
 
 struct GridCell: Hashable {

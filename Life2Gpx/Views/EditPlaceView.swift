@@ -27,7 +27,13 @@ struct EditPlaceView: View {
     // Add new state variable
     @State private var newPreviousId: String = ""
     
+    // Add these state variables
+    @State private var showingError = false
+    @State private var errorMessage = ""
+    private let originalPlace: Place
+    
     init(place: Place) {
+        self.originalPlace = place
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
         _name = State(initialValue: place.name)
         _streetAddress = State(initialValue: place.streetAddress ?? "")
@@ -278,19 +284,42 @@ struct EditPlaceView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        // Convert editablePlace back to Place and pass to save handler
-                        let updatedPlace = editablePlace.toPlace()
-                        // Add your save logic here using updatedPlace
-                        presentationMode.wrappedValue.dismiss()
+                        savePlace()
                     }
                 }
+            }
+            .alert("Error", isPresented: $showingError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
             }
         }
     }
 
     private func savePlace() {
-        print("Saved Place: \(name), \(streetAddress), \(radius), \(center)")
-        // Placeholder for save logic
+        // Create updated place
+        let updatedPlace = Place(
+            placeId: editablePlace.placeId,
+            name: name,
+            center: Center(latitude: center.latitude, longitude: center.longitude),
+            radius: Double(radius),
+            streetAddress: streetAddress.isEmpty ? nil : streetAddress,
+            secondsFromGMT: editablePlace.secondsFromGMT,
+            lastSaved: ISO8601DateFormatter().string(from: Date()),
+            facebookPlaceId: facebookPlaceId.isEmpty ? nil : facebookPlaceId,
+            mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId,
+            foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId,
+            foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId,
+            previousIds: editablePlace.previousIds
+        )
+        
+        do {
+            try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
+            presentationMode.wrappedValue.dismiss()
+        } catch {
+            errorMessage = "Failed to save place: \(error.localizedDescription)"
+            showingError = true
+        }
     }
 }
 

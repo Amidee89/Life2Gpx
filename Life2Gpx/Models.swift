@@ -184,7 +184,7 @@ class ManagePlacesViewModel: ObservableObject {
         self.places = places
     }
     
-    private func loadPlaces() {
+    func loadPlaces() {
         places = PlaceManager.shared.getAllPlaces()
     }
     // Static mock data for previews

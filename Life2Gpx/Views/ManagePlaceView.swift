@@ -109,6 +109,10 @@ struct ManagePlacesView: View {
             .sheet(isPresented: $isEditingPlace) {
                 if let selectedPlace = selectedPlace {
                     EditPlaceView(place: selectedPlace)
+                        .onDisappear {
+                            // Reload data when EditPlaceView disappears
+                            viewModel.loadPlaces()
+                        }
                 }
             }
         }
