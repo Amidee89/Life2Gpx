@@ -32,6 +32,9 @@ struct EditPlaceView: View {
     @State private var errorMessage = ""
     private let originalPlace: Place
     
+    // Add this state variable
+    @State private var showingDeleteConfirmation = false
+    
     init(place: Place) {
         self.originalPlace = place
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
@@ -274,6 +277,22 @@ struct EditPlaceView: View {
                         TextField("Enter Foursquare Category ID", text: $foursquareCategoryId)
                     }
                 }
+                
+                // Add this new section at the bottom of the Form
+                Section {
+                    Button(action: {
+                        showingDeleteConfirmation = true
+                    }) {
+                        HStack {
+                            Spacer()
+                            Text("Delete Place")
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                    }
+                    .listRowBackground(Color.red)
+                    .foregroundColor(.white)
+                }
             }
             .navigationTitle("Edit Place")
             .toolbar {
@@ -292,6 +311,19 @@ struct EditPlaceView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
+            }
+            // Add this modifier after the Form
+            .confirmationDialog(
+                "Are you sure you want to delete this place?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    deletePlace()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This action cannot be undone.")
             }
         }
     }
@@ -318,6 +350,17 @@ struct EditPlaceView: View {
             presentationMode.wrappedValue.dismiss()
         } catch {
             errorMessage = "Failed to save place: \(error.localizedDescription)"
+            showingError = true
+        }
+    }
+
+    // Add this new function
+    private func deletePlace() {
+        do {
+            try PlaceManager.shared.deletePlace(originalPlace)
+            presentationMode.wrappedValue.dismiss()
+        } catch {
+            errorMessage = "Failed to delete place: \(error.localizedDescription)"
             showingError = true
         }
     }

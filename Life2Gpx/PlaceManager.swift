@@ -155,6 +155,12 @@ class PlaceManager {
         
         try data.write(to: fileURL)
     }
+    
+    func deletePlace(_ place: Place) throws {
+        places.removeAll { $0.placeId == place.placeId }
+        try savePlaces()
+        buildGridIndex()
+    }
 }
 
 enum PlaceError: Error {

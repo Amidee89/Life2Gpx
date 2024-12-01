@@ -107,11 +107,14 @@ struct ManagePlacesView: View {
             .navigationTitle("Places")
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $isEditingPlace) {
-                if let selectedPlace = selectedPlace {
+                if let selectedPlace {
                     EditPlaceView(place: selectedPlace)
                         .onDisappear {
-                            // Reload data when EditPlaceView disappears
                             viewModel.loadPlaces()
+                            
+                            if !viewModel.places.contains(where: { $0.placeId == selectedPlace.placeId }) {
+                                self.selectedPlace = nil
+                            }
                         }
                 }
             }
