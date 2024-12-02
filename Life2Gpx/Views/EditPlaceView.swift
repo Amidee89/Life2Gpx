@@ -10,34 +10,31 @@ struct EditPlaceView: View {
     @State private var center: CLLocationCoordinate2D
     @State private var cameraPosition: MapCameraPosition
     @State private var currentRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(),  // This will be set in init
+        center: CLLocationCoordinate2D(),  
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
     
-    // Add new state variables for additional fields
     @State private var facebookPlaceId: String
     @State private var mapboxPlaceId: String
     @State private var foursquareVenueId: String
     @State private var foursquareCategoryId: String
-    
-    // Add separate state variables for lat/lon input
     @State private var latitudeString: String
     @State private var longitudeString: String
-    
-    // Add new state variable
     @State private var newPreviousId: String = ""
-    
-    // Add these state variables
     @State private var showingError = false
     @State private var errorMessage = ""
     private let originalPlace: Place
-    
-    // Add this state variable
+
+    @State private var editedPlaceId: String
+
     @State private var showingDeleteConfirmation = false
-    
+
+    @State private var isIdentifiersSectionExpanded = false
+
     init(place: Place) {
         self.originalPlace = place
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
+        _editedPlaceId = State(initialValue: place.placeId)
         _name = State(initialValue: place.name)
         _streetAddress = State(initialValue: place.streetAddress ?? "")
         _radius = State(initialValue: Int(place.radius))
@@ -210,42 +207,6 @@ struct EditPlaceView: View {
                     TextField("Street Address", text: $streetAddress)
                 }
                 
-                // Identifiers Section
-                Section(header: Text("Identifiers")) {
-                    HStack {
-                        Text("Place ID")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(editablePlace.placeId)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Previous IDs")
-                            .foregroundColor(.secondary)
-                        
-                        ForEach(editablePlace.previousIds ?? [], id: \.self) { previousId in
-                            if let id = previousId {
-                                Text(id)
-                                    .padding(.vertical, 4)
-                            }
-                        }
-                        
-                        HStack {
-                            TextField("Add previous ID", text: $newPreviousId)
-                            Button(action: {
-                                if !newPreviousId.isEmpty {
-                                    var updatedPreviousIds = editablePlace.previousIds ?? []
-                                    updatedPreviousIds.append(newPreviousId)
-                                    editablePlace.previousIds = updatedPreviousIds
-                                    newPreviousId = ""
-                                }
-                            }) {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                    }
-                }
                 
                 // External IDs Section
                 Section(header: Text("External IDs")) {
@@ -277,6 +238,50 @@ struct EditPlaceView: View {
                         TextField("Enter Foursquare Category ID", text: $foursquareCategoryId)
                     }
                 }
+                
+                // Identifiers Section
+                DisclosureGroup(
+                    isExpanded: $isIdentifiersSectionExpanded,
+                    content: {
+                        TextField("Place ID", text: $editedPlaceId)
+                            .foregroundColor(.primary)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Previous IDs")
+                                .foregroundColor(.secondary)
+                            
+                            ForEach(editablePlace.previousIds ?? [], id: \.self) { previousId in
+                                if let id = previousId {
+                                    Text(id)
+                                        .padding(.vertical, 4)
+                                }
+                            }
+                            
+                            HStack {
+                                TextField("Add previous ID", text: $newPreviousId)
+                                Button(action: {
+                                    if !newPreviousId.isEmpty {
+                                        var updatedPreviousIds = editablePlace.previousIds ?? []
+                                        updatedPreviousIds.append(newPreviousId)
+                                        editablePlace.previousIds = updatedPreviousIds
+                                        newPreviousId = ""
+                                    }
+                                }) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                    },
+                    label: {
+                        HStack {
+                            Text("Identifiers")
+                            Text("(edit at own risk)")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                    }
+                )
                 
                 // Add this new section at the bottom of the Form
                 Section {
@@ -329,25 +334,31 @@ struct EditPlaceView: View {
     }
 
     private func savePlace() {
-        // Create updated place
         let updatedPlace = Place(
-            placeId: editablePlace.placeId,
-            name: name,
-            center: Center(latitude: center.latitude, longitude: center.longitude),
+            placeId: editedPlaceId.trim(),  // Use the edited place ID
+            name: name.trim(),
+            center: Center(latitude: Double(latitudeString.trim()) ?? 0,
+                          longitude: Double(longitudeString.trim()) ?? 0),
             radius: Double(radius),
-            streetAddress: streetAddress.isEmpty ? nil : streetAddress,
+            streetAddress: streetAddress.isEmpty ? nil : streetAddress.trim(),
             secondsFromGMT: editablePlace.secondsFromGMT,
             lastSaved: ISO8601DateFormatter().string(from: Date()),
-            facebookPlaceId: facebookPlaceId.isEmpty ? nil : facebookPlaceId,
-            mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId,
-            foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId,
-            foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId,
+            facebookPlaceId: facebookPlaceId.isEmpty ? nil : facebookPlaceId.trim(),
+            mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId.trim(),
+            foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId.trim(),
+            foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId.trim(),
             previousIds: editablePlace.previousIds
         )
         
         do {
             try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
             presentationMode.wrappedValue.dismiss()
+        } catch PlaceError.invalidPlaceId(let message),
+                PlaceError.invalidName(let message),
+                PlaceError.invalidLatitude(let message),
+                PlaceError.invalidLongitude(let message) {
+            errorMessage = message
+            showingError = true
         } catch {
             errorMessage = "Failed to save place: \(error.localizedDescription)"
             showingError = true

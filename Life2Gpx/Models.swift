@@ -198,3 +198,9 @@ class ManagePlacesViewModel: ObservableObject {
         return ManagePlacesViewModel(places: mockPlaces)
     }
 }
+
+extension String {
+    func trim() -> String {
+        return self.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}

@@ -134,15 +134,33 @@ class PlaceManager {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
     
+    private func checkPlaceValidity(_ place: Place) throws {
+        if place.placeId.isEmpty {
+            throw PlaceError.invalidPlaceId("Place ID cannot be empty")
+        }
+        
+        if place.name.trim().isEmpty {
+            throw PlaceError.invalidName("Place name cannot be empty")
+        }
+        
+        if place.center.latitude < -90 || place.center.latitude > 90 {
+            throw PlaceError.invalidLatitude("Latitude must be between -90 and 90")
+        }
+        
+        if place.center.longitude < -180 || place.center.longitude > 180 {
+            throw PlaceError.invalidLongitude("Longitude must be between -180 and 180")
+        }
+    }
+    
     func editPlace(original: Place, edited: Place) throws {
-        // Find the index of the original place
+        try checkPlaceValidity(edited)
+        
         guard let index = places.firstIndex(where: { $0.placeId == original.placeId }) else {
             throw PlaceError.placeNotFound
         }
-        places[index] = edited
-    
-        try savePlaces()
         
+        places[index] = edited
+        try savePlaces()
         buildGridIndex()
     }
     
@@ -165,6 +183,10 @@ class PlaceManager {
 
 enum PlaceError: Error {
     case placeNotFound
+    case invalidPlaceId(String)
+    case invalidName(String)
+    case invalidLatitude(String)
+    case invalidLongitude(String)
 }
 
 struct GridCell: Hashable {
