@@ -31,8 +31,11 @@ struct EditPlaceView: View {
 
     @State private var isIdentifiersSectionExpanded = false
 
-    init(place: Place) {
+    let isNewPlace: Bool
+
+    init(place: Place, isNewPlace: Bool = false) {
         self.originalPlace = place
+        self.isNewPlace = isNewPlace
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
         _editedPlaceId = State(initialValue: place.placeId)
         _name = State(initialValue: place.name)
@@ -283,23 +286,25 @@ struct EditPlaceView: View {
                     }
                 )
                 
-                // Add this new section at the bottom of the Form
-                Section {
-                    Button(action: {
-                        showingDeleteConfirmation = true
-                    }) {
-                        HStack {
-                            Spacer()
-                            Text("Delete Place")
-                                .foregroundColor(.white)
-                            Spacer()
+                // Only show delete button for existing places
+                if !isNewPlace {
+                    Section {
+                        Button(action: {
+                            showingDeleteConfirmation = true
+                        }) {
+                            HStack {
+                                Spacer()
+                                Text("Delete Place")
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
                         }
+                        .listRowBackground(Color.red)
+                        .foregroundColor(.white)
                     }
-                    .listRowBackground(Color.red)
-                    .foregroundColor(.white)
                 }
             }
-            .navigationTitle("Edit Place")
+            .navigationTitle(isNewPlace ? "New Place" : "Edit Place")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -335,7 +340,7 @@ struct EditPlaceView: View {
 
     private func savePlace() {
         let updatedPlace = Place(
-            placeId: editedPlaceId.trim(),  // Use the edited place ID
+            placeId: editedPlaceId.trim(),
             name: name.trim(),
             center: Center(latitude: Double(latitudeString.trim()) ?? 0,
                           longitude: Double(longitudeString.trim()) ?? 0),
@@ -351,7 +356,11 @@ struct EditPlaceView: View {
         )
         
         do {
-            try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
+            if isNewPlace {
+                try PlaceManager.shared.addPlace(updatedPlace)
+            } else {
+                try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
+            }
             presentationMode.wrappedValue.dismiss()
         } catch PlaceError.invalidPlaceId(let message),
                 PlaceError.invalidName(let message),
@@ -360,7 +369,7 @@ struct EditPlaceView: View {
             errorMessage = message
             showingError = true
         } catch {
-            errorMessage = "Failed to save place: \(error.localizedDescription)"
+            errorMessage = "Failed to \(isNewPlace ? "create" : "save") place: \(error.localizedDescription)"
             showingError = true
         }
     }

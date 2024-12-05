@@ -179,6 +179,19 @@ class PlaceManager {
         try savePlaces()
         buildGridIndex()
     }
+    
+    func addPlace(_ place: Place) throws {
+        try checkPlaceValidity(place)
+        
+        // Check for duplicate ID
+        if places.contains(where: { $0.placeId == place.placeId }) {
+            throw PlaceError.invalidPlaceId("Place ID already exists")
+        }
+        
+        places.append(place)
+        try savePlaces()
+        buildGridIndex()
+    }
 }
 
 enum PlaceError: Error {

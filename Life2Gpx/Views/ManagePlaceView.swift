@@ -15,6 +15,8 @@ struct ManagePlacesView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var region = MKCoordinateRegion()
     @State private var isEditingPlace = false
+    @State private var isCreatingPlace = false
+    @State private var userLocation: CLLocationCoordinate2D?
 
     init(viewModel: ManagePlacesViewModel = ManagePlacesViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -34,22 +36,46 @@ struct ManagePlacesView: View {
     var body: some View {
         NavigationView {
             VStack {
-                if let selectedPlace = selectedPlace {
-                    Map(position: $cameraPosition, interactionModes: .all) {
-                        Annotation(selectedPlace.name, coordinate: selectedPlace.coordinate) {
+                Map(position: $cameraPosition, interactionModes: .all) {
+                    ForEach(filteredPlaces) { place in
+                        Annotation(place.name, coordinate: place.coordinate) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.red)
+                                    .fill(selectedPlace == place ? Color.purple : Color.red)
                                     .frame(width: 10, height: 10)
                             }
                         }
-                        MapCircle(center: selectedPlace.coordinate, radius: selectedPlace.radius)
-                            .stroke(Color.red.opacity(1), lineWidth: 2)
-                            .foregroundStyle(Color.orange.opacity(0.5))
+                        MapCircle(center: place.coordinate, radius: place.radius)
+                            .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
+                            .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
                     }
-                    .frame(height: 300)
-                    .onAppear {
-                        setRegion(selectedPlace.coordinate)
+                }
+                .frame(height: 300)
+                .overlay(alignment: .bottomTrailing) {
+                    VStack(spacing: 10) {
+                        Image(systemName: "location")
+                            .font(.title)
+                            .padding()
+                            .background(Color.white)
+                            .foregroundColor(.blue)
+                            .clipShape(Circle())
+                            .shadow(radius: 3)
+                            .scaleEffect(0.8)
+                            .contentShape(Circle())
+                            .onTapGesture {
+                                withAnimation {
+                                    cameraPosition = .userLocation(followsHeading: false, fallback: .region(region))
+                                }
+                            }
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 16)
+                    .allowsHitTesting(true)
+                    .zIndex(1)
+                }
+                .onAppear {
+                    if let firstPlace = filteredPlaces.first {
+                        setRegion(firstPlace.coordinate)
                     }
                 }
 
@@ -106,6 +132,16 @@ struct ManagePlacesView: View {
             }
             .navigationTitle("Places")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                Button(action: {
+                    // Use a default coordinate for creating a new place
+                    let defaultCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194) // Example: San Francisco
+                    userLocation = defaultCoordinate
+                    isCreatingPlace = true
+                }) {
+                    Image(systemName: "plus")
+                }
+            }
             .sheet(isPresented: $isEditingPlace) {
                 if let selectedPlace {
                     EditPlaceView(place: selectedPlace)
@@ -116,6 +152,28 @@ struct ManagePlacesView: View {
                                 self.selectedPlace = nil
                             }
                         }
+                    
+                }
+            }
+            .sheet(isPresented: $isCreatingPlace) {
+                if let location = userLocation {
+                    EditPlaceView(place: Place(
+                        placeId: UUID().uuidString,
+                        name: "",
+                        center: Center(latitude: location.latitude, longitude: location.longitude),
+                        radius: 40,
+                        streetAddress: nil,
+                        secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                        lastSaved: ISO8601DateFormatter().string(from: Date()),
+                        facebookPlaceId: nil,
+                        mapboxPlaceId: nil,
+                        foursquareVenueId: nil,
+                        foursquareCategoryId: nil,
+                        previousIds: nil
+                    ), isNewPlace: true)
+                    .onDisappear {
+                        viewModel.loadPlaces()
+                    }
                 }
             }
         }
