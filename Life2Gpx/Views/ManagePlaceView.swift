@@ -134,8 +134,8 @@ struct ManagePlacesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 Button(action: {
-                    // Use a default coordinate for creating a new place
-                    let defaultCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194) // Example: San Francisco
+                    // Directly set the coordinate and show the sheet
+                    let defaultCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
                     userLocation = defaultCoordinate
                     isCreatingPlace = true
                 }) {
@@ -156,24 +156,23 @@ struct ManagePlacesView: View {
                 }
             }
             .sheet(isPresented: $isCreatingPlace) {
-                if let location = userLocation {
-                    EditPlaceView(place: Place(
-                        placeId: UUID().uuidString,
-                        name: "",
-                        center: Center(latitude: location.latitude, longitude: location.longitude),
-                        radius: 40,
-                        streetAddress: nil,
-                        secondsFromGMT: TimeZone.current.secondsFromGMT(),
-                        lastSaved: ISO8601DateFormatter().string(from: Date()),
-                        facebookPlaceId: nil,
-                        mapboxPlaceId: nil,
-                        foursquareVenueId: nil,
-                        foursquareCategoryId: nil,
-                        previousIds: nil
-                    ), isNewPlace: true)
-                    .onDisappear {
-                        viewModel.loadPlaces()
-                    }
+                EditPlaceView(place: Place(
+                    placeId: UUID().uuidString,
+                    name: "",
+                    center: Center(latitude: userLocation?.latitude ?? 37.7749, 
+                                  longitude: userLocation?.longitude ?? -122.4194),
+                    radius: 40,
+                    streetAddress: nil,
+                    secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                    facebookPlaceId: nil,
+                    mapboxPlaceId: nil,
+                    foursquareVenueId: nil,
+                    foursquareCategoryId: nil,
+                    previousIds: nil
+                ), isNewPlace: true)
+                .onDisappear {
+                    viewModel.loadPlaces()
                 }
             }
         }
