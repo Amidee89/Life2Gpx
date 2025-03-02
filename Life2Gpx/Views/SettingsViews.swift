@@ -19,6 +19,12 @@ struct SettingsView: View {
                 NavigationLink(destination: FindDuplicatesView()) {
                     Text("Find duplicate places")
                 }
+                NavigationLink(destination: ImportPlacesView()) {
+                        Text("Import places")
+                }
+                .overlay(alignment: .trailing) {
+                    
+                }
                 Text("Edit activity rules")
                 Text("GPX Tidy up")
                 Text("Settings")
@@ -30,4 +36,8 @@ struct SettingsView: View {
             })
         }
     }
+}
+
+#Preview {
+    SettingsView()
 }

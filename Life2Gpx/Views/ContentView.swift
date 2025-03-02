@@ -118,6 +118,7 @@ struct ContentView: View {
                     }
                               }
                 .onAppear {
+                    _ = FileManagerUtil.shared  // Initialize folder structure
                     refreshData()
                     centerAllData()
                 }
