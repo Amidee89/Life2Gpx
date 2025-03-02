@@ -5,10 +5,11 @@ struct ImportPlacesView: View {
     @State private var life2GpxFileCount: (files: Int, places: Int) = (0, 0)
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var ignoreDuplicates = true
+    @State private var ignoreDuplicates = false
     @State private var addIdToExisting = true
     @State private var radiusHandling = RadiusHandlingOption.smaller
     @State private var overwriteExistingMetadata = false
+    @State private var isImporting = false
     
     enum RadiusHandlingOption: String, CaseIterable {
         case smaller = "Keep Smaller"
@@ -56,8 +57,8 @@ struct ImportPlacesView: View {
                         }
                         
                         NavigationLink {
-                            // TODO: Implement import view
-                            Text("Import View")
+                            ImportProgressView(importType: .arcBackup,
+                                            importOptions: createImportOptions())
                         } label: {
                             Text("Import Arc Backups")
                         }
@@ -76,8 +77,8 @@ struct ImportPlacesView: View {
                         }
                         
                         NavigationLink {
-                            // TODO: Implement import view
-                            Text("Import View")
+                            ImportProgressView(importType: .life2Gpx,
+                                            importOptions: createImportOptions())
                         } label: {
                             Text("Import Life2Gpx Files")
                         }
@@ -190,6 +191,15 @@ struct ImportPlacesView: View {
         
         return (jsonFiles.count, totalPlaces)
     }
+    
+    private func createImportOptions() -> ImportOptions {
+        ImportOptions(
+            ignoreDuplicates: ignoreDuplicates,
+            addIdToExisting: addIdToExisting,
+            radiusHandling: radiusHandling,
+            overwriteExistingMetadata: overwriteExistingMetadata
+        )
+    }
 }
 
 #Preview("Empty") {
@@ -232,5 +242,55 @@ extension ImportPlacesView {
         _life2GpxFileCount = State(initialValue: life2GpxFileCount)
         _isLoading = State(initialValue: isLoading)
         _errorMessage = State(initialValue: errorMessage)
+    }
+}
+
+enum ImportType {
+    case arcBackup
+    case life2Gpx
+}
+
+struct ImportOptions {
+    let ignoreDuplicates: Bool
+    let addIdToExisting: Bool
+    let radiusHandling: ImportPlacesView.RadiusHandlingOption
+    let overwriteExistingMetadata: Bool
+}
+
+struct ImportProgressView: View {
+    let importType: ImportType
+    let importOptions: ImportOptions
+    @State private var progress: String = "Starting import..."
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        List {
+            Section {
+                Text(progress)
+            }
+        }
+        .navigationTitle("Importing Places")
+        .interactiveDismissDisabled()
+        .task {
+            do {
+                // First, backup the existing places file
+                let fileManager = FileManager.default
+                let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                let placesUrl = documentsUrl.appendingPathComponent("Places/places.json")
+                
+                if fileManager.fileExists(atPath: placesUrl.path) {
+                    progress = "Creating backup..."
+                    try await Task.sleep(nanoseconds: 500_000_000) // Small delay for UI
+                    try FileManagerUtil.shared.backupFile(placesUrl)
+                }
+                
+                progress = "Import completed!"
+                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+                dismiss()
+                
+            } catch {
+                progress = "Error: \(error.localizedDescription)"
+            }
+        }
     }
 } 

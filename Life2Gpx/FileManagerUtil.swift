@@ -47,4 +47,22 @@ class FileManagerUtil {
         
         try fileManager.moveItem(at: fileUrl, to: destinationUrl)
     }
+    
+    func backupFile(_ fileUrl: URL) throws {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let backupsFolder = documentsUrl.appendingPathComponent("Backups")
+        
+        // Create timestamp for backup file name
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = dateFormatter.string(from: Date())
+        
+        // Create backup file name with timestamp
+        let backupFileName = fileUrl.deletingPathExtension().lastPathComponent + "_" + timestamp + "." + fileUrl.pathExtension
+        let backupUrl = backupsFolder.appendingPathComponent(backupFileName)
+        
+        // Copy file to backup location
+        try fileManager.copyItem(at: fileUrl, to: backupUrl)
+    }
 } 

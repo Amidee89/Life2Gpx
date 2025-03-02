@@ -28,8 +28,12 @@ class PlaceManager {
         return places
     }
 
+    private func getPlacesFilePath() -> URL {
+        return getDocumentsDirectory().appendingPathComponent("Places/places.json")
+    }
+
     private func loadPlaces() {
-        let fileURL = getDocumentsDirectory().appendingPathComponent("places.json")
+        let fileURL = getPlacesFilePath()
         
         guard let data = try? Data(contentsOf: fileURL) else {
             print("Failed to load places.json")
@@ -169,7 +173,7 @@ class PlaceManager {
         encoder.keyEncodingStrategy = .convertToSnakeCase
         
         let data = try encoder.encode(places)
-        let fileURL = getDocumentsDirectory().appendingPathComponent("places.json")
+        let fileURL = getPlacesFilePath()
         
         try data.write(to: fileURL)
     }
