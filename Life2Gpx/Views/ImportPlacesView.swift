@@ -280,17 +280,115 @@ struct ImportProgressView: View {
                 
                 if fileManager.fileExists(atPath: placesUrl.path) {
                     progress = "Creating backup..."
-                    try await Task.sleep(nanoseconds: 500_000_000) // Small delay for UI
+                    try await Task.sleep(nanoseconds: 500_000_000)
                     try FileManagerUtil.shared.backupFile(placesUrl)
                 }
                 
+                if importType == .arcBackup {
+                    progress = "Processing Arc backup files..."
+                    let places = try await importArcPlaces()
+                    
+                    progress = "Saving imported places..."
+                    let exportUrl = documentsUrl.appendingPathComponent("Import/exportresult.json")
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = .prettyPrinted
+                    let data = try encoder.encode(places)
+                    try data.write(to: exportUrl)
+                }
+                
                 progress = "Import completed!"
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+                try await Task.sleep(nanoseconds: 1_000_000_000)
                 dismiss()
                 
             } catch {
                 progress = "Error: \(error.localizedDescription)"
             }
         }
+    }
+    
+    private func importArcPlaces() async throws -> [Place] {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let arcFolderUrl = documentsUrl.appendingPathComponent("Import/Arc/Place")
+        
+        var importedPlaces: [Place] = []
+        
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: arcFolderUrl.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            progress = "Arc Place folder not found at: \(arcFolderUrl.path)"
+            throw NSError(domain: "ImportError", code: 1, 
+                         userInfo: [NSLocalizedDescriptionKey: "Arc Place folder not found"])
+        }
+        
+        guard let enumerator = fileManager.enumerator(at: arcFolderUrl,
+                                                    includingPropertiesForKeys: [.isRegularFileKey],
+                                                    options: [.skipsHiddenFiles]) else {
+            progress = "Could not create enumerator for: \(arcFolderUrl.path)"
+            throw NSError(domain: "ImportError", code: 2, 
+                         userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
+        }
+        
+        var filesFound = false
+        
+        while let fileUrl = enumerator.nextObject() as? URL {
+            guard fileUrl.pathExtension == "json" else { continue }
+            
+            filesFound = true
+            progress = "Processing file: \(fileUrl.lastPathComponent)"
+            
+            do {
+                let data = try Data(contentsOf: fileUrl)
+                let jsonObject = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+                
+                // Create a single place object with the correct structure
+                var placeDict: [String: Any] = [:]
+                
+                // Extract the required fields
+                placeDict["placeId"] = jsonObject["placeId"] as? String ?? fileUrl.deletingPathExtension().lastPathComponent
+                placeDict["name"] = jsonObject["name"] as? String
+                
+                // Handle center
+                if let center = jsonObject["center"] as? [String: Any] {
+                    placeDict["center"] = center
+                }
+                
+                // Handle radius
+                if let radius = jsonObject["radius"] as? [String: Any],
+                   let mean = radius["mean"] as? Double {
+                    placeDict["radius"] = mean
+                }
+                
+                // Copy over additional fields
+                for field in ["streetAddress", "secondsFromGMT", "lastSaved", 
+                             "facebookPlaceId", "mapboxPlaceId", 
+                             "foursquareVenueId", "foursquareCategoryId"] {
+                    if let value = jsonObject[field] {
+                        placeDict[field] = value
+                    }
+                }
+                
+                // Convert to data and decode
+                let cleanedData = try JSONSerialization.data(withJSONObject: [placeDict])
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let places = try decoder.decode([Place].self, from: cleanedData)
+                importedPlaces.append(contentsOf: places)
+                
+                progress = "Processed \(importedPlaces.count) places..."
+            } catch {
+                progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
+                continue
+            }
+        }
+        
+        if importedPlaces.isEmpty {
+            progress = "No places were successfully imported"
+            throw NSError(domain: "ImportError", code: 4, 
+                         userInfo: [NSLocalizedDescriptionKey: "No places were successfully imported"])
+        }
+        
+        print("Import completed successfully with \(importedPlaces.count) places")
+        return importedPlaces
     }
 } 
