@@ -104,7 +104,7 @@ struct ImportPlacesView: View {
                 } header: {
                     Text("Import Options")
                 } footer: {
-                    Text("Duplicates are places with the same name, within 20 meters, or with the same ID")
+                    Text("Duplicates are places that either have the same ID or the same name within 20 meters")
                 }
             }
         }
@@ -262,15 +262,60 @@ struct ImportProgressView: View {
     let importOptions: ImportOptions
     @State private var progress: String = "Starting import..."
     @State private var progressValue: Double = 0.0
+    @State private var duplicateCount: Int = 0
+    @State private var addedCount: Int = 0
+    @State private var sameNameDifferentLocationCount: Int = 0
+    @State private var mergedCount: Int = 0
+    @State private var isComplete: Bool = false
     @Environment(\.dismiss) private var dismiss
+    @State private var duplicateIdCount: Int = 0
+    @State private var duplicateNameLocationCount: Int = 0
     
     var body: some View {
         List {
-            Section {
-                Text(progress)
-                ProgressView(value: progressValue)
-                    .progressViewStyle(.linear)
+            if !isComplete {
+                Section {
+                    Text(progress)
+                    if duplicateCount > 0 {
+                        Text("Found \(duplicateCount) duplicates")
+                            .foregroundStyle(.secondary)
+                    }
+                    ProgressView(value: progressValue)
+                        .progressViewStyle(.linear)
+                        .padding(.vertical, 8)
+                }
+            } else {
+                Section {
+                    Text("Import Complete")
+                        .font(.headline)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Places added: \(addedCount)")
+                        
+                        if duplicateCount > 0 {
+                            Text(importOptions.ignoreDuplicates ? "Duplicates skipped: \(duplicateCount)" : "Duplicates managed: \(duplicateCount)")
+                            Group {
+                                Text("• Same ID: \(duplicateIdCount)")
+                                Text("• Same name within 20m: \(duplicateNameLocationCount)")
+                            }
+                            .padding(.leading)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        }
+                        
+                        if sameNameDifferentLocationCount > 0 {
+                            Text("Same name, different location (>20m): \(sameNameDifferentLocationCount)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
+                }
             }
         }
         .navigationTitle("Importing Places")
@@ -290,30 +335,67 @@ struct ImportProgressView: View {
                 }
                 
                 if importType == .arcBackup {
-                    progress = "Processing Arc backup files..."
-                    let places = try await importArcPlaces()
+                    try await importArcPlaces()
                     
-                    progress = "Saving imported places..."
-                    progressValue = 0.9
-                    let exportUrl = documentsUrl.appendingPathComponent("Import/exportresult.json")
-                    let encoder = JSONEncoder()
-                    encoder.outputFormatting = .prettyPrinted
-                    let data = try encoder.encode(places)
-                    try data.write(to: exportUrl)
+                    // Clean up empty folders after successful import
+                    progress = "Cleaning up..."
+                    try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")
                 }
                 
                 progressValue = 1.0
-                progress = "Import completed!"
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                dismiss()
+                isComplete = true
                 
             } catch {
-                progress = "Error: \(error.localizedDescription)"
+                progress = "Import failed: \(error.localizedDescription)"
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
     }
     
-    private func importArcPlaces() async throws -> [Place] {
+    private func checkForDuplicates(_ place: Place) async throws -> Place? {
+        let existingPlaces = PlaceManager.shared.getAllPlaces()
+        
+        for existingPlace in existingPlaces {
+            // Check for ID match first (immediate duplicate)
+            if !place.placeId.isEmpty && place.placeId == existingPlace.placeId {
+                duplicateIdCount += 1
+                print("Found places with same ID:")
+                print("  Place 1: \(place.name) - \(place.placeId)")
+                print("  Place 2: \(existingPlace.name) - \(existingPlace.placeId)")
+                print("  Place 1: lat: \(place.center.latitude), lon: \(place.center.longitude)")
+                print("  Place 2: lat: \(existingPlace.center.latitude), lon: \(existingPlace.center.longitude)")
+                let distance = place.centerCoordinate.distance(to: existingPlace.centerCoordinate)
+                print("  Distance: \(Int(distance))m")
+                return existingPlace
+            }
+            
+            // Check for name similarity (case-insensitive, trimmed)
+            let normalizedNewName = place.name.trim().lowercased()
+            let normalizedExistingName = existingPlace.name.trim().lowercased()
+            
+            if normalizedNewName == normalizedExistingName {
+                // Check distance
+                let distance = place.centerCoordinate.distance(to: existingPlace.centerCoordinate)
+                if distance <= 20 { // 20 meters threshold
+                    duplicateNameLocationCount += 1
+                    print("Found places with same name within 20m:")
+                    print("  Place 1: \(place.name) - \(place.placeId)")
+                    print("  Place 2: \(existingPlace.name) - \(existingPlace.placeId)")
+                    print("  Distance: \(Int(distance))m")
+                    return existingPlace
+                } else {
+                    sameNameDifferentLocationCount += 1
+                    print("Found places with same name '\(place.name)' but \(Int(distance))m apart:")
+                    print("  Place 1: lat: \(place.center.latitude), lon: \(place.center.longitude)")
+                    print("  Place 2: lat: \(existingPlace.center.latitude), lon: \(existingPlace.center.longitude)")
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    private func importArcPlaces() async throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let arcFolderUrl = documentsUrl.appendingPathComponent("Import/Arc/Place")
@@ -334,8 +416,10 @@ struct ImportProgressView: View {
         dateFormatter.dateFormat = "yy-MM-dd_HH-mm-ss"
         let timestamp = dateFormatter.string(from: Date())
         
-        var importedPlaces: [Place] = []
         var processedFiles = 0
+        var processedPlaces = 0
+        duplicateCount = 0
+        addedCount = 0
         
         guard let enumerator = fileManager.enumerator(at: arcFolderUrl,
                                                     includingPropertiesForKeys: [.isRegularFileKey],
@@ -381,8 +465,23 @@ struct ImportProgressView: View {
                 let places = try decoder.decode([Place].self, from: cleanedData)
                 
                 for place in places {
-                    if let processedPlace = try await processImportedPlace(place) {
-                        importedPlaces.append(processedPlace)
+                    if let duplicate = try await checkForDuplicates(place) {
+                        duplicateCount += 1
+                        progress = "Processing... Found \(duplicateCount) duplicates"
+                        
+                        if importOptions.ignoreDuplicates {
+                            print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
+                            continue
+                        } else {
+                            mergedCount += 1
+                            print("Would merge duplicate: \(place.name) according to options")
+                            continue
+                        }
+                    } else {
+                        // Not a duplicate, add it directly
+                        try await PlaceManager.shared.addPlace(place)
+                        addedCount += 1
+                        progress = "Saved \(addedCount) places (Found \(duplicateCount) duplicates)"
                     }
                 }
                 
@@ -390,41 +489,13 @@ struct ImportProgressView: View {
                 
                 processedFiles += 1
                 progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
-                
             } catch {
                 progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
+                try await Task.sleep(nanoseconds: 2_000_000_000)
                 continue
             }
         }
         
-        print("Cleaning up empty folders...")
-        try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")
-        try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc")
-        
-        if importedPlaces.isEmpty {
-            progress = "No places were successfully imported"
-            throw NSError(domain: "ImportError", code: 4, 
-                         userInfo: [NSLocalizedDescriptionKey: "No places were successfully imported"])
-        }
-        
-        return importedPlaces
-    }
-    
-    private func processImportedPlace(_ place: Place) async throws -> Place? {
-        if importOptions.ignoreDuplicates {
-            if let duplicate = try await checkForDuplicates(place) {
-                print("Found duplicate for place: \(place.name) - \(duplicate.name)")
-                return nil
-            }
-        }
-        
-        // For now, just return the place as-is
-        return place
-    }
-    
-    private func checkForDuplicates(_ place: Place) async throws -> Place? {
-        // Placeholder for duplicate checking logic
-        print("Checking for duplicates of: \(place.name)")
-        return nil
+        progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
     }
 } 
