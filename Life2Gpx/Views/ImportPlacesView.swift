@@ -330,7 +330,6 @@ struct ImportProgressView: View {
                 if fileManager.fileExists(atPath: placesUrl.path) {
                     progress = "Creating backup..."
                     progressValue = 0.1
-                    try await Task.sleep(nanoseconds: 500_000_000)
                     try FileManagerUtil.shared.backupFile(placesUrl)
                 }
                 
@@ -417,9 +416,14 @@ struct ImportProgressView: View {
         let timestamp = dateFormatter.string(from: Date())
         
         var processedFiles = 0
-        var processedPlaces = 0
         duplicateCount = 0
         addedCount = 0
+        duplicateIdCount = 0
+        duplicateNameLocationCount = 0
+        sameNameDifferentLocationCount = 0
+        
+        // Start with 10% progress after backup
+        progressValue = 0.1
         
         guard let enumerator = fileManager.enumerator(at: arcFolderUrl,
                                                     includingPropertiesForKeys: [.isRegularFileKey],
@@ -488,7 +492,9 @@ struct ImportProgressView: View {
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
                 
                 processedFiles += 1
+                // Reserve 10% for initial backup and 10% for cleanup
                 progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                
             } catch {
                 progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
                 try await Task.sleep(nanoseconds: 2_000_000_000)
@@ -496,6 +502,8 @@ struct ImportProgressView: View {
             }
         }
         
+        // Set to 90% when file processing is done (leaving 10% for cleanup)
+        progressValue = 0.9
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
     }
 } 
