@@ -261,12 +261,16 @@ struct ImportProgressView: View {
     let importType: ImportType
     let importOptions: ImportOptions
     @State private var progress: String = "Starting import..."
+    @State private var progressValue: Double = 0.0
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         List {
             Section {
                 Text(progress)
+                ProgressView(value: progressValue)
+                    .progressViewStyle(.linear)
+                    .padding(.vertical, 8)
             }
         }
         .navigationTitle("Importing Places")
@@ -280,6 +284,7 @@ struct ImportProgressView: View {
                 
                 if fileManager.fileExists(atPath: placesUrl.path) {
                     progress = "Creating backup..."
+                    progressValue = 0.1
                     try await Task.sleep(nanoseconds: 500_000_000)
                     try FileManagerUtil.shared.backupFile(placesUrl)
                 }
@@ -289,6 +294,7 @@ struct ImportProgressView: View {
                     let places = try await importArcPlaces()
                     
                     progress = "Saving imported places..."
+                    progressValue = 0.9
                     let exportUrl = documentsUrl.appendingPathComponent("Import/exportresult.json")
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = .prettyPrinted
@@ -296,6 +302,7 @@ struct ImportProgressView: View {
                     try data.write(to: exportUrl)
                 }
                 
+                progressValue = 1.0
                 progress = "Import completed!"
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 dismiss()
@@ -311,50 +318,41 @@ struct ImportProgressView: View {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let arcFolderUrl = documentsUrl.appendingPathComponent("Import/Arc/Place")
         
+        // Count total files first
+        let enumerator = fileManager.enumerator(at: arcFolderUrl,
+                                              includingPropertiesForKeys: [.isRegularFileKey],
+                                              options: [.skipsHiddenFiles])
+        var totalFiles = 0
+        while let fileUrl = enumerator?.nextObject() as? URL {
+            if fileUrl.pathExtension == "json" {
+                totalFiles += 1
+            }
+        }
+        
         // Create timestamp for this import session
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yy-MM-dd_HH-mm-ss"
         let timestamp = dateFormatter.string(from: Date())
         
         var importedPlaces: [Place] = []
-        
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: arcFolderUrl.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
-            print("Directory not found or not a directory")
-            progress = "Arc Place folder not found at: \(arcFolderUrl.path)"
-            throw NSError(domain: "ImportError", code: 1, 
-                         userInfo: [NSLocalizedDescriptionKey: "Arc Place folder not found"])
-        }
+        var processedFiles = 0
         
         guard let enumerator = fileManager.enumerator(at: arcFolderUrl,
                                                     includingPropertiesForKeys: [.isRegularFileKey],
                                                     options: [.skipsHiddenFiles]) else {
-            print("Failed to create enumerator")
-            progress = "Could not create enumerator for: \(arcFolderUrl.path)"
+            progress = "Could not access Arc Place folder"
             throw NSError(domain: "ImportError", code: 2, 
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
-        var filesFound = false
-        var processedCount = 0
-        
         while let fileUrl = enumerator.nextObject() as? URL {
-            print("Found item: \(fileUrl.path)")
+            guard fileUrl.pathExtension == "json" else { continue }
             
-            guard fileUrl.pathExtension == "json" else { 
-                print("Skipping non-json file: \(fileUrl.path)")
-                continue 
-            }
-            
-            filesFound = true
             progress = "Processing file: \(fileUrl.lastPathComponent)"
-            print("Processing JSON file: \(fileUrl.lastPathComponent)")
             
             do {
                 let data = try Data(contentsOf: fileUrl)
                 let jsonObject = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-                print("Loaded JSON with \(jsonObject.count) keys")
                 
                 var placeDict: [String: Any] = [:]
                 placeDict["placeId"] = jsonObject["placeId"] as? String ?? fileUrl.deletingPathExtension().lastPathComponent
@@ -377,41 +375,31 @@ struct ImportProgressView: View {
                     }
                 }
                 
-                print("Created place dictionary: \(placeDict)")
-                
                 let cleanedData = try JSONSerialization.data(withJSONObject: [placeDict])
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let places = try decoder.decode([Place].self, from: cleanedData)
-                print("Successfully decoded \(places.count) places")
                 
-                // Process each place individually
                 for place in places {
-                    print("Processing place: \(place.name)")
                     if let processedPlace = try await processImportedPlace(place) {
                         importedPlaces.append(processedPlace)
-                        processedCount += 1
-                        progress = "Processed \(processedCount) places..."
-                        print("Successfully processed place: \(place.name)")
                     }
                 }
                 
-                // Move processed file to Done folder with session timestamp
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
-                print("Moved file to Done folder")
+                
+                processedFiles += 1
+                progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
                 
             } catch {
                 progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
-                print("Error processing file: \(error)")
                 continue
             }
         }
         
-        print("Finished processing. Found \(importedPlaces.count) places")
-        
-        // After all files are processed
         print("Cleaning up empty folders...")
-        try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")  // Clean up Place and its subfolders
+        try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")
+        try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc")
         
         if importedPlaces.isEmpty {
             progress = "No places were successfully imported"
