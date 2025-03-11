@@ -311,11 +311,17 @@ struct ImportProgressView: View {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let arcFolderUrl = documentsUrl.appendingPathComponent("Import/Arc/Place")
         
+        // Create timestamp for this import session
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yy-MM-dd_HH-mm-ss"
+        let timestamp = dateFormatter.string(from: Date())
+        
         var importedPlaces: [Place] = []
         
         var isDirectory: ObjCBool = false
         guard fileManager.fileExists(atPath: arcFolderUrl.path, isDirectory: &isDirectory),
               isDirectory.boolValue else {
+            print("Directory not found or not a directory")
             progress = "Arc Place folder not found at: \(arcFolderUrl.path)"
             throw NSError(domain: "ImportError", code: 1, 
                          userInfo: [NSLocalizedDescriptionKey: "Arc Place folder not found"])
@@ -324,42 +330,45 @@ struct ImportProgressView: View {
         guard let enumerator = fileManager.enumerator(at: arcFolderUrl,
                                                     includingPropertiesForKeys: [.isRegularFileKey],
                                                     options: [.skipsHiddenFiles]) else {
+            print("Failed to create enumerator")
             progress = "Could not create enumerator for: \(arcFolderUrl.path)"
             throw NSError(domain: "ImportError", code: 2, 
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
         var filesFound = false
+        var processedCount = 0
         
         while let fileUrl = enumerator.nextObject() as? URL {
-            guard fileUrl.pathExtension == "json" else { continue }
+            print("Found item: \(fileUrl.path)")
+            
+            guard fileUrl.pathExtension == "json" else { 
+                print("Skipping non-json file: \(fileUrl.path)")
+                continue 
+            }
             
             filesFound = true
             progress = "Processing file: \(fileUrl.lastPathComponent)"
+            print("Processing JSON file: \(fileUrl.lastPathComponent)")
             
             do {
                 let data = try Data(contentsOf: fileUrl)
                 let jsonObject = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+                print("Loaded JSON with \(jsonObject.count) keys")
                 
-                // Create a single place object with the correct structure
                 var placeDict: [String: Any] = [:]
-                
-                // Extract the required fields
                 placeDict["placeId"] = jsonObject["placeId"] as? String ?? fileUrl.deletingPathExtension().lastPathComponent
                 placeDict["name"] = jsonObject["name"] as? String
                 
-                // Handle center
                 if let center = jsonObject["center"] as? [String: Any] {
                     placeDict["center"] = center
                 }
                 
-                // Handle radius
                 if let radius = jsonObject["radius"] as? [String: Any],
                    let mean = radius["mean"] as? Double {
                     placeDict["radius"] = mean
                 }
                 
-                // Copy over additional fields
                 for field in ["streetAddress", "secondsFromGMT", "lastSaved", 
                              "facebookPlaceId", "mapboxPlaceId", 
                              "foursquareVenueId", "foursquareCategoryId"] {
@@ -368,19 +377,41 @@ struct ImportProgressView: View {
                     }
                 }
                 
-                // Convert to data and decode
+                print("Created place dictionary: \(placeDict)")
+                
                 let cleanedData = try JSONSerialization.data(withJSONObject: [placeDict])
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let places = try decoder.decode([Place].self, from: cleanedData)
-                importedPlaces.append(contentsOf: places)
+                print("Successfully decoded \(places.count) places")
                 
-                progress = "Processed \(importedPlaces.count) places..."
+                // Process each place individually
+                for place in places {
+                    print("Processing place: \(place.name)")
+                    if let processedPlace = try await processImportedPlace(place) {
+                        importedPlaces.append(processedPlace)
+                        processedCount += 1
+                        progress = "Processed \(processedCount) places..."
+                        print("Successfully processed place: \(place.name)")
+                    }
+                }
+                
+                // Move processed file to Done folder with session timestamp
+                try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
+                print("Moved file to Done folder")
+                
             } catch {
                 progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
+                print("Error processing file: \(error)")
                 continue
             }
         }
+        
+        print("Finished processing. Found \(importedPlaces.count) places")
+        
+        // After all files are processed
+        print("Cleaning up empty folders...")
+        try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")  // Clean up Place and its subfolders
         
         if importedPlaces.isEmpty {
             progress = "No places were successfully imported"
@@ -388,7 +419,24 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "No places were successfully imported"])
         }
         
-        print("Import completed successfully with \(importedPlaces.count) places")
         return importedPlaces
+    }
+    
+    private func processImportedPlace(_ place: Place) async throws -> Place? {
+        if importOptions.ignoreDuplicates {
+            if let duplicate = try await checkForDuplicates(place) {
+                print("Found duplicate for place: \(place.name) - \(duplicate.name)")
+                return nil
+            }
+        }
+        
+        // For now, just return the place as-is
+        return place
+    }
+    
+    private func checkForDuplicates(_ place: Place) async throws -> Place? {
+        // Placeholder for duplicate checking logic
+        print("Checking for duplicates of: \(place.name)")
+        return nil
     }
 } 

@@ -15,6 +15,7 @@ class FileManagerUtil {
         let folders = [
             "Import",
             "Import/Arc",
+            "Import/Done",
             "Places",
             "Backups"
         ]
@@ -34,18 +35,30 @@ class FileManagerUtil {
         }
     }
     
-    func moveFileToImportDone(_ fileUrl: URL) throws {
+    func moveFileToImportDone(_ fileUrl: URL, sessionTimestamp: String) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let doneFolder = documentsUrl.appendingPathComponent("Import/Done")
+        let doneFolder = documentsUrl.appendingPathComponent("Import/Done/\(sessionTimestamp)")
         
-        let destinationUrl = doneFolder.appendingPathComponent(fileUrl.lastPathComponent)
-        
-        if fileManager.fileExists(atPath: destinationUrl.path) {
-            try fileManager.removeItem(at: destinationUrl)
+        // Get the path components after "Arc"
+        let components = fileUrl.pathComponents
+        if let arcIndex = components.firstIndex(of: "Arc") {
+            let subPath = components[(arcIndex + 1)...].joined(separator: "/")
+            let destinationUrl = doneFolder.appendingPathComponent(subPath)
+            
+            // Create intermediate directories if needed
+            try fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(),
+                                         withIntermediateDirectories: true)
+            
+            if fileManager.fileExists(atPath: destinationUrl.path) {
+                try fileManager.removeItem(at: destinationUrl)
+            }
+            
+            try fileManager.moveItem(at: fileUrl, to: destinationUrl)
+        } else {
+            throw NSError(domain: "FileManagerError", code: 1,
+                         userInfo: [NSLocalizedDescriptionKey: "Could not find 'Arc' in path"])
         }
-        
-        try fileManager.moveItem(at: fileUrl, to: destinationUrl)
     }
     
     func backupFile(_ fileUrl: URL) throws {
@@ -64,5 +77,63 @@ class FileManagerUtil {
         
         // Copy file to backup location
         try fileManager.copyItem(at: fileUrl, to: backupUrl)
+    }
+    
+    func cleanupEmptyFolders(in baseFolder: String) throws {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let baseFolderUrl = documentsUrl.appendingPathComponent(baseFolder)
+        
+        print("Starting cleanup of: \(baseFolderUrl.path)")
+        
+        // Recursive function to remove empty directories
+        func removeEmptySubfolders(at url: URL) throws -> Bool {
+            print("Checking folder: \(url.lastPathComponent)")
+            let contents = try fileManager.contentsOfDirectory(at: url, 
+                                                             includingPropertiesForKeys: nil)
+                .filter { !$0.lastPathComponent.hasPrefix(".") } // Ignore hidden files
+            
+            print("Contents of \(url.lastPathComponent): \(contents.map { $0.lastPathComponent })")
+            
+            var isEmpty = true
+            
+            for contentUrl in contents {
+                var isDirectory: ObjCBool = false
+                fileManager.fileExists(atPath: contentUrl.path, isDirectory: &isDirectory)
+                
+                if isDirectory.boolValue {
+                    print("Processing subfolder: \(contentUrl.lastPathComponent)")
+                    // If subfolder is empty after processing, remove it
+                    if try removeEmptySubfolders(at: contentUrl) {
+                        print("Removing empty folder: \(contentUrl.lastPathComponent)")
+                        try fileManager.removeItem(at: contentUrl)
+                    } else {
+                        print("Folder not empty: \(contentUrl.lastPathComponent)")
+                        isEmpty = false
+                    }
+                } else {
+                    print("Found file: \(contentUrl.lastPathComponent)")
+                    isEmpty = false
+                }
+            }
+            
+            // Remove .DS_Store file if present
+            let dsStoreUrl = url.appendingPathComponent(".DS_Store")
+            if fileManager.fileExists(atPath: dsStoreUrl.path) {
+                print("Removing .DS_Store from \(url.lastPathComponent)")
+                try fileManager.removeItem(at: dsStoreUrl)
+            }
+            
+            print("Folder \(url.lastPathComponent) is \(isEmpty ? "empty" : "not empty")")
+            return isEmpty
+        }
+        
+        // Process subfolders and check if base folder should be removed
+        if try removeEmptySubfolders(at: baseFolderUrl) {
+            print("Removing base folder: \(baseFolderUrl.lastPathComponent)")
+            try fileManager.removeItem(at: baseFolderUrl)
+        } else {
+            print("Base folder not empty: \(baseFolderUrl.lastPathComponent)")
+        }
     }
 } 
