@@ -13,26 +13,30 @@ struct TimingReportView: View {
             }
             
             ForEach(timingReport.filter { $0.parent == nil }) { entry in
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(entry.id)
-                        Spacer()
-                        Text("\(entry.duration.formatted(.number.precision(.fractionLength(1))))s")
-                            .monospacedDigit()
-                    }
-                    
-                    ForEach(timingReport.filter { $0.parent == entry.id }) { childEntry in
-                        HStack {
-                            Text(childEntry.id)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading)
-                            Spacer()
-                            Text("\(childEntry.duration.formatted(.number.precision(.fractionLength(1))))s")
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
+                TimerEntryView(entry: entry, allEntries: timingReport, depth: 0)
+            }
+        }
+    }
+}
+
+private struct TimerEntryView: View {
+    let entry: TimerEntry
+    let allEntries: [TimerEntry]
+    let depth: Int
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(entry.id)
+                    .padding(.leading, CGFloat(depth) * 16)
+                Spacer()
+                Text("\(entry.duration.formatted(.number.precision(.fractionLength(1))))s")
+                    .monospacedDigit()
+            }
+            .foregroundStyle(depth == 0 ? .primary : .secondary)
+            
+            ForEach(allEntries.filter { $0.parent == entry.id }) { childEntry in
+                TimerEntryView(entry: childEntry, allEntries: allEntries, depth: depth + 1)
             }
         }
     }

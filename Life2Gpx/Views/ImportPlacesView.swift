@@ -471,12 +471,16 @@ struct ImportProgressView: View {
     }
     
     private func importArcPlaces(timer: PerformanceTimer) async throws {
+        let startImport = Date()  
+        
+        // Add this line to create the main processing timer
+        timer.addTime("Main Processing", 0) // Initial duration will be updated later
+        
         let startCountFiles = Date()
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let arcFolderUrl = documentsUrl.appendingPathComponent("Import/Arc/Place")
         
-        // Count total files first
         let enumerator = fileManager.enumerator(at: arcFolderUrl,
                                               includingPropertiesForKeys: [.isRegularFileKey],
                                               options: [.skipsHiddenFiles])
@@ -488,7 +492,6 @@ struct ImportProgressView: View {
         }
         timer.addTime("Count Files", Date().timeIntervalSince(startCountFiles))
         
-        // Create timestamp for this import session
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yy-MM-dd_HH-mm-ss"
         let timestamp = dateFormatter.string(from: Date())
@@ -511,6 +514,7 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
+        let startProcessing = Date()  // Add timer for main processing loop
         while let fileUrl = enumerator.nextObject() as? URL {
             // Check for cancellation at the start of each file
             guard !shouldCancel else {
@@ -524,9 +528,11 @@ struct ImportProgressView: View {
             }
             
             do {
+                let startFileProcess = Date()  // Add timer for entire file processing
+                
                 let startReadFile = Date()
                 let data = try Data(contentsOf: fileUrl)
-                timer.addTime("Read File", Date().timeIntervalSince(startReadFile))
+                timer.addTime("Read File", Date().timeIntervalSince(startReadFile), parent: "Process File")
                 
                 let startParseJson = Date()
                 let jsonObject = try JSONSerialization.jsonObject(with: data) as! [String: Any]
@@ -556,7 +562,7 @@ struct ImportProgressView: View {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let places = try decoder.decode([Place].self, from: cleanedData)
-                timer.addTime("Parse JSON", Date().timeIntervalSince(startParseJson))
+                timer.addTime("Parse JSON", Date().timeIntervalSince(startParseJson), parent: "Process File")
                 
                 for place in places {
                     let startProcessPlace = Date()
@@ -569,8 +575,7 @@ struct ImportProgressView: View {
                         await MainActor.run {
                             duplicateCount += 1
                             progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
-                        }
-                        
+                        }                        
                         if importOptions.ignoreDuplicates {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
@@ -682,25 +687,31 @@ struct ImportProgressView: View {
                     } else {
                         let startAddPlace = Date()
                         try await PlaceManager.shared.addPlace(place, batch: true)
-                        timer.addTime("  Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
+                        timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
                         
+                        let startUpdateUI = Date()
                         await MainActor.run {
                             addedCount += 1
                             progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
                         }
+                        timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process Place")
                     }
                     
-                    timer.addTime("Process Place", Date().timeIntervalSince(startProcessPlace))
+                    timer.addTime("Process Place", Date().timeIntervalSince(startProcessPlace), parent: "Main Processing")
                 }
                 
                 let startMoveFile = Date()
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
-                timer.addTime("Move File", Date().timeIntervalSince(startMoveFile))
+                timer.addTime("Move File", Date().timeIntervalSince(startMoveFile), parent: "Process File")
                 
+                let startUpdateUI = Date()
                 await MainActor.run {
                     processedFiles += 1
                     progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
                 }
+                timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
+                
+                timer.addTime("Process File", Date().timeIntervalSince(startFileProcess), parent: "Main Processing")
                 
             } catch {
                 await MainActor.run {
@@ -721,5 +732,8 @@ struct ImportProgressView: View {
         let startFinalize = Date()
         try await PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
+        
+        // At the end of the function, update the main processing time
+        timer.addTime("Main Processing", Date().timeIntervalSince(startImport))
     }
 }
