@@ -271,6 +271,7 @@ struct ImportProgressView: View {
     @State private var duplicateIdCount: Int = 0
     @State private var duplicateNameLocationCount: Int = 0
     @State private var shouldCancel = false
+    @State private var importErrors: [(filename: String, error: String)] = []
     
     var body: some View {
         List {
@@ -325,6 +326,22 @@ struct ImportProgressView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
+                }
+            }
+            
+            if !importErrors.isEmpty {
+                Section("Import Errors") {
+                    ForEach(importErrors, id: \.filename) { error in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(error.filename)
+                                .font(.system(.body, design: .monospaced))
+                                .textSelection(.enabled)
+                            Text(error.error)
+                                .foregroundStyle(.red)
+                                .textSelection(.enabled)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
             }
         }
@@ -651,9 +668,12 @@ struct ImportProgressView: View {
                 
             } catch {
                 await MainActor.run {
-                    progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
+                    progress = "Processing files..."
+                    importErrors.append((
+                        filename: fileUrl.lastPathComponent,
+                        error: error.localizedDescription
+                    ))
                 }
-                try await Task.sleep(nanoseconds: 2_000_000_000)
                 continue
             }
         }
