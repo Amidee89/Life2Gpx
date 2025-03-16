@@ -156,7 +156,7 @@ class PlaceManager {
         }
     }
     
-    func editPlace(original: Place, edited: Place) throws {
+    func editPlace(original: Place, edited: Place, batch: Bool = false) throws {
         try checkPlaceValidity(edited)
         
         guard let index = places.firstIndex(where: { $0.placeId == original.placeId }) else {
@@ -164,8 +164,10 @@ class PlaceManager {
         }
         
         places[index] = edited
-        try savePlaces()
-        buildGridIndex()
+        if !batch {
+            try savePlaces()
+            buildGridIndex()
+        }
     }
     
     private func savePlaces() throws {
@@ -184,7 +186,7 @@ class PlaceManager {
         buildGridIndex()
     }
     
-    func addPlace(_ place: Place) throws {
+    func addPlace(_ place: Place, batch: Bool = false) throws {
         try checkPlaceValidity(place)
         
         // Check for duplicate ID
@@ -193,6 +195,20 @@ class PlaceManager {
         }
         
         places.append(place)
+        if !batch {
+            try savePlaces()
+            buildGridIndex()
+        }
+    }
+    
+    func saveAllPlaces(_ newPlaces: [Place]) throws {
+        places = newPlaces
+        try savePlaces()
+        buildGridIndex()
+    }
+
+    // Add a new method to rebuild indexes after batch operations
+    func finalizeBatchOperations() throws {
         try savePlaces()
         buildGridIndex()
     }

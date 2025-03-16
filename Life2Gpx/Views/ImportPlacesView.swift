@@ -272,6 +272,8 @@ struct ImportProgressView: View {
     @State private var duplicateNameLocationCount: Int = 0
     @State private var shouldCancel = false
     @State private var importErrors: [(filename: String, error: String)] = []
+    @State private var timingReport: [(operation: String, duration: TimeInterval)] = []
+    @State private var importStartTime: Date?
     
     var body: some View {
         List {
@@ -344,6 +346,24 @@ struct ImportProgressView: View {
                     }
                 }
             }
+            
+            if !timingReport.isEmpty {
+                Section("Performance Report") {
+                    if let startTime = importStartTime {
+                        Text("Total time: \(Date().timeIntervalSince(startTime).formatted(.number.precision(.fractionLength(1)))) seconds")
+                            .font(.headline)
+                    }
+                    
+                    ForEach(timingReport, id: \.operation) { timing in
+                        HStack {
+                            Text(timing.operation)
+                            Spacer()
+                            Text("\(timing.duration.formatted(.number.precision(.fractionLength(1))))s")
+                                .monospacedDigit()
+                        }
+                    }
+                }
+            }
         }
         .navigationTitle("Importing Places")
         .interactiveDismissDisabled()
@@ -354,6 +374,9 @@ struct ImportProgressView: View {
     }
     
     private func importPlaces() async {
+        importStartTime = Date()
+        let timer = PerformanceTimer()
+        
         do {
             // Check for cancellation
             guard !shouldCancel else {
@@ -365,6 +388,7 @@ struct ImportProgressView: View {
             }
             
             // First, backup the existing places file
+            timer.start("Backup")
             let fileManager = FileManager.default
             let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let placesUrl = documentsUrl.appendingPathComponent("Places/places.json")
@@ -376,22 +400,26 @@ struct ImportProgressView: View {
                 }
                 try FileManagerUtil.shared.backupFile(placesUrl)
             }
+            timer.stop()
             
             if importType == .arcBackup {
-                try await importArcPlaces()
+                try await importArcPlaces(timer: timer)
                 
                 // Clean up only if not canceled
                 if !shouldCancel {
+                    timer.start("Cleanup")
                     await MainActor.run {
                         progress = "Cleaning up..."
                     }
                     try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")
+                    timer.stop()
                 }
             }
             
             await MainActor.run {
                 progressValue = 1.0
                 isComplete = true
+                timingReport = timer.report
             }
             
         } catch {
@@ -445,7 +473,8 @@ struct ImportProgressView: View {
         return nil
     }
     
-    private func importArcPlaces() async throws {
+    private func importArcPlaces(timer: PerformanceTimer) async throws {
+        timer.start("Count Files")
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let arcFolderUrl = documentsUrl.appendingPathComponent("Import/Arc/Place")
@@ -460,6 +489,7 @@ struct ImportProgressView: View {
                 totalFiles += 1
             }
         }
+        timer.stop()
         
         // Create timestamp for this import session
         let dateFormatter = DateFormatter()
@@ -484,6 +514,7 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
+        timer.start("Process Files")
         while let fileUrl = enumerator.nextObject() as? URL {
             // Check for cancellation at the start of each file
             guard !shouldCancel else {
@@ -497,7 +528,11 @@ struct ImportProgressView: View {
             }
             
             do {
+                timer.start("Read File")
                 let data = try Data(contentsOf: fileUrl)
+                timer.stop()
+                
+                timer.start("Parse JSON")
                 let jsonObject = try JSONSerialization.jsonObject(with: data) as! [String: Any]
                 
                 var placeDict: [String: Any] = [:]
@@ -525,25 +560,33 @@ struct ImportProgressView: View {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let places = try decoder.decode([Place].self, from: cleanedData)
+                timer.stop()
                 
                 for place in places {
+                    timer.start("Process Place")
+                    let placeTimer = PerformanceTimer()
+                    
                     // Check for cancellation before processing each place
                     guard !shouldCancel else {
                         return
                     }
                     
-                    if let duplicate = try await checkForDuplicates(place) {
+                    placeTimer.start("Check Duplicates")
+                    let duplicate = try await checkForDuplicates(place)
+                    placeTimer.stop()
+                    
+                    if let duplicate = duplicate {
                         await MainActor.run {
                             duplicateCount += 1
-                            //progress = "Processing... Found \(duplicateCount) duplicates"
-                            // Reserve 10% for initial backup and 10% for cleanup
                             progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
                         }
                         
                         if importOptions.ignoreDuplicates {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
+                            timer.stop()
                             continue
                         } else {
+                            placeTimer.start("Handle Duplicate")
                             // Handle duplicate according to options
                             var updatedPlace = duplicate
                             var needsUpdate = false
@@ -642,27 +685,37 @@ struct ImportProgressView: View {
                             }
                             
                             if needsUpdate {
-                                try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace)
+                                placeTimer.start("Save Updated Place")
+                                try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
+                                placeTimer.stop()
                                 mergedCount += 1
-                                //progress = "Merged \(mergedCount) places"
                             }
+                            placeTimer.stop()
                         }
                     } else {
-                        try await PlaceManager.shared.addPlace(place)
+                        placeTimer.start("Add New Place")
+                        try await PlaceManager.shared.addPlace(place, batch: true)
+                        placeTimer.stop()
+                        
                         await MainActor.run {
                             addedCount += 1
-                            //progress = "Saved \(addedCount) places (Found \(duplicateCount) duplicates)"
-                            // Reserve 10% for initial backup and 10% for cleanup
                             progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
                         }
                     }
+                    
+                    timer.stop()
+                    // Add the sub-timings to the main timer's report with indentation
+                    for (operation, duration) in placeTimer.report {
+                        timer.addSubOperation("  " + operation, duration)
+                    }
                 }
                 
+                timer.start("Move File")
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
+                timer.stop()
                 
                 await MainActor.run {
                     processedFiles += 1
-                    // Reserve 10% for initial backup and 10% for cleanup
                     progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
                 }
                 
@@ -681,5 +734,65 @@ struct ImportProgressView: View {
         // Set to 90% when file processing is done (leaving 10% for cleanup)
         progressValue = 0.9
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
+        timer.stop()
+        
+        // Add this after processing all files, before cleanup:
+        timer.start("Finalize Batch")
+        try await PlaceManager.shared.finalizeBatchOperations()
+        timer.stop()
+    }
+}
+
+private class PerformanceTimer {
+    private var measurements: [(operation: String, duration: TimeInterval)] = []
+    private var currentOperation: (name: String, startTime: Date)?
+    
+    func start(_ operation: String) {
+        if let current = currentOperation {
+            print("Warning: Starting \(operation) while \(current.name) is still running")
+        }
+        currentOperation = (operation, Date())
+    }
+    
+    func stop() {
+        guard let current = currentOperation else {
+            print("Warning: stop() called with no operation running")
+            return
+        }
+        let duration = Date().timeIntervalSince(current.startTime)
+        measurements.append((current.name, duration))
+        currentOperation = nil
+    }
+    
+    func addSubOperation(_ operation: String, _ duration: TimeInterval) {
+        measurements.append((operation, duration))
+    }
+    
+    var report: [(operation: String, duration: TimeInterval)] {
+        // Group by operation name and sum durations
+        var grouped: [String: TimeInterval] = [:]
+        for measurement in measurements {
+            grouped[measurement.operation, default: 0] += measurement.duration
+        }
+        
+        // Convert back to array and sort by duration, keeping indented items after their parent
+        return grouped.map { ($0.key, $0.value) }
+            .sorted { a, b in
+                // If both are main operations (not indented) or both are sub-operations,
+                // sort by duration
+                if a.0.hasPrefix("  ") == b.0.hasPrefix("  ") {
+                    return a.1 > b.1
+                }
+                // If one is a main operation and one is a sub-operation,
+                // keep main operations first
+                if !a.0.hasPrefix("  ") && b.0.hasPrefix("  ") {
+                    // If this is the parent of the sub-operation, keep them together
+                    if b.0.trimmingPrefix("  ").hasPrefix(a.0) {
+                        return true
+                    }
+                }
+                // Otherwise, sort by whether they're indented
+                return !a.0.hasPrefix("  ")
+            }
     }
 } 
