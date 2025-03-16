@@ -10,6 +10,7 @@ struct ImportPlacesView: View {
     @State private var radiusHandling = RadiusHandlingOption.smaller
     @State private var overwriteExistingMetadata = false
     @State private var isImporting = false
+    @State private var duplicateDistanceThreshold: Double = 20
     
     enum RadiusHandlingOption: String, CaseIterable {
         case smaller = "Keep Smaller"
@@ -100,11 +101,21 @@ struct ImportPlacesView: View {
                         }
                         
                         Toggle("Overwrite Existing Metadata", isOn: $overwriteExistingMetadata)
+                        
+                        HStack {
+                            Text("Duplicate Distance")
+                            Spacer()
+                            TextField("meters", value: $duplicateDistanceThreshold, format: .number)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                            Text("meters")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } header: {
                     Text("Import Options")
                 } footer: {
-                    Text("Duplicates are places that either have the same ID or the same name within 20 meters")
+                    Text("Duplicates are places that either have the same ID or the same name within \(Int(duplicateDistanceThreshold)) meters")
                 }
             }
         }
@@ -197,7 +208,8 @@ struct ImportPlacesView: View {
             ignoreDuplicates: ignoreDuplicates,
             addIdToExisting: addIdToExisting,
             radiusHandling: radiusHandling,
-            overwriteExistingMetadata: overwriteExistingMetadata
+            overwriteExistingMetadata: overwriteExistingMetadata,
+            duplicateDistanceThreshold: duplicateDistanceThreshold
         )
     }
 }
@@ -255,6 +267,7 @@ struct ImportOptions {
     let addIdToExisting: Bool
     let radiusHandling: ImportPlacesView.RadiusHandlingOption
     let overwriteExistingMetadata: Bool
+    let duplicateDistanceThreshold: Double
 }
 
 struct ImportProgressView: View {
@@ -439,11 +452,6 @@ struct ImportProgressView: View {
                 duplicateIdCount += 1
                 print("Found places with same ID:")
                 print("  Place 1: \(place.name) - \(place.placeId)")
-                print("  Place 2: \(existingPlace.name) - \(existingPlace.placeId)")
-                print("  Place 1: lat: \(place.center.latitude), lon: \(place.center.longitude)")
-                print("  Place 2: lat: \(existingPlace.center.latitude), lon: \(existingPlace.center.longitude)")
-                let distance = place.centerCoordinate.distance(to: existingPlace.centerCoordinate)
-                print("  Distance: \(Int(distance))m")
                 return existingPlace
             }
             
@@ -452,11 +460,11 @@ struct ImportProgressView: View {
             let normalizedExistingName = existingPlace.name.trim().lowercased()
             
             if normalizedNewName == normalizedExistingName {
-                // Check distance
+                // Check distance using the configurable threshold
                 let distance = place.centerCoordinate.distance(to: existingPlace.centerCoordinate)
-                if distance <= 20 { // 20 meters threshold
+                if distance <= importOptions.duplicateDistanceThreshold {
                     duplicateNameLocationCount += 1
-                    print("Found places with same name within 20m:")
+                    print("Found places with same name within \(Int(importOptions.duplicateDistanceThreshold))m:")
                     print("  Place 1: \(place.name) - \(place.placeId)")
                     print("  Place 2: \(existingPlace.name) - \(existingPlace.placeId)")
                     print("  Distance: \(Int(distance))m")
