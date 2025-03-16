@@ -270,12 +270,14 @@ struct ImportProgressView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var duplicateIdCount: Int = 0
     @State private var duplicateNameLocationCount: Int = 0
+    @State private var shouldCancel = false
     
     var body: some View {
         List {
             if !isComplete {
                 Section {
                     Text(progress)
+                        .animation(.default, value: progress)
                     if duplicateCount > 0 {
                         Text("Found \(duplicateCount) duplicates")
                             .foregroundStyle(.secondary)
@@ -283,6 +285,14 @@ struct ImportProgressView: View {
                     ProgressView(value: progressValue)
                         .progressViewStyle(.linear)
                         .padding(.vertical, 8)
+                        .animation(.default, value: progressValue)
+                    
+                    Button("Cancel", role: .destructive) {
+                        shouldCancel = true
+                        progress = "Canceling..."
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
                 }
             } else {
                 Section {
@@ -320,34 +330,58 @@ struct ImportProgressView: View {
         }
         .navigationTitle("Importing Places")
         .interactiveDismissDisabled()
+        .navigationBarBackButtonHidden(!isComplete)
         .task {
-            do {
-                // First, backup the existing places file
-                let fileManager = FileManager.default
-                let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                let placesUrl = documentsUrl.appendingPathComponent("Places/places.json")
-                
-                if fileManager.fileExists(atPath: placesUrl.path) {
+            await importPlaces()
+        }
+    }
+    
+    private func importPlaces() async {
+        do {
+            // Check for cancellation
+            guard !shouldCancel else {
+                await MainActor.run {
+                    progress = "Import canceled"
+                    isComplete = true
+                }
+                return
+            }
+            
+            // First, backup the existing places file
+            let fileManager = FileManager.default
+            let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let placesUrl = documentsUrl.appendingPathComponent("Places/places.json")
+            
+            if fileManager.fileExists(atPath: placesUrl.path) {
+                await MainActor.run {
                     progress = "Creating backup..."
                     progressValue = 0.1
-                    try FileManagerUtil.shared.backupFile(placesUrl)
                 }
+                try FileManagerUtil.shared.backupFile(placesUrl)
+            }
+            
+            if importType == .arcBackup {
+                try await importArcPlaces()
                 
-                if importType == .arcBackup {
-                    try await importArcPlaces()
-                    
-                    // Clean up empty folders after successful import
-                    progress = "Cleaning up..."
+                // Clean up only if not canceled
+                if !shouldCancel {
+                    await MainActor.run {
+                        progress = "Cleaning up..."
+                    }
                     try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")
                 }
-                
+            }
+            
+            await MainActor.run {
                 progressValue = 1.0
                 isComplete = true
-                
-            } catch {
-                progress = "Import failed: \(error.localizedDescription)"
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
+            
+        } catch {
+            await MainActor.run {
+                progress = "Import failed: \(error.localizedDescription)"
+            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
         }
     }
     
@@ -434,9 +468,16 @@ struct ImportProgressView: View {
         }
         
         while let fileUrl = enumerator.nextObject() as? URL {
+            // Check for cancellation at the start of each file
+            guard !shouldCancel else {
+                return
+            }
+            
             guard fileUrl.pathExtension == "json" else { continue }
             
-            progress = "Processing file: \(fileUrl.lastPathComponent)"
+            await MainActor.run {
+                progress = "Processing file \(processedFiles + 1) of \(totalFiles)"
+            }
             
             do {
                 let data = try Data(contentsOf: fileUrl)
@@ -469,34 +510,149 @@ struct ImportProgressView: View {
                 let places = try decoder.decode([Place].self, from: cleanedData)
                 
                 for place in places {
+                    // Check for cancellation before processing each place
+                    guard !shouldCancel else {
+                        return
+                    }
+                    
                     if let duplicate = try await checkForDuplicates(place) {
-                        duplicateCount += 1
-                        progress = "Processing... Found \(duplicateCount) duplicates"
+                        await MainActor.run {
+                            duplicateCount += 1
+                            //progress = "Processing... Found \(duplicateCount) duplicates"
+                            // Reserve 10% for initial backup and 10% for cleanup
+                            progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                        }
                         
                         if importOptions.ignoreDuplicates {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
                         } else {
-                            mergedCount += 1
-                            print("Would merge duplicate: \(place.name) according to options")
-                            continue
+                            // Handle duplicate according to options
+                            var updatedPlace = duplicate
+                            var needsUpdate = false
+                            
+                            // Handle ID
+                            if importOptions.addIdToExisting && !place.placeId.isEmpty && duplicate.placeId != place.placeId && !(duplicate.previousIds?.contains(where: { $0 == place.placeId }) ?? false) {
+                                // Create a new place with updated previousIds
+                                var previousIds = duplicate.previousIds ?? []
+                                previousIds.append(duplicate.placeId)
+                                updatedPlace = Place(
+                                    placeId: place.placeId,
+                                    name: duplicate.name,
+                                    center: duplicate.center,
+                                    radius: duplicate.radius,
+                                    streetAddress: duplicate.streetAddress,
+                                    secondsFromGMT: duplicate.secondsFromGMT,
+                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                                    facebookPlaceId: duplicate.facebookPlaceId,
+                                    mapboxPlaceId: duplicate.mapboxPlaceId,
+                                    foursquareVenueId: duplicate.foursquareVenueId,
+                                    foursquareCategoryId: duplicate.foursquareCategoryId,
+                                    previousIds: previousIds
+                                )
+                                needsUpdate = true
+                            }
+                            
+                            // Handle radius
+                            let newRadius: Double
+                            switch importOptions.radiusHandling {
+                            case .smaller:
+                                newRadius = min(place.radius, duplicate.radius)
+                            case .bigger:
+                                newRadius = max(place.radius, duplicate.radius)
+                            case .imported:
+                                newRadius = place.radius
+                            case .original:
+                                newRadius = duplicate.radius
+                            }
+                            
+                            if newRadius != updatedPlace.radius {
+                                updatedPlace = Place(
+                                    placeId: updatedPlace.placeId,
+                                    name: updatedPlace.name,
+                                    center: updatedPlace.center,
+                                    radius: newRadius,
+                                    streetAddress: updatedPlace.streetAddress,
+                                    secondsFromGMT: updatedPlace.secondsFromGMT,
+                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                                    facebookPlaceId: updatedPlace.facebookPlaceId,
+                                    mapboxPlaceId: updatedPlace.mapboxPlaceId,
+                                    foursquareVenueId: updatedPlace.foursquareVenueId,
+                                    foursquareCategoryId: updatedPlace.foursquareCategoryId,
+                                    previousIds: updatedPlace.previousIds
+                                )
+                                needsUpdate = true
+                            }
+                            
+                            // Handle metadata
+                            if importOptions.overwriteExistingMetadata {
+                                // Overwrite all metadata from imported place
+                                updatedPlace = Place(
+                                    placeId: updatedPlace.placeId,
+                                    name: updatedPlace.name,
+                                    center: updatedPlace.center,
+                                    radius: updatedPlace.radius,
+                                    streetAddress: place.streetAddress,
+                                    secondsFromGMT: place.secondsFromGMT,
+                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                                    facebookPlaceId: place.facebookPlaceId,
+                                    mapboxPlaceId: place.mapboxPlaceId,
+                                    foursquareVenueId: place.foursquareVenueId,
+                                    foursquareCategoryId: place.foursquareCategoryId,
+                                    previousIds: updatedPlace.previousIds
+                                )
+                                needsUpdate = true
+                            } else {
+                                // Only add missing metadata
+                                let updatedMetadata = Place(
+                                    placeId: updatedPlace.placeId,
+                                    name: updatedPlace.name,
+                                    center: updatedPlace.center,
+                                    radius: updatedPlace.radius,
+                                    streetAddress: updatedPlace.streetAddress ?? place.streetAddress,
+                                    secondsFromGMT: updatedPlace.secondsFromGMT ?? place.secondsFromGMT,
+                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                                    facebookPlaceId: updatedPlace.facebookPlaceId ?? place.facebookPlaceId,
+                                    mapboxPlaceId: updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId,
+                                    foursquareVenueId: updatedPlace.foursquareVenueId ?? place.foursquareVenueId,
+                                    foursquareCategoryId: updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId,
+                                    previousIds: updatedPlace.previousIds
+                                )
+                                if updatedMetadata != updatedPlace {
+                                    updatedPlace = updatedMetadata
+                                    needsUpdate = true
+                                }
+                            }
+                            
+                            if needsUpdate {
+                                try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace)
+                                mergedCount += 1
+                                //progress = "Merged \(mergedCount) places"
+                            }
                         }
                     } else {
-                        // Not a duplicate, add it directly
                         try await PlaceManager.shared.addPlace(place)
-                        addedCount += 1
-                        progress = "Saved \(addedCount) places (Found \(duplicateCount) duplicates)"
+                        await MainActor.run {
+                            addedCount += 1
+                            //progress = "Saved \(addedCount) places (Found \(duplicateCount) duplicates)"
+                            // Reserve 10% for initial backup and 10% for cleanup
+                            progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                        }
                     }
                 }
                 
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
                 
-                processedFiles += 1
-                // Reserve 10% for initial backup and 10% for cleanup
-                progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                await MainActor.run {
+                    processedFiles += 1
+                    // Reserve 10% for initial backup and 10% for cleanup
+                    progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                }
                 
             } catch {
-                progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
+                await MainActor.run {
+                    progress = "Error processing \(fileUrl.lastPathComponent): \(error.localizedDescription)"
+                }
                 try await Task.sleep(nanoseconds: 2_000_000_000)
                 continue
             }
