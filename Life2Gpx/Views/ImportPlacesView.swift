@@ -515,6 +515,9 @@ struct ImportProgressView: View {
         }
         
         let startProcessing = Date()  // Add timer for main processing loop
+        let batchSize = 50 // Update UI every 50 files
+        var batchCounter = 0
+        
         while let fileUrl = enumerator.nextObject() as? URL {
             // Check for cancellation at the start of each file
             guard !shouldCancel else {
@@ -572,10 +575,8 @@ struct ImportProgressView: View {
                     timer.addTime("Check Duplicates", Date().timeIntervalSince(startCheckDuplicates), parent: "Process Place")
                     
                     if let duplicate = duplicate {
-                        await MainActor.run {
-                            duplicateCount += 1
-                            progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
-                        }                        
+                        duplicateCount += 1
+                        
                         if importOptions.ignoreDuplicates {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
@@ -688,29 +689,29 @@ struct ImportProgressView: View {
                         let startAddPlace = Date()
                         try await PlaceManager.shared.addPlace(place, batch: true)
                         timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
-                        
-                        let startUpdateUI = Date()
-                        await MainActor.run {
-                            addedCount += 1
-                            progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
-                        }
-                        timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process Place")
+                        addedCount += 1
                     }
                     
-                    timer.addTime("Process Place", Date().timeIntervalSince(startProcessPlace), parent: "Main Processing")
+                    timer.addTime("Process Place", Date().timeIntervalSince(startProcessPlace), parent: "Process File")
                 }
-                
+
                 let startMoveFile = Date()
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
                 timer.addTime("Move File", Date().timeIntervalSince(startMoveFile), parent: "Process File")
                 
-                let startUpdateUI = Date()
-                await MainActor.run {
-                    processedFiles += 1
-                    progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                // Update UI less frequently
+                batchCounter += 1
+                if batchCounter >= batchSize {
+                    let startUpdateUI = Date()
+                    await MainActor.run {
+                        processedFiles += batchCounter
+                        progress = "Processing file \(processedFiles) of \(totalFiles)"
+                        progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                    }
+                    timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
+                    batchCounter = 0
                 }
-                timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
-                
+
                 timer.addTime("Process File", Date().timeIntervalSince(startFileProcess), parent: "Main Processing")
                 
             } catch {
@@ -723,6 +724,17 @@ struct ImportProgressView: View {
                 }
                 continue
             }
+        }
+        
+        // Final UI update for any remaining files
+        if batchCounter > 0 {
+            let startUpdateUI = Date()
+            await MainActor.run {
+                processedFiles += batchCounter
+                progressValue = 0.9
+                progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
+            }
+            timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
         }
         
         // Set to 90% when file processing is done (leaving 10% for cleanup)
