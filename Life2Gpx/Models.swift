@@ -204,3 +204,33 @@ extension String {
         return self.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+struct TimerEntry: Identifiable {
+    let id: String
+    let duration: TimeInterval
+    let parent: String?
+    
+    init(operation: String, duration: TimeInterval, parent: String? = nil) {
+        self.id = operation
+        self.duration = duration
+        self.parent = parent
+    }
+}
+
+class PerformanceTimer {
+    private struct Measurement {
+        let duration: TimeInterval
+        let parent: String?
+    }
+    
+    private var measurements: [String: Measurement] = [:]
+    
+    func addTime(_ operation: String, _ duration: TimeInterval, parent: String? = nil) {
+        measurements[operation] = Measurement(duration: duration + (measurements[operation]?.duration ?? 0), parent: parent)
+    }
+    
+    var entries: [TimerEntry] {
+        measurements.map { TimerEntry(operation: $0.key, duration: $0.value.duration, parent: $0.value.parent) }
+            .sorted { $0.duration > $1.duration }
+    }
+}

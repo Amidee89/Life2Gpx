@@ -10,6 +10,7 @@
 		A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */; };
 		A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */; };
 		A937C4B02D6D03E3009BC131 /* FileManagerUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4AF2D6D03E3009BC131 /* FileManagerUtil.swift */; };
+		A937C4B22D870738009BC131 /* TimingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4B12D870738009BC131 /* TimingReportView.swift */; };
 		A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93842352CEBCBDE00004536 /* ManagePlaceView.swift */; };
 		A93842382CEBCC5100004536 /* FindDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93842372CEBCC4300004536 /* FindDuplicatesView.swift */; };
 		A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */ = {isa = PBXBuildFile; productRef = A9492B462B8A7FD10059DAB6 /* CoreGPX */; };
@@ -81,6 +82,7 @@
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
 		A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPlacesView.swift; sourceTree = "<group>"; };
 		A937C4AF2D6D03E3009BC131 /* FileManagerUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerUtil.swift; sourceTree = "<group>"; };
+		A937C4B12D870738009BC131 /* TimingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingReportView.swift; sourceTree = "<group>"; };
 		A93842352CEBCBDE00004536 /* ManagePlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagePlaceView.swift; sourceTree = "<group>"; };
 		A93842372CEBCC4300004536 /* FindDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindDuplicatesView.swift; sourceTree = "<group>"; };
 		A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineManager.swift; sourceTree = "<group>"; };
@@ -164,6 +166,7 @@
 				A9D55E222BDABE4B006B6316 /* MapView.swift */,
 				A9D55E242BDAD372006B6316 /* MapControlsView.swift */,
 				A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */,
+				A937C4B12D870738009BC131 /* TimingReportView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -427,6 +430,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A937C4B22D870738009BC131 /* TimingReportView.swift in Sources */,
 				A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */,
 				A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */,
 				A937C4B02D6D03E3009BC131 /* FileManagerUtil.swift in Sources */,

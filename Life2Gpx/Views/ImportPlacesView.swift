@@ -362,38 +362,7 @@ struct ImportProgressView: View {
             }
             
             if !timingReport.isEmpty {
-                Section("Performance Report") {
-                    if let startTime = importStartTime, let endTime = importEndTime {
-                        Text("Total time: \(endTime.timeIntervalSince(startTime).formatted(.number.precision(.fractionLength(1)))) seconds")
-                            .font(.headline)
-                    }
-                    
-                    // First show all root operations (those without parents)
-                    ForEach(timingReport.filter { $0.parent == nil }) { entry in
-                        VStack(alignment: .leading, spacing: 4) {
-                            // Parent operation
-                            HStack {
-                                Text(entry.id)
-                                Spacer()
-                                Text("\(entry.duration.formatted(.number.precision(.fractionLength(1))))s")
-                                    .monospacedDigit()
-                            }
-                            
-                            // Child operations
-                            ForEach(timingReport.filter { $0.parent == entry.id }) { childEntry in
-                                HStack {
-                                    Text(childEntry.id)
-                                        .foregroundStyle(.secondary)
-                                        .padding(.leading)
-                                    Spacer()
-                                    Text("\(childEntry.duration.formatted(.number.precision(.fractionLength(1))))s")
-                                        .monospacedDigit()
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
+                TimingReportView(timingReport: timingReport, startTime: importStartTime, endTime: importEndTime)
             }
         }
         .navigationTitle("Importing Places")
@@ -752,35 +721,5 @@ struct ImportProgressView: View {
         let startFinalize = Date()
         try await PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
-    }
-}
-
-private struct TimerEntry: Identifiable {
-    let id: String
-    let duration: TimeInterval
-    let parent: String?
-    
-    init(operation: String, duration: TimeInterval, parent: String? = nil) {
-        self.id = operation
-        self.duration = duration
-        self.parent = parent
-    }
-}
-
-private class PerformanceTimer {
-    private struct Measurement {
-        let duration: TimeInterval
-        let parent: String?
-    }
-    
-    private var measurements: [String: Measurement] = [:]
-    
-    func addTime(_ operation: String, _ duration: TimeInterval, parent: String? = nil) {
-        measurements[operation] = Measurement(duration: duration + (measurements[operation]?.duration ?? 0), parent: parent)
-    }
-    
-    var entries: [TimerEntry] {
-        measurements.map { TimerEntry(operation: $0.key, duration: $0.value.duration, parent: $0.value.parent) }
-            .sorted { $0.duration > $1.duration }
     }
 }
