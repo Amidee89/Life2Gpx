@@ -402,9 +402,9 @@ struct ImportProgressView: View {
             }
             timer.addTime("Backup", Date().timeIntervalSince(backupStart))
             
-            if importType == .arcBackup {
+            switch importType {
+            case .arcBackup:
                 try await importArcPlaces(timer: timer)
-                
                 // Clean up only if not canceled
                 if !shouldCancel {
                     let cleanupStart = Date()
@@ -414,6 +414,8 @@ struct ImportProgressView: View {
                     try FileManagerUtil.shared.cleanupEmptyFolders(in: "Import/Arc/Place")
                     timer.addTime("Cleanup", Date().timeIntervalSince(cleanupStart))
                 }
+            case .life2Gpx:
+                try await importLife2GpxPlaces(timer: timer)
             }
             
             await MainActor.run {
@@ -468,6 +470,112 @@ struct ImportProgressView: View {
         }
         
         return nil
+    }
+    
+    private func handleDuplicate(place: Place, duplicate: Place, timer: PerformanceTimer) async throws -> Bool {
+        let startHandleDuplicate = Date()
+        var updatedPlace = duplicate
+        var needsUpdate = false
+        
+        // Handle ID
+        if importOptions.addIdToExisting && !place.placeId.isEmpty && 
+           duplicate.placeId != place.placeId && 
+           !(duplicate.previousIds?.contains(where: { $0 == place.placeId }) ?? false) {
+            var previousIds = duplicate.previousIds ?? []
+            previousIds.append(duplicate.placeId)
+            updatedPlace = Place(
+                placeId: place.placeId,
+                name: duplicate.name,
+                center: duplicate.center,
+                radius: duplicate.radius,
+                streetAddress: duplicate.streetAddress,
+                secondsFromGMT: duplicate.secondsFromGMT,
+                lastSaved: ISO8601DateFormatter().string(from: Date()),
+                facebookPlaceId: duplicate.facebookPlaceId,
+                mapboxPlaceId: duplicate.mapboxPlaceId,
+                foursquareVenueId: duplicate.foursquareVenueId,
+                foursquareCategoryId: duplicate.foursquareCategoryId,
+                previousIds: previousIds
+            )
+            needsUpdate = true
+        }
+        
+        // Handle radius
+        let newRadius: Double
+        switch importOptions.radiusHandling {
+        case .smaller:
+            newRadius = min(place.radius, duplicate.radius)
+        case .bigger:
+            newRadius = max(place.radius, duplicate.radius)
+        case .imported:
+            newRadius = place.radius
+        case .original:
+            newRadius = duplicate.radius
+        }
+        
+        if newRadius != updatedPlace.radius {
+            updatedPlace = Place(
+                placeId: updatedPlace.placeId,
+                name: updatedPlace.name,
+                center: updatedPlace.center,
+                radius: newRadius,
+                streetAddress: updatedPlace.streetAddress,
+                secondsFromGMT: updatedPlace.secondsFromGMT,
+                lastSaved: ISO8601DateFormatter().string(from: Date()),
+                facebookPlaceId: updatedPlace.facebookPlaceId,
+                mapboxPlaceId: updatedPlace.mapboxPlaceId,
+                foursquareVenueId: updatedPlace.foursquareVenueId,
+                foursquareCategoryId: updatedPlace.foursquareCategoryId,
+                previousIds: updatedPlace.previousIds
+            )
+            needsUpdate = true
+        }
+        
+        // Handle metadata
+        if importOptions.overwriteExistingMetadata {
+            updatedPlace = Place(
+                placeId: updatedPlace.placeId,
+                name: updatedPlace.name,
+                center: updatedPlace.center,
+                radius: updatedPlace.radius,
+                streetAddress: place.streetAddress,
+                secondsFromGMT: place.secondsFromGMT,
+                lastSaved: ISO8601DateFormatter().string(from: Date()),
+                facebookPlaceId: place.facebookPlaceId,
+                mapboxPlaceId: place.mapboxPlaceId,
+                foursquareVenueId: place.foursquareVenueId,
+                foursquareCategoryId: place.foursquareCategoryId,
+                previousIds: updatedPlace.previousIds
+            )
+            needsUpdate = true
+        } else {
+            let updatedMetadata = Place(
+                placeId: updatedPlace.placeId,
+                name: updatedPlace.name,
+                center: updatedPlace.center,
+                radius: updatedPlace.radius,
+                streetAddress: updatedPlace.streetAddress ?? place.streetAddress,
+                secondsFromGMT: updatedPlace.secondsFromGMT ?? place.secondsFromGMT,
+                lastSaved: ISO8601DateFormatter().string(from: Date()),
+                facebookPlaceId: updatedPlace.facebookPlaceId ?? place.facebookPlaceId,
+                mapboxPlaceId: updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId,
+                foursquareVenueId: updatedPlace.foursquareVenueId ?? place.foursquareVenueId,
+                foursquareCategoryId: updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId,
+                previousIds: updatedPlace.previousIds
+            )
+            if updatedMetadata != updatedPlace {
+                updatedPlace = updatedMetadata
+                needsUpdate = true
+            }
+        }
+        
+        if needsUpdate {
+            try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
+            mergedCount += 1
+        }
+        timer.addTime("Handle Duplicate", Date().timeIntervalSince(startHandleDuplicate), parent: "Process Place")
+        
+        return needsUpdate
     }
     
     private func importArcPlaces(timer: PerformanceTimer) async throws {
@@ -581,109 +689,7 @@ struct ImportProgressView: View {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
                         } else {
-                            let startHandleDuplicate = Date()
-                            // Handle duplicate according to options
-                            var updatedPlace = duplicate
-                            var needsUpdate = false
-                            
-                            // Handle ID
-                            if importOptions.addIdToExisting && !place.placeId.isEmpty && duplicate.placeId != place.placeId && !(duplicate.previousIds?.contains(where: { $0 == place.placeId }) ?? false) {
-                                // Create a new place with updated previousIds
-                                var previousIds = duplicate.previousIds ?? []
-                                previousIds.append(duplicate.placeId)
-                                updatedPlace = Place(
-                                    placeId: place.placeId,
-                                    name: duplicate.name,
-                                    center: duplicate.center,
-                                    radius: duplicate.radius,
-                                    streetAddress: duplicate.streetAddress,
-                                    secondsFromGMT: duplicate.secondsFromGMT,
-                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
-                                    facebookPlaceId: duplicate.facebookPlaceId,
-                                    mapboxPlaceId: duplicate.mapboxPlaceId,
-                                    foursquareVenueId: duplicate.foursquareVenueId,
-                                    foursquareCategoryId: duplicate.foursquareCategoryId,
-                                    previousIds: previousIds
-                                )
-                                needsUpdate = true
-                            }
-                            
-                            // Handle radius
-                            let newRadius: Double
-                            switch importOptions.radiusHandling {
-                            case .smaller:
-                                newRadius = min(place.radius, duplicate.radius)
-                            case .bigger:
-                                newRadius = max(place.radius, duplicate.radius)
-                            case .imported:
-                                newRadius = place.radius
-                            case .original:
-                                newRadius = duplicate.radius
-                            }
-                            
-                            if newRadius != updatedPlace.radius {
-                                updatedPlace = Place(
-                                    placeId: updatedPlace.placeId,
-                                    name: updatedPlace.name,
-                                    center: updatedPlace.center,
-                                    radius: newRadius,
-                                    streetAddress: updatedPlace.streetAddress,
-                                    secondsFromGMT: updatedPlace.secondsFromGMT,
-                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
-                                    facebookPlaceId: updatedPlace.facebookPlaceId,
-                                    mapboxPlaceId: updatedPlace.mapboxPlaceId,
-                                    foursquareVenueId: updatedPlace.foursquareVenueId,
-                                    foursquareCategoryId: updatedPlace.foursquareCategoryId,
-                                    previousIds: updatedPlace.previousIds
-                                )
-                                needsUpdate = true
-                            }
-                            
-                            // Handle metadata
-                            if importOptions.overwriteExistingMetadata {
-                                // Overwrite all metadata from imported place
-                                updatedPlace = Place(
-                                    placeId: updatedPlace.placeId,
-                                    name: updatedPlace.name,
-                                    center: updatedPlace.center,
-                                    radius: updatedPlace.radius,
-                                    streetAddress: place.streetAddress,
-                                    secondsFromGMT: place.secondsFromGMT,
-                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
-                                    facebookPlaceId: place.facebookPlaceId,
-                                    mapboxPlaceId: place.mapboxPlaceId,
-                                    foursquareVenueId: place.foursquareVenueId,
-                                    foursquareCategoryId: place.foursquareCategoryId,
-                                    previousIds: updatedPlace.previousIds
-                                )
-                                needsUpdate = true
-                            } else {
-                                // Only add missing metadata
-                                let updatedMetadata = Place(
-                                    placeId: updatedPlace.placeId,
-                                    name: updatedPlace.name,
-                                    center: updatedPlace.center,
-                                    radius: updatedPlace.radius,
-                                    streetAddress: updatedPlace.streetAddress ?? place.streetAddress,
-                                    secondsFromGMT: updatedPlace.secondsFromGMT ?? place.secondsFromGMT,
-                                    lastSaved: ISO8601DateFormatter().string(from: Date()),
-                                    facebookPlaceId: updatedPlace.facebookPlaceId ?? place.facebookPlaceId,
-                                    mapboxPlaceId: updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId,
-                                    foursquareVenueId: updatedPlace.foursquareVenueId ?? place.foursquareVenueId,
-                                    foursquareCategoryId: updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId,
-                                    previousIds: updatedPlace.previousIds
-                                )
-                                if updatedMetadata != updatedPlace {
-                                    updatedPlace = updatedMetadata
-                                    needsUpdate = true
-                                }
-                            }
-                            
-                            if needsUpdate {
-                                try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
-                                mergedCount += 1
-                            }
-                            timer.addTime("Handle Duplicate", Date().timeIntervalSince(startHandleDuplicate), parent: "Process Place")
+                            _ = try await handleDuplicate(place: place, duplicate: duplicate, timer: timer)
                         }
                     } else {
                         let startAddPlace = Date()
@@ -712,6 +718,142 @@ struct ImportProgressView: View {
                     batchCounter = 0
                 }
 
+                timer.addTime("Process File", Date().timeIntervalSince(startFileProcess), parent: "Main Processing")
+                
+            } catch {
+                await MainActor.run {
+                    progress = "Processing files..."
+                    importErrors.append((
+                        filename: fileUrl.lastPathComponent,
+                        error: error.localizedDescription
+                    ))
+                }
+                continue
+            }
+        }
+        
+        // Final UI update for any remaining files
+        if batchCounter > 0 {
+            let startUpdateUI = Date()
+            await MainActor.run {
+                processedFiles += batchCounter
+                progressValue = 0.9
+                progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
+            }
+            timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
+        }
+        
+        // Set to 90% when file processing is done (leaving 10% for cleanup)
+        progressValue = 0.9
+        progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
+        
+        let startFinalize = Date()
+        try await PlaceManager.shared.finalizeBatchOperations()
+        timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
+        
+        // At the end of the function, update the main processing time
+        timer.addTime("Main Processing", Date().timeIntervalSince(startImport))
+    }
+    
+    private func importLife2GpxPlaces(timer: PerformanceTimer) async throws {
+        let startImport = Date()
+        timer.addTime("Main Processing", 0) // Initial duration will be updated later
+        
+        let startCountFiles = Date()
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let importFolderUrl = documentsUrl.appendingPathComponent("Import")
+        
+        let fileUrls = try fileManager.contentsOfDirectory(at: importFolderUrl,
+                                                         includingPropertiesForKeys: nil,
+                                                         options: [.skipsHiddenFiles])
+        let jsonFiles = fileUrls.filter { $0.pathExtension == "json" }
+        let totalFiles = jsonFiles.count
+        timer.addTime("Count Files", Date().timeIntervalSince(startCountFiles))
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yy-MM-dd_HH-mm-ss"
+        let timestamp = dateFormatter.string(from: Date())
+        
+        var processedFiles = 0
+        duplicateCount = 0
+        addedCount = 0
+        duplicateIdCount = 0
+        duplicateNameLocationCount = 0
+        sameNameDifferentLocationCount = 0
+        
+        // Start with 10% progress after backup
+        progressValue = 0.1
+        
+        let batchSize = 50 // Update UI every 50 files
+        var batchCounter = 0
+        
+        for fileUrl in jsonFiles {
+            // Check for cancellation
+            guard !shouldCancel else {
+                return
+            }
+            
+            await MainActor.run {
+                progress = "Processing file \(processedFiles + 1) of \(totalFiles)"
+            }
+            
+            do {
+                let startFileProcess = Date()
+                
+                let startReadFile = Date()
+                let data = try Data(contentsOf: fileUrl)
+                timer.addTime("Read File", Date().timeIntervalSince(startReadFile), parent: "Process File")
+                
+                let startParseJson = Date()
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let places = try decoder.decode([Place].self, from: data)
+                timer.addTime("Parse JSON", Date().timeIntervalSince(startParseJson), parent: "Process File")
+                
+                for place in places {
+                    let startProcessPlace = Date()
+                    
+                    let startCheckDuplicates = Date()
+                    let duplicate = try await checkForDuplicates(place)
+                    timer.addTime("Check Duplicates", Date().timeIntervalSince(startCheckDuplicates), parent: "Process Place")
+                    
+                    if let duplicate = duplicate {
+                        duplicateCount += 1
+                        
+                        if importOptions.ignoreDuplicates {
+                            print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
+                            continue
+                        } else {
+                            _ = try await handleDuplicate(place: place, duplicate: duplicate, timer: timer)
+                        }
+                    } else {
+                        let startAddPlace = Date()
+                        try await PlaceManager.shared.addPlace(place, batch: true)
+                        timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
+                        addedCount += 1
+                    }
+                    
+                    timer.addTime("Process Place", Date().timeIntervalSince(startProcessPlace), parent: "Process File")
+                }
+                
+                let startMoveFile = Date()
+                try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
+                timer.addTime("Move File", Date().timeIntervalSince(startMoveFile), parent: "Process File")
+                
+                // Update UI less frequently
+                batchCounter += 1
+                if batchCounter >= batchSize {
+                    let startUpdateUI = Date()
+                    await MainActor.run {
+                        processedFiles += batchCounter
+                        progress = "Processing file \(processedFiles) of \(totalFiles)"
+                        progressValue = 0.1 + (Double(processedFiles) / Double(totalFiles)) * 0.8
+                    }
+                    timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
+                    batchCounter = 0
+                }
+                
                 timer.addTime("Process File", Date().timeIntervalSince(startFileProcess), parent: "Main Processing")
                 
             } catch {

@@ -40,24 +40,41 @@ class FileManagerUtil {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let doneFolder = documentsUrl.appendingPathComponent("Import/Done/\(sessionTimestamp)")
         
-        // Get the path components after "Arc"
+        // Get the relative path after "Import"
         let components = fileUrl.pathComponents
-        if let arcIndex = components.firstIndex(of: "Arc") {
-            let subPath = components[(arcIndex + 1)...].joined(separator: "/")
-            let destinationUrl = doneFolder.appendingPathComponent(subPath)
-            
-            // Create intermediate directories if needed
-            try fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(),
-                                         withIntermediateDirectories: true)
-            
-            if fileManager.fileExists(atPath: destinationUrl.path) {
-                try fileManager.removeItem(at: destinationUrl)
+        if let importIndex = components.firstIndex(of: "Import") {
+            // For Arc files, preserve the folder structure after "Arc"
+            if let arcIndex = components.firstIndex(of: "Arc"), arcIndex > importIndex {
+                let subPath = components[(arcIndex + 1)...].joined(separator: "/")
+                let destinationUrl = doneFolder.appendingPathComponent(subPath)
+                
+                // Create intermediate directories if needed
+                try fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(),
+                                             withIntermediateDirectories: true)
+                
+                if fileManager.fileExists(atPath: destinationUrl.path) {
+                    try fileManager.removeItem(at: destinationUrl)
+                }
+                
+                try fileManager.moveItem(at: fileUrl, to: destinationUrl)
+            } else {
+                // For Life2Gpx files, just move them directly to the Done folder
+                let filename = fileUrl.lastPathComponent
+                let destinationUrl = doneFolder.appendingPathComponent(filename)
+                
+                // Create the Done folder if needed
+                try fileManager.createDirectory(at: doneFolder,
+                                             withIntermediateDirectories: true)
+                
+                if fileManager.fileExists(atPath: destinationUrl.path) {
+                    try fileManager.removeItem(at: destinationUrl)
+                }
+                
+                try fileManager.moveItem(at: fileUrl, to: destinationUrl)
             }
-            
-            try fileManager.moveItem(at: fileUrl, to: destinationUrl)
         } else {
             throw NSError(domain: "FileManagerError", code: 1,
-                         userInfo: [NSLocalizedDescriptionKey: "Could not find 'Arc' in path"])
+                         userInfo: [NSLocalizedDescriptionKey: "Could not find 'Import' in path"])
         }
     }
     
