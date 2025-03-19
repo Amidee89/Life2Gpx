@@ -387,6 +387,12 @@ struct ImportProgressView: View {
                 return
             }
             
+            await MainActor.run {
+                progress = "Loading places..."
+                progressValue = 0.05
+            }
+            PlaceManager.shared.reloadPlaces()
+            
             // First, backup the existing places file
             let backupStart = Date()
             let fileManager = FileManager.default

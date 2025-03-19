@@ -20,6 +20,7 @@ class PlaceManager {
         buildGridIndex()
     }
     func reloadPlaces() {
+        places = []
         loadPlaces()
         buildGridIndex()
     }
