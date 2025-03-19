@@ -11,6 +11,7 @@ struct ImportPlacesView: View {
     @State private var overwriteExistingMetadata = false
     @State private var isImporting = false
     @State private var duplicateDistanceThreshold: Double = 20
+    @State private var mergeMetadata = true
     
     enum RadiusHandlingOption: String, CaseIterable {
         case smaller = "Keep Smaller"
@@ -102,6 +103,11 @@ struct ImportPlacesView: View {
                         
                         Toggle("Overwrite Existing Metadata", isOn: $overwriteExistingMetadata)
                         
+                        if !overwriteExistingMetadata {
+                            Toggle("Merge Metadata", isOn: $mergeMetadata)
+                                .help("Keep metadata that a duplicate has that the other has not")
+                        }
+                        
                         HStack {
                             Text("Duplicate Distance")
                             Spacer()
@@ -115,7 +121,7 @@ struct ImportPlacesView: View {
                 } header: {
                     Text("Import Options")
                 } footer: {
-                    Text("Duplicates are places that either have the same ID or the same name within \(Int(duplicateDistanceThreshold)) meters")
+                    Text(importOptionsFooter)
                 }
             }
         }
@@ -123,6 +129,12 @@ struct ImportPlacesView: View {
         .task {
             await scanForImportFiles()
         }
+    }
+    
+    private var importOptionsFooter: String {
+        var text = "Duplicates are places that either have the same ID or the same name within \(Int(duplicateDistanceThreshold)) meters"
+            text += "\n\nMerge metadata will keep metadata that a duplicate has that the other has not"
+        return text
     }
     
     private func scanForImportFiles() async {
@@ -209,6 +221,7 @@ struct ImportPlacesView: View {
             addIdToExisting: addIdToExisting,
             radiusHandling: radiusHandling,
             overwriteExistingMetadata: overwriteExistingMetadata,
+            mergeMetadata: mergeMetadata,
             duplicateDistanceThreshold: duplicateDistanceThreshold
         )
     }
@@ -267,6 +280,7 @@ struct ImportOptions {
     let addIdToExisting: Bool
     let radiusHandling: ImportPlacesView.RadiusHandlingOption
     let overwriteExistingMetadata: Bool
+    let mergeMetadata: Bool
     let duplicateDistanceThreshold: Double
 }
 
@@ -560,13 +574,13 @@ struct ImportProgressView: View {
                 name: updatedPlace.name,
                 center: updatedPlace.center,
                 radius: updatedPlace.radius,
-                streetAddress: updatedPlace.streetAddress ?? place.streetAddress,
-                secondsFromGMT: updatedPlace.secondsFromGMT ?? place.secondsFromGMT,
+                streetAddress: importOptions.mergeMetadata ? (updatedPlace.streetAddress ?? place.streetAddress) : updatedPlace.streetAddress,
+                secondsFromGMT: importOptions.mergeMetadata ? (updatedPlace.secondsFromGMT ?? place.secondsFromGMT) : updatedPlace.secondsFromGMT,
                 lastSaved: ISO8601DateFormatter().string(from: Date()),
-                facebookPlaceId: updatedPlace.facebookPlaceId ?? place.facebookPlaceId,
-                mapboxPlaceId: updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId,
-                foursquareVenueId: updatedPlace.foursquareVenueId ?? place.foursquareVenueId,
-                foursquareCategoryId: updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId,
+                facebookPlaceId: importOptions.mergeMetadata ? (updatedPlace.facebookPlaceId ?? place.facebookPlaceId) : updatedPlace.facebookPlaceId,
+                mapboxPlaceId: importOptions.mergeMetadata ? (updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId) : updatedPlace.mapboxPlaceId,
+                foursquareVenueId: importOptions.mergeMetadata ? (updatedPlace.foursquareVenueId ?? place.foursquareVenueId) : updatedPlace.foursquareVenueId,
+                foursquareCategoryId: importOptions.mergeMetadata ? (updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId) : updatedPlace.foursquareCategoryId,
                 previousIds: updatedPlace.previousIds
             )
             if updatedMetadata != updatedPlace {
