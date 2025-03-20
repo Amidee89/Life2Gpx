@@ -11,7 +11,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     private var previousSavedLocation: CLLocation?
     private var locationUpdateTimer: Timer?
-    private var customDistanceFilter: CLLocationDistance = 20 // Default to 20 meters
+    private var customDistanceFilter: CLLocationDistance = 20
     private var currentDate: Date?
     private let minimumUpdateInterval: TimeInterval = 30
     private var lastUpdateTimestamp: Date?
@@ -237,7 +237,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let logFileURL = getLogFileURL()
 
         if FileManager.default.fileExists(atPath: logFileURL.path) {
-            // Append to existing file
             if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
                 fileHandle.seekToEndOfFile()
                 if let data = logMessage.data(using: .utf8) {
@@ -245,11 +244,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 }
                 fileHandle.closeFile()
             } else {
-                // Handle error opening file
                 print("Could not open file handle for \(logFileURL.path)")
             }
         } else {
-            // Create new file and write
             do {
                 try logMessage.write(to: logFileURL, atomically: true, encoding: .utf8)
             } catch {
@@ -281,7 +278,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func appendLocationToFile(type: String, debug: String = "") {
         if lastAppendCall != nil && Date().timeIntervalSince(lastAppendCall!) < 1 {
-            //trying to fix heisenbug
             print ("Cowardly refusing to double append – debouncing.")
             return
         }
@@ -313,10 +309,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             GPXManager.shared.loadFile(forDate: Date()) 
             {   loadedGpxWaypoints, loadedGpxTracks in
                
-                var gpxTracks = loadedGpxTracks // Make a mutable copy of the loaded tracks
+                var gpxTracks = loadedGpxTracks
                 var gpxWaypoints = loadedGpxWaypoints
                 
-                //steps we add to the previous element
                 var stepsExtensionData: [String: String] = [:]
                 if self.latestPedometerSteps > 0
                 {
@@ -352,7 +347,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     if debug != "" {
                         customExtensionData["Debug"] = debug
                     }
-                    // Convert CMMotionActivityConfidence to a string
                     if let activity = self.latestActivity {
                         let activityConfidence: String = {
                             switch activity.confidence {
@@ -435,21 +429,54 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     )
                     newWaypoint.time = Date()
                     newWaypoint.elevation = location.altitude
-                    var customExtensionData: [String: String] = [
-                        "HorizontalPrecision": String(location.horizontalAccuracy),
-                        "VerticalPrecision": String(location.verticalAccuracy)
-                    ]
                     
-                    if debug != "" {
-                        customExtensionData["Debug"] = debug
+                    // Check for matching place
+                    if let matchingPlace = PlaceManager.shared.findPlace(for: location.coordinate) {
+                        newWaypoint.name = matchingPlace.name
+                        
+                        var customExtensionData: [String: String] = [
+                            "HorizontalPrecision": String(location.horizontalAccuracy),
+                            "VerticalPrecision": String(location.verticalAccuracy),
+                            "PlaceId": matchingPlace.placeId,
+                        ]
+                        
+                        if let address = matchingPlace.streetAddress {
+                            customExtensionData["Address"] = address
+                        }
+                        if let fbId = matchingPlace.facebookPlaceId {
+                            customExtensionData["FacebookPlaceId"] = fbId
+                        }
+                        if let mapboxId = matchingPlace.mapboxPlaceId {
+                            customExtensionData["MapboxPlaceId"] = mapboxId
+                        }
+                        if let foursquareId = matchingPlace.foursquareVenueId {
+                            customExtensionData["FoursquareVenueId"] = foursquareId
+                        }
+                        
+                        if debug != "" {
+                            customExtensionData["Debug"] = debug
+                        }
+                        
+                        let extensions = GPXExtensions()
+                        extensions.append(at: nil, contents: customExtensionData)
+                        newWaypoint.extensions = extensions
+                    } else {
+                        newWaypoint.name = "Unknown Place"
+                        var customExtensionData: [String: String] = [
+                            "HorizontalPrecision": String(location.horizontalAccuracy),
+                            "VerticalPrecision": String(location.verticalAccuracy)
+                        ]
+                        if debug != "" {
+                            customExtensionData["Debug"] = debug
+                        }
+                        let extensions = GPXExtensions()
+                        extensions.append(at: nil, contents: customExtensionData)
+                        newWaypoint.extensions = extensions
                     }
-                    let extensions = GPXExtensions()
-                    extensions.append(at: nil, contents: customExtensionData)
-                    newWaypoint.extensions = extensions
+                    
                     gpxWaypoints.append(newWaypoint)
                 }
 
-                
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
                 if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                     userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
