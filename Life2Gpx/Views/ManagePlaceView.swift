@@ -169,7 +169,10 @@ struct ManagePlacesView: View {
                     mapboxPlaceId: nil,
                     foursquareVenueId: nil,
                     foursquareCategoryId: nil,
-                    previousIds: nil
+                    previousIds: nil,
+                    lastVisited: nil,
+                    isFavorite: nil,
+                    customIcon: nil
                 ), isNewPlace: true)
                 .onDisappear {
                     viewModel.loadPlaces()

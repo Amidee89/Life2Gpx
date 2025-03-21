@@ -13,7 +13,9 @@ struct EditPlaceView: View {
         center: CLLocationCoordinate2D(),  
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
-    
+    @State private var isFavorite: Bool
+    @State private var lastVisited: Date
+    @State private var customIcon: String
     @State private var facebookPlaceId: String
     @State private var mapboxPlaceId: String
     @State private var foursquareVenueId: String
@@ -65,6 +67,10 @@ struct EditPlaceView: View {
         // Initialize lat/lon strings
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
+
+        _isFavorite = State(initialValue: place.isFavorite ?? false)
+        _customIcon = State(initialValue: place.customIcon ?? "")
+        _lastVisited = State(initialValue: place.lastVisited ?? Date())
     }
 
     // Add these helper functions at the top of the view struct
@@ -286,6 +292,11 @@ struct EditPlaceView: View {
                     }
                 )
                 
+                Section(header: Text("Additional Settings")) {
+                    Toggle("Favorite", isOn: $isFavorite)
+                    TextField("Custom Icon", text: $customIcon)
+                }
+                
                 // Only show delete button for existing places
                 if !isNewPlace {
                     Section {
@@ -352,7 +363,10 @@ struct EditPlaceView: View {
             mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId.trim(),
             foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId.trim(),
             foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId.trim(),
-            previousIds: editablePlace.previousIds
+            previousIds: editablePlace.previousIds,
+            lastVisited: editablePlace.lastVisited,
+            isFavorite: isFavorite ? true : nil,
+            customIcon: customIcon.isEmpty ? nil : customIcon.trim()
         )
         
         do {
@@ -388,6 +402,21 @@ struct EditPlaceView: View {
 
 struct EditPlaceView_Previews: PreviewProvider {
     static var previews: some View {
-        EditPlaceView(place: Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18", facebookPlaceId: nil, mapboxPlaceId: nil, foursquareVenueId: nil, foursquareCategoryId: nil, previousIds: [nil]))
+        EditPlaceView(place: Place(
+            placeId: "1", 
+            name: "Central Park", 
+            center: Center(latitude: 40.785091, longitude: -73.968285), 
+            radius: 200, 
+            streetAddress: "New York, NY", 
+            secondsFromGMT: -18000, 
+            lastSaved: "2024-10-18", 
+            facebookPlaceId: nil, 
+            mapboxPlaceId: nil, 
+            foursquareVenueId: nil, 
+            foursquareCategoryId: nil, 
+            previousIds: [nil],
+            lastVisited: nil,
+            isFavorite: nil,
+            customIcon: nil))
     }
 }

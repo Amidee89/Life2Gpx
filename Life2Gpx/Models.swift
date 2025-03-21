@@ -73,6 +73,9 @@ struct Place: Identifiable, Codable, Equatable {
     let foursquareVenueId: String?
     let foursquareCategoryId: String?
     let previousIds: [String?]?
+    let lastVisited: Date?
+    let isFavorite: Bool?
+    let customIcon: String?
     var id: String { placeId }
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
@@ -92,6 +95,9 @@ struct Place: Identifiable, Codable, Equatable {
         var foursquareVenueId: String?
         var foursquareCategoryId: String?
         var previousIds: [String?]?
+        var lastVisited: Date?
+        var isFavorite: Bool?
+        var customIcon: String?
         
         init(from place: Place) {
             self.placeId = place.placeId
@@ -106,6 +112,9 @@ struct Place: Identifiable, Codable, Equatable {
             self.foursquareVenueId = place.foursquareVenueId
             self.foursquareCategoryId = place.foursquareCategoryId
             self.previousIds = place.previousIds
+            self.lastVisited = place.lastVisited
+            self.isFavorite = place.isFavorite
+            self.customIcon = place.customIcon
         }
         
         func toPlace() -> Place {
@@ -121,7 +130,10 @@ struct Place: Identifiable, Codable, Equatable {
                 mapboxPlaceId: mapboxPlaceId,
                 foursquareVenueId: foursquareVenueId,
                 foursquareCategoryId: foursquareCategoryId,
-                previousIds: previousIds
+                previousIds: previousIds,
+                lastVisited: lastVisited,
+                isFavorite: isFavorite,
+                customIcon: customIcon
             )
         }
     }
@@ -191,9 +203,51 @@ class ManagePlacesViewModel: ObservableObject {
     static var preview: ManagePlacesViewModel {
         
         let mockPlaces = [
-            Place(placeId: "1", name: "Central Park", center: Center(latitude: 40.785091, longitude: -73.968285), radius: 200, streetAddress: "New York, NY", secondsFromGMT: -18000, lastSaved: "2024-10-18", facebookPlaceId: nil, mapboxPlaceId: nil, foursquareVenueId: nil, foursquareCategoryId: nil, previousIds: [nil]),
-            Place(placeId: "2", name: "Golden Gate Park", center: Center(latitude: 37.769421, longitude: -122.486214), radius: 300, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19", facebookPlaceId: "goldengatepark.sanfrancisco", mapboxPlaceId: nil, foursquareVenueId: "445e36bff964a520fb321fe3", foursquareCategoryId: "16032", previousIds: [nil]),
-            Place(placeId: "3", name: "Golden Gate Park", center: Center(latitude: 37.769521, longitude: -122.486214), radius: 200, streetAddress: "San Francisco, CA", secondsFromGMT: -28800, lastSaved: "2024-10-19", facebookPlaceId: "goldengatepark.sanfrancisco", mapboxPlaceId: nil, foursquareVenueId: "445e36bff964a520fb321fe3", foursquareCategoryId: "16032", previousIds: [nil])
+            Place(placeId: "1", 
+                 name: "Central Park", 
+                 center: Center(latitude: 40.785091, longitude: -73.968285), 
+                 radius: 200, 
+                 streetAddress: "New York, NY", 
+                 secondsFromGMT: -18000, 
+                 lastSaved: "2024-10-18", 
+                 facebookPlaceId: nil, 
+                 mapboxPlaceId: nil, 
+                 foursquareVenueId: nil, 
+                 foursquareCategoryId: nil, 
+                 previousIds: [nil],
+                 lastVisited: nil,
+                 isFavorite: nil,
+                 customIcon: nil),
+            Place(placeId: "2", 
+                 name: "Golden Gate Park", 
+                 center: Center(latitude: 37.769421, longitude: -122.486214), 
+                 radius: 300, 
+                 streetAddress: "San Francisco, CA", 
+                 secondsFromGMT: -28800, 
+                 lastSaved: "2024-10-19", 
+                 facebookPlaceId: "goldengatepark.sanfrancisco", 
+                 mapboxPlaceId: nil, 
+                 foursquareVenueId: "445e36bff964a520fb321fe3", 
+                 foursquareCategoryId: "16032", 
+                 previousIds: [nil],
+                 lastVisited: nil,
+                 isFavorite: nil,
+                 customIcon: nil),
+            Place(placeId: "3", 
+                 name: "Golden Gate Park", 
+                 center: Center(latitude: 37.769521, longitude: -122.486214), 
+                 radius: 200, 
+                 streetAddress: "San Francisco, CA", 
+                 secondsFromGMT: -28800, 
+                 lastSaved: "2024-10-19", 
+                 facebookPlaceId: "goldengatepark.sanfrancisco", 
+                 mapboxPlaceId: nil, 
+                 foursquareVenueId: "445e36bff964a520fb321fe3", 
+                 foursquareCategoryId: "16032", 
+                 previousIds: [nil],
+                 lastVisited: nil,
+                 isFavorite: nil,
+                 customIcon: nil)
         ]
         return ManagePlacesViewModel(places: mockPlaces)
     }

@@ -515,7 +515,10 @@ struct ImportProgressView: View {
                 mapboxPlaceId: duplicate.mapboxPlaceId,
                 foursquareVenueId: duplicate.foursquareVenueId,
                 foursquareCategoryId: duplicate.foursquareCategoryId,
-                previousIds: previousIds
+                previousIds: previousIds,
+                lastVisited: duplicate.lastVisited,
+                isFavorite: duplicate.isFavorite,
+                customIcon: duplicate.customIcon
             )
             needsUpdate = true
         }
@@ -546,7 +549,10 @@ struct ImportProgressView: View {
                 mapboxPlaceId: updatedPlace.mapboxPlaceId,
                 foursquareVenueId: updatedPlace.foursquareVenueId,
                 foursquareCategoryId: updatedPlace.foursquareCategoryId,
-                previousIds: updatedPlace.previousIds
+                previousIds: updatedPlace.previousIds,
+                lastVisited: updatedPlace.lastVisited,
+                isFavorite: updatedPlace.isFavorite,
+                customIcon: updatedPlace.customIcon
             )
             needsUpdate = true
         }
@@ -565,7 +571,10 @@ struct ImportProgressView: View {
                 mapboxPlaceId: place.mapboxPlaceId,
                 foursquareVenueId: place.foursquareVenueId,
                 foursquareCategoryId: place.foursquareCategoryId,
-                previousIds: updatedPlace.previousIds
+                previousIds: updatedPlace.previousIds,
+                lastVisited: updatedPlace.lastVisited,
+                isFavorite: updatedPlace.isFavorite,
+                customIcon: updatedPlace.customIcon
             )
             needsUpdate = true
         } else {
@@ -581,7 +590,10 @@ struct ImportProgressView: View {
                 mapboxPlaceId: importOptions.mergeMetadata ? (updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId) : updatedPlace.mapboxPlaceId,
                 foursquareVenueId: importOptions.mergeMetadata ? (updatedPlace.foursquareVenueId ?? place.foursquareVenueId) : updatedPlace.foursquareVenueId,
                 foursquareCategoryId: importOptions.mergeMetadata ? (updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId) : updatedPlace.foursquareCategoryId,
-                previousIds: updatedPlace.previousIds
+                previousIds: updatedPlace.previousIds,
+                lastVisited: importOptions.mergeMetadata ? (updatedPlace.lastVisited ?? place.lastVisited) : updatedPlace.lastVisited,
+                isFavorite: importOptions.mergeMetadata ? (updatedPlace.isFavorite ?? place.isFavorite) : updatedPlace.isFavorite,
+                customIcon: importOptions.mergeMetadata ? (updatedPlace.customIcon ?? place.customIcon) : updatedPlace.customIcon
             )
             if updatedMetadata != updatedPlace {
                 updatedPlace = updatedMetadata
