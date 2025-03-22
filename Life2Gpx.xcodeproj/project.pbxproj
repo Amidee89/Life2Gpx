@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */; };
 		A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */; };
 		A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */; };
 		A937C4B02D6D03E3009BC131 /* FileManagerUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4AF2D6D03E3009BC131 /* FileManagerUtil.swift */; };
@@ -79,6 +80,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditVisitView.swift; sourceTree = "<group>"; };
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
 		A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPlacesView.swift; sourceTree = "<group>"; };
 		A937C4AF2D6D03E3009BC131 /* FileManagerUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerUtil.swift; sourceTree = "<group>"; };
@@ -157,6 +159,7 @@
 		A93842392CEBCC8900004536 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */,
 				A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */,
 				A93842372CEBCC4300004536 /* FindDuplicatesView.swift */,
 				A93842352CEBCBDE00004536 /* ManagePlaceView.swift */,
@@ -432,6 +435,7 @@
 			files = (
 				A937C4B22D870738009BC131 /* TimingReportView.swift in Sources */,
 				A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */,
+				7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */,
 				A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */,
 				A937C4B02D6D03E3009BC131 /* FileManagerUtil.swift in Sources */,
 				A9D55E232BDABE4B006B6316 /* MapView.swift in Sources */,

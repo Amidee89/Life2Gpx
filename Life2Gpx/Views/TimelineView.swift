@@ -13,9 +13,12 @@ import Foundation
 struct TimelineView: View {
     @Binding var timelineObjects: [TimelineObject]
     @Binding var selectedTimelineObjectID: UUID?
+    @State private var editingTimelineObject: TimelineObject?
+    @State private var showingEditSheet = false
 
     var onRefresh: () -> Void
     var onSelectItem: (TimelineObject) -> Void
+    var onEditVisit: ((TimelineObject, String) -> Void)?
     
     var body: some View {
         List(timelineObjects) { item in
@@ -70,7 +73,28 @@ struct TimelineView: View {
                 {
                     if item.type == .waypoint
                     {
-                        Text(item.name ?? "Unknown place")
+                        HStack {
+                            Text(item.name ?? "Unknown Place")
+                            Spacer()
+                            if (item.id == selectedTimelineObjectID ||
+                                item.name == nil || 
+                                item.name == "Unknown Place" || 
+                                item.name == "Unknown place") {
+                                Button(action: {
+                                    editingTimelineObject = item
+                                    showingEditSheet = true
+                                }) {
+                                    Image(systemName: "square.and.pencil")
+                                        .foregroundColor(item.id == selectedTimelineObjectID ? .black : .blue)
+                                }
+                                .buttonStyle(BorderlessButtonStyle())
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    editingTimelineObject = item
+                                    showingEditSheet = true
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -126,5 +150,12 @@ struct TimelineView: View {
             onRefresh()
         }
         .listStyle(PlainListStyle())
+        .sheet(isPresented: $showingEditSheet, content: {
+            if let timelineObject = editingTimelineObject {
+                EditVisitView(timelineObject: timelineObject) { newName in
+                    onEditVisit?(timelineObject, newName)
+                }
+            }
+        })
     }
 }
