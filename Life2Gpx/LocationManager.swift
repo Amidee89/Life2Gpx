@@ -461,7 +461,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         extensions.append(at: nil, contents: customExtensionData)
                         newWaypoint.extensions = extensions
                     } else {
-                        newWaypoint.name = "Unknown Place"
                         var customExtensionData: [String: String] = [
                             "HorizontalPrecision": String(location.horizontalAccuracy),
                             "VerticalPrecision": String(location.verticalAccuracy)
