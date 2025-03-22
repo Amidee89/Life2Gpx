@@ -150,7 +150,22 @@ struct TimelineView: View {
         .sheet(isPresented: $showingEditSheet, content: {
             if let timelineObject = editingTimelineObject {
                 EditVisitView(timelineObject: timelineObject) { place in
-                    onEditVisit?(timelineObject, place)
+                    // Backup GPX file before making changes
+                    if let date = timelineObject.startDate {
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd"
+                        let fileName = "\(dateFormatter.string(from: date)).gpx"
+                        let fileUrl = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
+                        do {
+                            try FileManagerUtil.shared.backupGpxFile(fileUrl)
+                            onEditVisit?(timelineObject, place)
+                        } catch {
+                            print("Failed to backup GPX file: \(error)")
+                            // You might want to show an error alert here
+                        }
+                    } else {
+                        onEditVisit?(timelineObject, place)
+                    }
                 }
             } else {
                 Text("Unable to edit location")

@@ -17,7 +17,8 @@ class FileManagerUtil {
             "Import/Arc",
             "Import/Done",
             "Places",
-            "Backups"
+            "Backups",
+            "Backups/GPX"
         ]
         
         // Create each folder if it doesn't exist
@@ -96,6 +97,21 @@ class FileManagerUtil {
         try fileManager.copyItem(at: fileUrl, to: backupUrl)
     }
     
+    func backupGpxFile(_ fileUrl: URL) throws {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let gpxBackupsFolder = documentsUrl.appendingPathComponent("Backups/GPX")
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = dateFormatter.string(from: Date())
+        
+        let backupFileName = fileUrl.deletingPathExtension().lastPathComponent + "_" + timestamp + ".gpx"
+        let backupUrl = gpxBackupsFolder.appendingPathComponent(backupFileName)
+        
+        try fileManager.copyItem(at: fileUrl, to: backupUrl)
+    }
+    
     func cleanupEmptyFolders(in baseFolder: String) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -103,7 +119,6 @@ class FileManagerUtil {
         
         print("Starting cleanup of: \(baseFolderUrl.path)")
         
-        // Recursive function to remove empty directories
         func removeEmptySubfolders(at url: URL) throws -> Bool {
             print("Checking folder: \(url.lastPathComponent)")
             let contents = try fileManager.contentsOfDirectory(at: url, 
