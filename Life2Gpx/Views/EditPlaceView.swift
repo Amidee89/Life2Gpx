@@ -34,10 +34,12 @@ struct EditPlaceView: View {
     @State private var isIdentifiersSectionExpanded = false
 
     let isNewPlace: Bool
+    let onSave: ((Place) -> Void)?
 
-    init(place: Place, isNewPlace: Bool = false) {
+    init(place: Place, isNewPlace: Bool = false, onSave: ((Place) -> Void)? = nil) {
         self.originalPlace = place
         self.isNewPlace = isNewPlace
+        self.onSave = onSave
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
         _editedPlaceId = State(initialValue: place.placeId)
         _name = State(initialValue: place.name)
@@ -372,8 +374,10 @@ struct EditPlaceView: View {
         do {
             if isNewPlace {
                 try PlaceManager.shared.addPlace(updatedPlace)
+                onSave?(updatedPlace)
             } else {
                 try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
+                onSave?(updatedPlace)
             }
             presentationMode.wrappedValue.dismiss()
         } catch PlaceError.invalidPlaceId(let message),

@@ -81,10 +81,8 @@ struct TimelineView: View {
                                 item.name == "Unknown Place" || 
                                 item.name == "Unknown place") {
                                 Button(action: {
-                                    // First select the item
-                                    onSelectItem(item)
-                                    // Then set up the edit sheet
                                     editingTimelineObject = item
+                                    onSelectItem(item)
                                     showingEditSheet = true
                                 }) {
                                     Image(systemName: "square.and.pencil")
@@ -154,7 +152,15 @@ struct TimelineView: View {
                 EditVisitView(timelineObject: timelineObject) { place in
                     onEditVisit?(timelineObject, place)
                 }
+            } else {
+                Text("Unable to edit location")
+                    .padding()
             }
         })
+        .onChange(of: showingEditSheet) { newValue in
+            if !newValue {  // Sheet is being dismissed
+                editingTimelineObject = nil
+            }
+        }
     }
 }

@@ -7,9 +7,9 @@ struct EditVisitView: View {
     var onSave: (Place?) -> Void
     
     @State private var selectedPlace: Place?
-    @State private var placeName: String = ""
     @State private var nearbyPlaces: [Place] = []
     @State private var searchText: String = ""
+    @State private var showingNewPlaceSheet = false
     
     private var currentCoordinate: CLLocationCoordinate2D? {
         guard let firstPoint = timelineObject.points.first else { return nil }
@@ -78,8 +78,15 @@ struct EditVisitView: View {
                     }
                 }
                 
-                Section("Custom Name") {
-                    TextField("Place name", text: $placeName)
+                Section {
+                    Button(action: {
+                        showingNewPlaceSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add New Place")
+                        }
+                    }
                 }
             }
             .navigationTitle("Edit Visit")
@@ -88,34 +95,41 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    if selectedPlace == nil {
-                        let customPlace = Place(
+                    onSave(selectedPlace)
+                    dismiss()
+                }
+            )
+            .sheet(isPresented: $showingNewPlaceSheet) {
+                if let coordinate = currentCoordinate {
+                    EditPlaceView(
+                        place: Place(
                             placeId: UUID().uuidString,
-                            name: placeName,
+                            name: "",
                             center: Center(
-                                latitude: timelineObject.points.first?.latitude ?? 0,
-                                longitude: timelineObject.points.first?.longitude ?? 0
+                                latitude: coordinate.latitude,
+                                longitude: coordinate.longitude
                             ),
-                            radius: 50,
+                            radius: 40,
                             streetAddress: nil,
-                            secondsFromGMT: nil,
-                            lastSaved: nil,
+                            secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                            lastSaved: ISO8601DateFormatter().string(from: Date()),
                             facebookPlaceId: nil,
                             mapboxPlaceId: nil,
                             foursquareVenueId: nil,
                             foursquareCategoryId: nil,
                             previousIds: nil,
-                            lastVisited: Date(),
+                            lastVisited: nil,
                             isFavorite: nil,
                             customIcon: nil
-                        )
-                        onSave(customPlace)
-                    } else {
-                        onSave(selectedPlace)
-                    }
-                    dismiss()
+                        ),
+                        isNewPlace: true,
+                        onSave: { newPlace in
+                            onSave(newPlace)
+                            dismiss()
+                        }
+                    )
                 }
-            )
+            }
         }
         .onAppear {
             if let firstPoint = timelineObject.points.first {
