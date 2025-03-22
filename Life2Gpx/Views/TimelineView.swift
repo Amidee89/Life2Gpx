@@ -157,7 +157,7 @@ struct TimelineView: View {
                         let fileName = "\(dateFormatter.string(from: date)).gpx"
                         let fileUrl = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
                         do {
-                            try FileManagerUtil.shared.backupGpxFile(fileUrl)
+                            try FileManagerUtil.shared.backupFile(fileUrl)
                             onEditVisit?(timelineObject, place)
                         } catch {
                             print("Failed to backup GPX file: \(error)")

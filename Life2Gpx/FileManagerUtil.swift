@@ -18,7 +18,8 @@ class FileManagerUtil {
             "Import/Done",
             "Places",
             "Backups",
-            "Backups/GPX"
+            "Backups/GPX",
+            "Backups/Places"
         ]
         
         // Create each folder if it doesn't exist
@@ -82,33 +83,23 @@ class FileManagerUtil {
     func backupFile(_ fileUrl: URL) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let backupsFolder = documentsUrl.appendingPathComponent("Backups")
         
-        // Create timestamp for backup file name
+        // Create timestamp for backup folder
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let timestamp = dateFormatter.string(from: Date())
         
-        // Create backup file name with timestamp
-        let backupFileName = fileUrl.deletingPathExtension().lastPathComponent + "_" + timestamp + "." + fileUrl.pathExtension
-        let backupUrl = backupsFolder.appendingPathComponent(backupFileName)
+        // Determine backup folder based on file type
+        let backupType = fileUrl.pathExtension == "gpx" ? "GPX" : "Places"
+        let backupFolder = documentsUrl.appendingPathComponent("Backups/\(backupType)/\(timestamp)")
+        
+        // Create the backup folder
+        try fileManager.createDirectory(at: backupFolder, withIntermediateDirectories: true)
+        
+        // Create backup URL with original filename
+        let backupUrl = backupFolder.appendingPathComponent(fileUrl.lastPathComponent)
         
         // Copy file to backup location
-        try fileManager.copyItem(at: fileUrl, to: backupUrl)
-    }
-    
-    func backupGpxFile(_ fileUrl: URL) throws {
-        let fileManager = FileManager.default
-        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let gpxBackupsFolder = documentsUrl.appendingPathComponent("Backups/GPX")
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = dateFormatter.string(from: Date())
-        
-        let backupFileName = fileUrl.deletingPathExtension().lastPathComponent + "_" + timestamp + ".gpx"
-        let backupUrl = gpxBackupsFolder.appendingPathComponent(backupFileName)
-        
         try fileManager.copyItem(at: fileUrl, to: backupUrl)
     }
     
