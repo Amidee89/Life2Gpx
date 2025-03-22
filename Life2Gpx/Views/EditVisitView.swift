@@ -50,6 +50,17 @@ struct EditVisitView: View {
         NavigationView {
             List {
                 Section {
+                    Button(action: {
+                        showingNewPlaceSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add New Place")
+                        }
+                    }
+                }
+
+                Section {
                     TextField("Search places", text: $searchText)
                 }
                 
@@ -75,17 +86,6 @@ struct EditVisitView: View {
                             }
                         }
                         .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
-                    }
-                }
-                
-                Section {
-                    Button(action: {
-                        showingNewPlaceSheet = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Add New Place")
-                        }
                     }
                 }
             }
