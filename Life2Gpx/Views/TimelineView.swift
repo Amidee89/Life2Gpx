@@ -81,6 +81,9 @@ struct TimelineView: View {
                                 item.name == "Unknown Place" || 
                                 item.name == "Unknown place") {
                                 Button(action: {
+                                    // First select the item
+                                    onSelectItem(item)
+                                    // Then set up the edit sheet
                                     editingTimelineObject = item
                                     showingEditSheet = true
                                 }) {
@@ -89,10 +92,6 @@ struct TimelineView: View {
                                 }
                                 .buttonStyle(BorderlessButtonStyle())
                                 .contentShape(Rectangle())
-                                .onTapGesture {
-                                    editingTimelineObject = item
-                                    showingEditSheet = true
-                                }
                             }
                         }
                     }

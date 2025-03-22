@@ -10,11 +10,35 @@ struct EditVisitView: View {
     @State private var nearbyPlaces: [Place] = []
     @State private var searchText: String = ""
     
+    private var currentCoordinate: CLLocationCoordinate2D? {
+        guard let firstPoint = timelineObject.points.first else { return nil }
+        return CLLocationCoordinate2D(
+            latitude: firstPoint.latitude ?? 0,
+            longitude: firstPoint.longitude ?? 0
+        )
+    }
+
     private var filteredPlaces: [Place] {
-        if searchText.isEmpty {
-            return nearbyPlaces
+        guard let coordinate = currentCoordinate else { return [] }
+        
+        let allPlaces = searchText.isEmpty ? nearbyPlaces : PlaceManager.shared.getAllPlaces()
+        let filtered = searchText.isEmpty ? allPlaces : allPlaces.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        
+        // Sort by distance and take first 10
+        return filtered
+            .sorted { coordinate.distance(to: $0.centerCoordinate) < coordinate.distance(to: $1.centerCoordinate) }
+            .prefix(10)
+            .map { $0 }
+    }
+
+    private func formattedDistance(to place: Place) -> String {
+        guard let coordinate = currentCoordinate else { return "" }
+        let distance = coordinate.distance(to: place.centerCoordinate)
+        if distance < 1000 {
+            return String(format: "%.0f m", distance)
+        } else {
+            return String(format: "%.1f km", distance / 1000)
         }
-        return nearbyPlaces.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
     
     var body: some View {
@@ -24,19 +48,25 @@ struct EditVisitView: View {
                     TextField("Search places", text: $searchText)
                 }
                 
-                Section("Nearby Places") {
+                Section(searchText.isEmpty ? "Nearby Places" : "Search Results") {
                     ForEach(filteredPlaces) { place in
                         Button(action: {
                             placeName = place.name
                         }) {
-                            VStack(alignment: .leading) {
-                                Text(place.name)
-                                    .foregroundColor(.primary)
-                                if let address = place.streetAddress {
-                                    Text(address)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(place.name)
+                                        .foregroundColor(.primary)
+                                    if let address = place.streetAddress {
+                                        Text(address)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
+                                Spacer()
+                                Text(formattedDistance(to: place))
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
                             }
                         }
                     }
