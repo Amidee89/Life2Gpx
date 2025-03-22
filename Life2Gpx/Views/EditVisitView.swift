@@ -25,9 +25,13 @@ struct EditVisitView: View {
         let allPlaces = searchText.isEmpty ? nearbyPlaces : PlaceManager.shared.getAllPlaces()
         let filtered = searchText.isEmpty ? allPlaces : allPlaces.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         
-        // Sort by distance and take first 10
+        // Sort by selection first, then distance and take first 10
         return filtered
-            .sorted { coordinate.distance(to: $0.centerCoordinate) < coordinate.distance(to: $1.centerCoordinate) }
+            .sorted { place1, place2 in
+                if place1 == selectedPlace { return true }
+                if place2 == selectedPlace { return false }
+                return coordinate.distance(to: place1.centerCoordinate) < coordinate.distance(to: place2.centerCoordinate)
+            }
             .prefix(10)
             .map { $0 }
     }
@@ -53,7 +57,6 @@ struct EditVisitView: View {
                     ForEach(filteredPlaces) { place in
                         Button(action: {
                             selectedPlace = place
-                            placeName = place.name
                         }) {
                             HStack {
                                 VStack(alignment: .leading) {
@@ -71,6 +74,7 @@ struct EditVisitView: View {
                                     .font(.caption)
                             }
                         }
+                        .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
                     }
                 }
                 
@@ -114,7 +118,6 @@ struct EditVisitView: View {
             )
         }
         .onAppear {
-            placeName = timelineObject.name ?? ""
             if let firstPoint = timelineObject.points.first {
                 let coordinate = CLLocationCoordinate2D(
                     latitude: firstPoint.latitude ?? 0,
