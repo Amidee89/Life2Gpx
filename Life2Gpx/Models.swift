@@ -60,7 +60,7 @@ struct IdentifiableCoordinates: Identifiable {
 }
 
 
-struct Place: Identifiable, Codable, Equatable {
+struct Place: Identifiable, Codable, Equatable, Hashable {
     let placeId: String
     let name: String
     let center: Center
@@ -136,6 +136,11 @@ struct Place: Identifiable, Codable, Equatable {
                 customIcon: customIcon
             )
         }
+    }
+
+    // Add hash function
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(placeId)  // Since placeId is unique, we can just hash that
     }
 }
 

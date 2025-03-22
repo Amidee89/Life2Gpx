@@ -77,6 +77,7 @@ struct ManagePlacesView: View {
                     if let firstPlace = filteredPlaces.first {
                         setRegion(firstPlace.coordinate)
                     }
+                    viewModel.loadPlaces()
                 }
 
                 List {

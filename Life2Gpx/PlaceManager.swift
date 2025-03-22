@@ -255,6 +255,46 @@ class PlaceManager {
         try savePlaces()
         buildGridIndex()
     }
+
+    func findClosePlaces(to coordinate: CLLocationCoordinate2D, limit: Int = 10) -> [Place] {
+        // First, get the maximum radius among all places to determine search bounds
+        let maxRadius = places.map { $0.radius }.max() ?? 1000
+        
+        // Convert radius from meters to degrees (approximate)
+        let radiusDegrees = maxRadius / 111320.0
+        
+        // Create bounding box
+        let searchBounds = BoundingRect(
+            minLat: coordinate.latitude - radiusDegrees,
+            maxLat: coordinate.latitude + radiusDegrees,
+            minLon: coordinate.longitude - radiusDegrees / cos(coordinate.latitude * .pi / 180),
+            maxLon: coordinate.longitude + radiusDegrees / cos(coordinate.latitude * .pi / 180)
+        )
+        
+        // Get grid cells that intersect with our search bounds
+        let gridCells = gridCellsFor(boundingRect: searchBounds)
+        
+        // Collect unique places from all relevant grid cells
+        var candidatePlaces = Set<Place>()
+        for cell in gridCells {
+            if let placesInCell = gridIndex[cell] {
+                candidatePlaces.formUnion(placesInCell)
+            }
+        }
+        
+        // Calculate distances and sort
+        let placesWithDistances = candidatePlaces.map { place -> (Place, Double) in
+            let distance = coordinate.distance(to: place.centerCoordinate)
+            return (place, distance)
+        }
+        print("Found \(placesWithDistances.count) places within \(maxRadius) meters")
+        
+        // Sort by distance and return the closest ones
+        return placesWithDistances
+            .sorted { $0.1 < $1.1 }
+            .prefix(limit)
+            .map { $0.0 }
+    }
 }
 
 enum PlaceError: Error {
