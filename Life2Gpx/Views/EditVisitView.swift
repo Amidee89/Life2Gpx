@@ -4,8 +4,9 @@ import CoreLocation
 struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
-    var onSave: (String) -> Void
+    var onSave: (Place?) -> Void
     
+    @State private var selectedPlace: Place?
     @State private var placeName: String = ""
     @State private var nearbyPlaces: [Place] = []
     @State private var searchText: String = ""
@@ -51,6 +52,7 @@ struct EditVisitView: View {
                 Section(searchText.isEmpty ? "Nearby Places" : "Search Results") {
                     ForEach(filteredPlaces) { place in
                         Button(action: {
+                            selectedPlace = place
                             placeName = place.name
                         }) {
                             HStack {
@@ -82,12 +84,37 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    onSave(placeName)
+                    if selectedPlace == nil {
+                        let customPlace = Place(
+                            placeId: UUID().uuidString,
+                            name: placeName,
+                            center: Center(
+                                latitude: timelineObject.points.first?.latitude ?? 0,
+                                longitude: timelineObject.points.first?.longitude ?? 0
+                            ),
+                            radius: 50,
+                            streetAddress: nil,
+                            secondsFromGMT: nil,
+                            lastSaved: nil,
+                            facebookPlaceId: nil,
+                            mapboxPlaceId: nil,
+                            foursquareVenueId: nil,
+                            foursquareCategoryId: nil,
+                            previousIds: nil,
+                            lastVisited: Date(),
+                            isFavorite: nil,
+                            customIcon: nil
+                        )
+                        onSave(customPlace)
+                    } else {
+                        onSave(selectedPlace)
+                    }
                     dismiss()
                 }
             )
         }
         .onAppear {
+            placeName = timelineObject.name ?? ""
             if let firstPoint = timelineObject.points.first {
                 let coordinate = CLLocationCoordinate2D(
                     latitude: firstPoint.latitude ?? 0,

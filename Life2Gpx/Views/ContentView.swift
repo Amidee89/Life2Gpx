@@ -106,8 +106,11 @@ struct ContentView: View {
                     TimelineView(
                         timelineObjects: $timelineObjects,
                         selectedTimelineObjectID: $selectedTimelineObjectID,
-                        onRefresh: refreshData, 
-                        onSelectItem: selectAndCenter
+                        onRefresh: refreshData,
+                        onSelectItem: { item in
+                            selectedTimelineObjectID = item.id
+                        },
+                        onEditVisit: handleVisitEdit
                     )
                 }
                 .onReceive(locationManager.$dataHasBeenUpdated) { needsRefresh in
@@ -204,7 +207,12 @@ struct ContentView: View {
 
     }
     
-   
+    private func handleVisitEdit(timelineObject: TimelineObject, place: Place?) {
+        // Get the current date from the timeline object or selected date
+        let date = timelineObject.startDate?.startOfDay() ?? selectedDate
+        GPXManager.shared.updateWaypoint(forDate: date, timelineObject: timelineObject, with: place)
+        refreshData()
+    }
 }
 
 public func formatDateToHoursMinutes(_ date: Date) -> String {
@@ -225,4 +233,11 @@ public func calculateSpan(for coordinates: [CLLocationCoordinate2D]) -> MKCoordi
     let lonDelta = max(maxLon - minLon, 0.001) * 1.4
 
     return MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+}
+
+// Helper extension to get start of day
+extension Date {
+    func startOfDay() -> Date {
+        return Calendar.current.startOfDay(for: self)
+    }
 }

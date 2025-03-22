@@ -18,7 +18,7 @@ struct TimelineView: View {
 
     var onRefresh: () -> Void
     var onSelectItem: (TimelineObject) -> Void
-    var onEditVisit: ((TimelineObject, String) -> Void)?
+    var onEditVisit: ((TimelineObject, Place?) -> Void)?
     
     var body: some View {
         List(timelineObjects) { item in
@@ -151,8 +151,8 @@ struct TimelineView: View {
         .listStyle(PlainListStyle())
         .sheet(isPresented: $showingEditSheet, content: {
             if let timelineObject = editingTimelineObject {
-                EditVisitView(timelineObject: timelineObject) { newName in
-                    onEditVisit?(timelineObject, newName)
+                EditVisitView(timelineObject: timelineObject) { place in
+                    onEditVisit?(timelineObject, place)
                 }
             }
         })
