@@ -33,6 +33,9 @@ struct EditPlaceView: View {
 
     @State private var isIdentifiersSectionExpanded = false
 
+    @State private var showingIconPicker = false
+    @State private var searchText = ""
+
     let isNewPlace: Bool
     let onSave: ((Place) -> Void)?
 
@@ -95,6 +98,21 @@ struct EditPlaceView: View {
         
         let logValue = minLog + (value * (maxLog - minLog))
         return Int(round(exp(logValue)))
+    }
+
+    private var filteredIcons: [String] {
+        let allIcons = ["mappin", "house", "building", "cart", "bag", "fork.knife", 
+                        "cup.and.saucer", "airplane", "car", "tram", "bicycle", 
+                        "figure.walk", "figure.run", "basketball", "dumbbell", 
+                        "cross", "pills", "books.vertical", "graduationcap", 
+                        "briefcase", "building.2", "leaf", "tree", "pawprint", 
+                        "music.note", "theatermasks", "gamecontroller", "paintbrush", 
+                        "camera", "wrench.and.screwdriver", "scissors", "cart.fill.badge.plus"]
+        
+        if searchText.isEmpty {
+            return allIcons
+        }
+        return allIcons.filter { $0.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
@@ -218,6 +236,26 @@ struct EditPlaceView: View {
                     TextField("Street Address", text: $streetAddress)
                 }
                 
+                // Icon Picker Section
+                Section(header: Text("Icon")) {
+                    HStack {
+                        Image(systemName: customIcon.isEmpty ? "mappin.circle.fill" : customIcon)
+                            .font(.title2)
+                        Spacer()
+                        Button("Choose Icon") {
+                            showingIconPicker = true
+                        }
+                    }
+                }
+                
+                // Last Visited Section
+                Section(header: Text("Last Visited")) {
+                    DatePicker(
+                        "Last Visited",
+                        selection: $lastVisited,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
                 
                 // External IDs Section
                 Section(header: Text("External IDs")) {
@@ -294,11 +332,6 @@ struct EditPlaceView: View {
                     }
                 )
                 
-                Section(header: Text("Additional Settings")) {
-                    Toggle("Favorite", isOn: $isFavorite)
-                    TextField("Custom Icon", text: $customIcon)
-                }
-                
                 // Only show delete button for existing places
                 if !isNewPlace {
                     Section {
@@ -324,6 +357,14 @@ struct EditPlaceView: View {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
+                ToolbarItem(placement: .principal) {
+                    Button(action: {
+                        isFavorite.toggle()
+                    }) {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .foregroundColor(isFavorite ? .red : .gray)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         savePlace()
@@ -347,6 +388,40 @@ struct EditPlaceView: View {
                 Button("Cancel", role: .cancel) { }
             } message: {
                 Text("This action cannot be undone.")
+            }
+            .sheet(isPresented: $showingIconPicker) {
+                NavigationView {
+                    List {
+                        ForEach(filteredIcons, id: \.self) { iconName in
+                            Button(action: {
+                                customIcon = iconName
+                                showingIconPicker = false
+                            }) {
+                                HStack {
+                                    Image(systemName: iconName)
+                                        .font(.title2)
+                                    Text(iconName)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    if customIcon == iconName {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .searchable(text: $searchText, prompt: "Search icons")
+                    .navigationTitle("Choose Icon")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Cancel") {
+                                showingIconPicker = false
+                            }
+                        }
+                    }
+                }
             }
         }
     }
