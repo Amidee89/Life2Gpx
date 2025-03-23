@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7DC64B372D905D6800E6ED1F /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 7DC64B362D905D6800E6ED1F /* SymbolPicker */; };
 		7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */; };
 		A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */; };
 		A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */; };
@@ -126,6 +127,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7DC64B372D905D6800E6ED1F /* SymbolPicker in Frameworks */,
 				A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -285,6 +287,7 @@
 			name = Life2Gpx;
 			packageProductDependencies = (
 				A9492B462B8A7FD10059DAB6 /* CoreGPX */,
+				7DC64B362D905D6800E6ED1F /* SymbolPicker */,
 			);
 			productName = Life2Gpx;
 			productReference = A9B62FA22B66E692004A010E /* Life2Gpx.app */;
@@ -380,6 +383,7 @@
 			mainGroup = A9B62F992B66E692004A010E;
 			packageReferences = (
 				A9492B452B8A7FD10059DAB6 /* XCRemoteSwiftPackageReference "CoreGPX" */,
+				7DC64B352D905D6800E6ED1F /* XCRemoteSwiftPackageReference "SymbolPicker" */,
 			);
 			productRefGroup = A9B62FA32B66E692004A010E /* Products */;
 			projectDirPath = "";
@@ -877,6 +881,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		7DC64B352D905D6800E6ED1F /* XCRemoteSwiftPackageReference "SymbolPicker" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/xnth97/SymbolPicker";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.6.2;
+			};
+		};
 		A9492B452B8A7FD10059DAB6 /* XCRemoteSwiftPackageReference "CoreGPX" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/vincentneo/CoreGPX.git";
@@ -888,6 +900,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		7DC64B362D905D6800E6ED1F /* SymbolPicker */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DC64B352D905D6800E6ED1F /* XCRemoteSwiftPackageReference "SymbolPicker" */;
+			productName = SymbolPicker;
+		};
 		A9492B462B8A7FD10059DAB6 /* CoreGPX */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A9492B452B8A7FD10059DAB6 /* XCRemoteSwiftPackageReference "CoreGPX" */;

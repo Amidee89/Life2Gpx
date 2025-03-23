@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import SymbolPicker
 
 struct EditPlaceView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -34,7 +35,6 @@ struct EditPlaceView: View {
     @State private var isIdentifiersSectionExpanded = false
 
     @State private var showingIconPicker = false
-    @State private var searchText = ""
 
     let isNewPlace: Bool
     let onSave: ((Place) -> Void)?
@@ -98,21 +98,6 @@ struct EditPlaceView: View {
         
         let logValue = minLog + (value * (maxLog - minLog))
         return Int(round(exp(logValue)))
-    }
-
-    private var filteredIcons: [String] {
-        let allIcons = ["mappin", "house", "building", "cart", "bag", "fork.knife", 
-                        "cup.and.saucer", "airplane", "car", "tram", "bicycle", 
-                        "figure.walk", "figure.run", "basketball", "dumbbell", 
-                        "cross", "pills", "books.vertical", "graduationcap", 
-                        "briefcase", "building.2", "leaf", "tree", "pawprint", 
-                        "music.note", "theatermasks", "gamecontroller", "paintbrush", 
-                        "camera", "wrench.and.screwdriver", "scissors", "cart.fill.badge.plus"]
-        
-        if searchText.isEmpty {
-            return allIcons
-        }
-        return allIcons.filter { $0.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
@@ -390,38 +375,7 @@ struct EditPlaceView: View {
                 Text("This action cannot be undone.")
             }
             .sheet(isPresented: $showingIconPicker) {
-                NavigationView {
-                    List {
-                        ForEach(filteredIcons, id: \.self) { iconName in
-                            Button(action: {
-                                customIcon = iconName
-                                showingIconPicker = false
-                            }) {
-                                HStack {
-                                    Image(systemName: iconName)
-                                        .font(.title2)
-                                    Text(iconName)
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    if customIcon == iconName {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.blue)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .searchable(text: $searchText, prompt: "Search icons")
-                    .navigationTitle("Choose Icon")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Cancel") {
-                                showingIconPicker = false
-                            }
-                        }
-                    }
-                }
+                SymbolPicker(symbol: $customIcon)
             }
         }
     }
