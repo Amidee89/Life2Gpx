@@ -73,27 +73,33 @@ struct TimelineView: View {
                 {
                     if item.type == .waypoint
                     {
-                        HStack {
-                            VStack(alignment: .leading) {
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(item.name ?? "Unknown Place")
-                                HStack{
-                                    if item.meters > 0 {
-                                        if item.meters < 1000{
-                                            Text("\(item.meters) m")
-                                                .font(.footnote)
+                                Group {
+                                    if item.meters > 0 || item.steps > 0 || item.averageSpeed > 0 {
+                                        HStack {
+                                            if item.meters > 0 {
+                                                if item.meters < 1000 {
+                                                    Text("\(item.meters) m")
+                                                        .font(.footnote)
+                                                } else {
+                                                    Text("\(item.meters/1000) km")
+                                                        .font(.footnote)
+                                                }
+                                            }
+                                            if item.steps > 0 {
+                                                Text("\(item.steps) steps")
+                                                    .font(.footnote)
+                                            }
+                                            if item.averageSpeed > 0 {
+                                                Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
+                                                    .font(.footnote)
+                                            }
                                         }
-                                        else{
-                                            Text("\(item.meters/1000) km")
-                                                .font(.footnote)
-                                        }
-                                    }
-                                    if item.steps > 0{
-                                        Text("\(item.steps) steps")
-                                            .font(.footnote)
-                                    }
-                                    if item.averageSpeed > 0 {
-                                        Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
-                                            .font(.footnote)
+                                    } else {
+                                        Color.clear
+                                            .frame(height: 0)
                                     }
                                 }
                             }
