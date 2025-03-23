@@ -109,6 +109,7 @@ struct ContentView: View {
                         onRefresh: refreshData,
                         onSelectItem: { item in
                             selectedTimelineObjectID = item.id
+                            selectAndCenter(item)
                         },
                         onEditVisit: handleVisitEdit
                     )
