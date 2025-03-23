@@ -25,6 +25,10 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
 
         let waypointObjects = gpxWaypoints.map { waypoint -> TimelineObject in
             let coordinate = CLLocationCoordinate2D(latitude: waypoint.latitude ?? 0, longitude: waypoint.longitude ?? 0)
+            
+            // Look up the place to get the custom icon
+            let place = PlaceManager.shared.findPlace(for: coordinate)
+            
             return TimelineObject(
                 type: .waypoint,
                 startDate: waypoint.time,
@@ -32,7 +36,8 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
                 name: waypoint.name,
                 steps: Int(waypoint.extensions?["Steps"].text ?? "0") ?? 0,
                 coordinates: [IdentifiableCoordinates(coordinates: [coordinate])],
-                points: [waypoint as GPXWaypoint]
+                points: [waypoint as GPXWaypoint],
+                customIcon: place?.customIcon
             )
         }
         timelineObjects.append(contentsOf: waypointObjects)
