@@ -74,7 +74,29 @@ struct TimelineView: View {
                     if item.type == .waypoint
                     {
                         HStack {
-                            Text(item.name ?? "Unknown Place")
+                            VStack(alignment: .leading) {
+                                Text(item.name ?? "Unknown Place")
+                                HStack{
+                                    if item.meters > 0 {
+                                        if item.meters < 1000{
+                                            Text("\(item.meters) m")
+                                                .font(.footnote)
+                                        }
+                                        else{
+                                            Text("\(item.meters/1000) km")
+                                                .font(.footnote)
+                                        }
+                                    }
+                                    if item.steps > 0{
+                                        Text("\(item.steps) steps")
+                                            .font(.footnote)
+                                    }
+                                    if item.averageSpeed > 0 {
+                                        Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
+                                            .font(.footnote)
+                                    }
+                                }
+                            }
                             Spacer()
                             if (item.id == selectedTimelineObjectID ||
                                 item.name == nil || 
@@ -96,27 +118,27 @@ struct TimelineView: View {
                     else
                     {
                         Text(item.trackType?.capitalized ?? "Movement")
+                        HStack{
+                            if item.meters > 0 {
+                                if item.meters < 1000{
+                                    Text("\(item.meters) m")
+                                        .font(.footnote)
+                                }
+                                else{
+                                    Text("\(item.meters/1000) km")
+                                        .font(.footnote)
+                                }
+                            }
+                            if item.steps > 0{
+                                Text("\(item.steps) steps")
+                                    .font(.footnote)
+                            }
+                            if item.averageSpeed > 0 {
+                                Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
+                                    .font(.footnote)
+                            }
+                        }
                     }
-                    HStack{
-                        if item.meters > 0 {
-                            if item.meters < 1000{
-                                Text("\(item.meters) m")
-                                    .font(.footnote)
-                            }
-                            else{
-                                Text("\(item.meters/1000) km")
-                                    .font(.footnote)
-                            }
-                        }
-                        if item.steps > 0{
-                            Text("\(item.steps) steps")
-                                .font(.footnote)
-                        }
-                        if item.averageSpeed > 0 {
-                            Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
-                                .font(.footnote)
-                        }
-                    }.frame(minWidth: 80, alignment: .leading)
                     if item.numberOfPoints == 1 {
                         Text("\(item.numberOfPoints) point")
                             .font(.footnote)
