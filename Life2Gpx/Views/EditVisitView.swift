@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import MapKit
 
 struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
@@ -10,7 +11,18 @@ struct EditVisitView: View {
     @State private var nearbyPlaces: [Place] = []
     @State private var searchText: String = ""
     @State private var showingNewPlaceSheet = false
+    @State private var showingEditPlaceSheet = false
+    @State private var region: MKCoordinateRegion = MKCoordinateRegion()
+    @State private var startDate: Date
+    @State private var endDate: Date
     
+    init(timelineObject: TimelineObject, onSave: @escaping (Place?) -> Void) {
+        self.timelineObject = timelineObject
+        self.onSave = onSave
+        _startDate = State(initialValue: timelineObject.startDate ?? Date())
+        _endDate = State(initialValue: timelineObject.endDate ?? Date())
+    }
+
     private var currentCoordinate: CLLocationCoordinate2D? {
         guard let firstPoint = timelineObject.points.first else { return nil }
         return CLLocationCoordinate2D(
@@ -49,43 +61,137 @@ struct EditVisitView: View {
     var body: some View {
         NavigationView {
             List {
-                Section {
-                    Button(action: {
-                        showingNewPlaceSheet = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                            Text("Add New Place")
-                        }
-                    }
-                }
-
-                Section {
-                    TextField("Search places", text: $searchText)
-                }
-                
-                Section(searchText.isEmpty ? "Nearby Places" : "Search Results") {
-                    ForEach(filteredPlaces) { place in
-                        Button(action: {
-                            selectedPlace = place
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(place.name)
-                                        .foregroundColor(.primary)
-                                    if let address = place.streetAddress {
-                                        Text(address)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                if let coordinate = currentCoordinate {
+                    Section("Current Visit") {
+                        Map(position: .constant(.region(region))) {
+                            if let coordinate = currentCoordinate {
+                                // Current visit location
+                                Annotation("Visit location", coordinate: coordinate) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                        Circle()
+                                            .fill(Color.black)
+                                            .padding(4)
                                     }
+                                    .frame(width: 24, height: 24)
                                 }
-                                Spacer()
-                                Text(formattedDistance(to: place))
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
+                            }
+                            
+                            if let place = selectedPlace {
+                                // Selected place
+                                Annotation(place.name, coordinate: place.centerCoordinate) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                        Circle()
+                                            .fill(Color.orange)
+                                            .padding(4)
+                                    }
+                                    .frame(width: 24, height: 24)
+                                }
+                                
+                                MapCircle(center: place.centerCoordinate, radius: place.radius)
+                                    .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                                    .foregroundStyle(Color.orange.opacity(0.5))
                             }
                         }
-                        .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        
+                        // Selected place information with edit button
+                        if let place = selectedPlace {
+                            HStack {
+                                // Place icon
+                                Image(systemName: place.customIcon ?? "mappin.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                                
+                                // Place details
+                                VStack(alignment: .leading) {
+                                    Text(place.name)
+                                        .font(.headline)
+                                    if let address = place.streetAddress {
+                                        Text(address)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Text("Radius: \(Int(place.radius))m")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                // Edit button
+                                Button(action: {
+                                    showingEditPlaceSheet = true
+                                }) {
+                                    Image(systemName: "square.and.pencil")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        
+                        // Clear place data button
+                        Button(role: .destructive) {
+                            selectedPlace = nil
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Clear Place Data")
+                                Spacer()
+                            }
+                        }
+                    }
+                    
+                    Section("Visit Time") {
+                        DatePicker("Start Time", 
+                                 selection: $startDate,
+                                 displayedComponents: [.date, .hourAndMinute])
+                            .font(.subheadline)
+                        
+                        DatePicker("End Time", 
+                                 selection: $endDate,
+                                 displayedComponents: [.date, .hourAndMinute])
+                            .font(.subheadline)
+                    }
+
+                    Section("Change Place") {
+                        Button(action: {
+                            showingNewPlaceSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add New Place")
+                            }
+                        }
+
+                        TextField("Search places", text: $searchText)
+                        
+                        ForEach(filteredPlaces) { place in
+                            Button(action: {
+                                selectedPlace = place
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(place.name)
+                                            .foregroundColor(.primary)
+                                        if let address = place.streetAddress {
+                                            Text(address)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Text(formattedDistance(to: place))
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                }
+                            }
+                            .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
+                        }
                     }
                 }
             }
@@ -95,6 +201,9 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
+                    // Update the timeline object's dates
+                    timelineObject.startDate = startDate
+                    timelineObject.endDate = endDate
                     onSave(selectedPlace)
                     dismiss()
                 }
@@ -130,14 +239,66 @@ struct EditVisitView: View {
                     )
                 }
             }
+            .sheet(isPresented: $showingEditPlaceSheet) {
+                if let place = selectedPlace {
+                    EditPlaceView(
+                        place: place,
+                        onSave: { updatedPlace in
+                            // Update the selected place with the edited version
+                            selectedPlace = updatedPlace
+                        }
+                    )
+                }
+            }
         }
         .onAppear {
-            if let firstPoint = timelineObject.points.first {
-                let coordinate = CLLocationCoordinate2D(
-                    latitude: firstPoint.latitude ?? 0,
-                    longitude: firstPoint.longitude ?? 0
+            if let coordinate = currentCoordinate {
+                // Initialize map region
+                region = MKCoordinateRegion(
+                    center: coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                 )
+                
+                // Load nearby places
                 nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
+                
+                // If the visit has a name, try to find the corresponding place
+                if let visitName = timelineObject.name {
+                    selectedPlace = nearbyPlaces.first { $0.name == visitName }
+                }
+            }
+        }
+        .onChange(of: selectedPlace) { newPlace in
+            if let place = newPlace, let coordinate = currentCoordinate {
+                // Calculate the diagonal distance needed to show the circle
+                let radiusInDegrees = (place.radius * 2.0) / 111000.0 // Reduced from 2.2 to 2.0
+                let minimumSpan = 0.005 // Reduced from 0.01 to 0.005
+                
+                // Calculate the span needed to show both the current location and the place
+                let latDelta = max(
+                    abs(coordinate.latitude - place.centerCoordinate.latitude) * 2.0,
+                    radiusInDegrees,
+                    minimumSpan
+                )
+                let lonDelta = max(
+                    abs(coordinate.longitude - place.centerCoordinate.longitude) * 2.0,
+                    radiusInDegrees,
+                    minimumSpan
+                )
+                
+                // Center point between current location and place
+                let center = CLLocationCoordinate2D(
+                    latitude: (coordinate.latitude + place.centerCoordinate.latitude) / 2,
+                    longitude: (coordinate.longitude + place.centerCoordinate.longitude) / 2
+                )
+                
+                region = MKCoordinateRegion(
+                    center: center,
+                    span: MKCoordinateSpan(
+                        latitudeDelta: latDelta,
+                        longitudeDelta: lonDelta
+                    )
+                )
             }
         }
     }
