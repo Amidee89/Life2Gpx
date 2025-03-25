@@ -15,12 +15,18 @@ struct EditVisitView: View {
     @State private var region: MKCoordinateRegion = MKCoordinateRegion()
     @State private var startDate: Date
     @State private var endDate: Date
+    @State private var latitudeString: String = ""
+    @State private var longitudeString: String = ""
     
     init(timelineObject: TimelineObject, onSave: @escaping (Place?) -> Void) {
         self.timelineObject = timelineObject
         self.onSave = onSave
         _startDate = State(initialValue: timelineObject.startDate ?? Date())
         _endDate = State(initialValue: timelineObject.endDate ?? Date())
+        _latitudeString = State(initialValue: String(format: "%.6f", 
+            timelineObject.points.first?.latitude ?? 0))
+        _longitudeString = State(initialValue: String(format: "%.6f", 
+            timelineObject.points.first?.longitude ?? 0))
     }
 
     private var currentCoordinate: CLLocationCoordinate2D? {
@@ -63,42 +69,109 @@ struct EditVisitView: View {
             List {
                 if let coordinate = currentCoordinate {
                     Section("Current Visit") {
-                        Map(position: .constant(.region(region))) {
-                            if let coordinate = currentCoordinate {
-                                // Current visit location
-                                Annotation("Visit location", coordinate: coordinate) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                        Circle()
-                                            .fill(Color.black)
-                                            .padding(4)
+                        ZStack(alignment: .bottomTrailing) {
+                            MapReader { reader in
+                                Map(position: .constant(.region(region))) {
+                                    if let coordinate = currentCoordinate {
+                                        // Current visit location
+                                        Annotation("Current Location", coordinate: coordinate) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color.white)
+                                                Circle()
+                                                    .fill(Color.black)
+                                                    .padding(4)
+                                            }
+                                            .frame(width: 24, height: 24)
+                                        }
                                     }
-                                    .frame(width: 24, height: 24)
+                                    
+                                    if let place = selectedPlace {
+                                        // Selected place
+                                        Annotation(place.name, coordinate: place.centerCoordinate) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color.white)
+                                                Circle()
+                                                    .fill(Color.orange)
+                                                    .padding(4)
+                                            }
+                                            .frame(width: 24, height: 24)
+                                        }
+                                        
+                                        MapCircle(center: place.centerCoordinate, radius: place.radius)
+                                            .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                                            .foregroundStyle(Color.orange.opacity(0.5))
+                                    }
                                 }
+                                .onTapGesture { screenCoord in
+                                    if let coordinate = reader.convert(screenCoord, from: .local) {
+                                        // Update the first point's coordinates
+                                        if let firstPoint = timelineObject.points.first {
+                                            firstPoint.latitude = coordinate.latitude
+                                            firstPoint.longitude = coordinate.longitude
+                                            latitudeString = String(format: "%.6f", coordinate.latitude)
+                                            longitudeString = String(format: "%.6f", coordinate.longitude)
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(height: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                            // Map Control Button
+                            Image(systemName: "location.viewfinder")
+                                .font(.title)
+                                .padding()
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                                .shadow(radius: 3)
+                                .scaleEffect(0.8)
+                                .contentShape(Circle())
+                                .onTapGesture {
+                                    withAnimation {
+                                        region = MKCoordinateRegion(
+                                            center: currentCoordinate ?? CLLocationCoordinate2D(),
+                                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                                        )
+                                    }
+                                }
+                                .padding(.trailing, 16)
+                                .padding(.bottom, 16)
+                        }
+
+                        // Coordinate fields with proper labels
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Latitude")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("Latitude", text: $latitudeString)
+                                    .keyboardType(.decimalPad)
+                                    .onChange(of: latitudeString) { newValue in
+                                        if let lat = Double(newValue), lat >= -90, lat <= 90,
+                                           let firstPoint = timelineObject.points.first {
+                                            firstPoint.latitude = lat
+                                        }
+                                    }
                             }
                             
-                            if let place = selectedPlace {
-                                // Selected place
-                                Annotation(place.name, coordinate: place.centerCoordinate) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                        Circle()
-                                            .fill(Color.orange)
-                                            .padding(4)
+                            VStack(alignment: .leading) {
+                                Text("Longitude")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("Longitude", text: $longitudeString)
+                                    .keyboardType(.decimalPad)
+                                    .onChange(of: longitudeString) { newValue in
+                                        if let lon = Double(newValue), lon >= -180, lon <= 180,
+                                           let firstPoint = timelineObject.points.first {
+                                            firstPoint.longitude = lon
+                                        }
                                     }
-                                    .frame(width: 24, height: 24)
-                                }
-                                
-                                MapCircle(center: place.centerCoordinate, radius: place.radius)
-                                    .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                                    .foregroundStyle(Color.orange.opacity(0.5))
                             }
                         }
-                        .frame(height: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        
+
                         // Selected place information with edit button
                         if let place = selectedPlace {
                             HStack {
