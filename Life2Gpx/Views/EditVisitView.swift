@@ -17,15 +17,17 @@ struct EditVisitView: View {
     @State private var visitDate: Date
     @State private var latitudeString: String = ""
     @State private var longitudeString: String = ""
+    @State private var elevationString: String = ""
+    @State private var stepsString: String = ""
     
     init(timelineObject: TimelineObject, onSave: @escaping (Place?) -> Void) {
         self.timelineObject = timelineObject
         self.onSave = onSave
         _visitDate = State(initialValue: timelineObject.startDate ?? Date())
-        _latitudeString = State(initialValue: String(format: "%.6f", 
-            timelineObject.points.first?.latitude ?? 0))
-        _longitudeString = State(initialValue: String(format: "%.6f", 
-            timelineObject.points.first?.longitude ?? 0))
+        _latitudeString = State(initialValue: String(format: "%.6f", timelineObject.points.first?.latitude ?? 0))
+        _longitudeString = State(initialValue: String(format: "%.6f", timelineObject.points.first?.longitude ?? 0))
+        _elevationString = State(initialValue: String(format: "%.1f", timelineObject.points.first?.elevation ?? 0))
+        _stepsString = State(initialValue: String(timelineObject.steps))
     }
 
     private var currentCoordinate: CLLocationCoordinate2D? {
@@ -66,12 +68,54 @@ struct EditVisitView: View {
         NavigationView {
             List {
                 if let coordinate = currentCoordinate {
-                    Section("Current Visit") {
+                    Section("Visit Details") {
+                        DatePicker("Visit time", 
+                                 selection: $visitDate,
+                                 displayedComponents: [.date, .hourAndMinute])
+                        
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Latitude")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("Latitude", text: $latitudeString)
+                                    .keyboardType(.decimalPad)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Longitude")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("Longitude", text: $longitudeString)
+                                    .keyboardType(.decimalPad)
+                            }
+                        }
+                        
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Elevation (m)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("Elevation", text: $elevationString)
+                                    .keyboardType(.decimalPad)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text("Steps")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("Steps", text: $stepsString)
+                                    .keyboardType(.numberPad)
+                            }
+                        }
+                    }
+                    
+                    Section("Place Details") {
                         ZStack(alignment: .bottomTrailing) {
                             MapReader { reader in
                                 Map(position: .constant(.region(region))) {
                                     if let coordinate = currentCoordinate {
-                                        Annotation("Current Location", coordinate: coordinate) {
+                                        Annotation("Visit Location", coordinate: coordinate) {
                                             ZStack {
                                                 Circle()
                                                     .fill(Color.white)
@@ -135,35 +179,7 @@ struct EditVisitView: View {
                                 .padding(.bottom, 16)
                         }
 
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Latitude")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("Latitude", text: $latitudeString)
-                                    .keyboardType(.decimalPad)
-                                    .onChange(of: latitudeString) { newValue in
-                                        if let lat = Double(newValue), lat >= -90, lat <= 90,
-                                           let firstPoint = timelineObject.points.first {
-                                            firstPoint.latitude = lat
-                                        }
-                                    }
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text("Longitude")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("Longitude", text: $longitudeString)
-                                    .keyboardType(.decimalPad)
-                                    .onChange(of: longitudeString) { newValue in
-                                        if let lon = Double(newValue), lon >= -180, lon <= 180,
-                                           let firstPoint = timelineObject.points.first {
-                                            firstPoint.longitude = lon
-                                        }
-                                    }
-                            }
-                        }
+                    
                         if let place = selectedPlace {
                             HStack {
                                 Image(systemName: place.customIcon ?? "smallcircle.filled.circle")
@@ -194,27 +210,19 @@ struct EditVisitView: View {
                                 }
                             }
                             .padding(.vertical, 4)
-                        }
-                        
-                        Button(role: .destructive) {
-                            selectedPlace = nil
-                        } label: {
-                            HStack {
-                                Spacer()
-                                Text("Clear Place Data")
-                                Spacer()
+                            
+                            Button(role: .destructive) {
+                                selectedPlace = nil
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    Text("Clear Place")
+                                    Spacer()
+                                }
                             }
                         }
                     }
                     
-                    Section("Visit Time") {
-                        DatePicker("", 
-                                 selection: $visitDate,
-                                 displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
                     Section("Change Place") {
                         Button(action: {
                             showingNewPlaceSheet = true
