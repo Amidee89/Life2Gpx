@@ -14,16 +14,14 @@ struct EditVisitView: View {
     @State private var showingNewPlaceSheet = false
     @State private var showingEditPlaceSheet = false
     @State private var region: MKCoordinateRegion = MKCoordinateRegion()
-    @State private var startDate: Date
-    @State private var endDate: Date
+    @State private var visitDate: Date
     @State private var latitudeString: String = ""
     @State private var longitudeString: String = ""
     
     init(timelineObject: TimelineObject, onSave: @escaping (Place?) -> Void) {
         self.timelineObject = timelineObject
         self.onSave = onSave
-        _startDate = State(initialValue: timelineObject.startDate ?? Date())
-        _endDate = State(initialValue: timelineObject.endDate ?? Date())
+        _visitDate = State(initialValue: timelineObject.startDate ?? Date())
         _latitudeString = State(initialValue: String(format: "%.6f", 
             timelineObject.points.first?.latitude ?? 0))
         _longitudeString = State(initialValue: String(format: "%.6f", 
@@ -44,7 +42,6 @@ struct EditVisitView: View {
         let allPlaces = searchText.isEmpty ? nearbyPlaces : PlaceManager.shared.getAllPlaces()
         let filtered = searchText.isEmpty ? allPlaces : allPlaces.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         
-        // Sort by selection first, then distance and take first 10
         return filtered
             .sorted { place1, place2 in
                 if place1 == selectedPlace { return true }
@@ -74,7 +71,6 @@ struct EditVisitView: View {
                             MapReader { reader in
                                 Map(position: .constant(.region(region))) {
                                     if let coordinate = currentCoordinate {
-                                        // Current visit location
                                         Annotation("Current Location", coordinate: coordinate) {
                                             ZStack {
                                                 Circle()
@@ -88,7 +84,6 @@ struct EditVisitView: View {
                                     }
                                     
                                     if let place = selectedPlace {
-                                        // Selected place
                                         Annotation(place.name, coordinate: place.centerCoordinate) {
                                             ZStack {
                                                 Circle()
@@ -107,7 +102,6 @@ struct EditVisitView: View {
                                 }
                                 .onTapGesture { screenCoord in
                                     if let coordinate = reader.convert(screenCoord, from: .local) {
-                                        // Update the first point's coordinates
                                         if let firstPoint = timelineObject.points.first {
                                             firstPoint.latitude = coordinate.latitude
                                             firstPoint.longitude = coordinate.longitude
@@ -120,7 +114,6 @@ struct EditVisitView: View {
                             .frame(height: 200)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                            // Map Control Button
                             Image(systemName: "location.viewfinder")
                                 .font(.title)
                                 .padding()
@@ -142,7 +135,6 @@ struct EditVisitView: View {
                                 .padding(.bottom, 16)
                         }
 
-                        // Coordinate fields with proper labels
                         HStack {
                             VStack(alignment: .leading) {
                                 Text("Latitude")
@@ -172,16 +164,12 @@ struct EditVisitView: View {
                                     }
                             }
                         }
-
-                        // Selected place information with edit button
                         if let place = selectedPlace {
                             HStack {
-                                // Place icon
-                                Image(systemName: place.customIcon ?? "mappin.circle.fill")
+                                Image(systemName: place.customIcon ?? "smallcircle.filled.circle")
                                     .font(.title2)
                                     .foregroundColor(.blue)
                                 
-                                // Place details
                                 VStack(alignment: .leading) {
                                     Text(place.name)
                                         .font(.headline)
@@ -208,7 +196,6 @@ struct EditVisitView: View {
                             .padding(.vertical, 4)
                         }
                         
-                        // Clear place data button
                         Button(role: .destructive) {
                             selectedPlace = nil
                         } label: {
@@ -222,9 +209,10 @@ struct EditVisitView: View {
                     
                     Section("Visit Time") {
                         DatePicker("", 
-                                 selection: $startDate,
+                                 selection: $visitDate,
                                  displayedComponents: [.date, .hourAndMinute])
-                            .font(.subheadline)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     Section("Change Place") {
@@ -270,9 +258,9 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // Update the timeline object's dates
-                    timelineObject.startDate = startDate
-                    timelineObject.endDate = endDate
+                    // Update the timeline object's date
+                    timelineObject.startDate = visitDate
+                    timelineObject.endDate = visitDate
                     onSave(selectedPlace)
                     dismiss()
                 }

@@ -224,7 +224,7 @@ struct EditPlaceView: View {
                 // Icon Picker Section
                 Section(header: Text("Icon")) {
                     HStack {
-                        Image(systemName: customIcon.isEmpty ? "mappin.circle.fill" : customIcon)
+                        Image(systemName: customIcon.isEmpty ? "smallcircle.filled.circle" : customIcon)
                             .font(.title2)
                         Spacer()
                         Button("Choose Icon") {
