@@ -297,6 +297,7 @@ struct EditVisitView: View {
                             customIcon: nil
                         ),
                         isNewPlace: true,
+                        isFromEditVisit: true,
                         onSave: { newPlace in
                             onSave(newPlace)
                             dismiss()
@@ -308,6 +309,7 @@ struct EditVisitView: View {
                 if let place = selectedPlace {
                     EditPlaceView(
                         place: place,
+                        isFromEditVisit: true,
                         onSave: { updatedPlace in
                             selectedPlace = updatedPlace
                         }

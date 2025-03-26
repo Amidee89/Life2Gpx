@@ -36,12 +36,16 @@ struct EditPlaceView: View {
 
     @State private var showingIconPicker = false
 
+    @State private var isOneTimeVisit: Bool = false
+    let isFromEditVisit: Bool
+
     let isNewPlace: Bool
     let onSave: ((Place) -> Void)?
 
-    init(place: Place, isNewPlace: Bool = false, onSave: ((Place) -> Void)? = nil) {
+    init(place: Place, isNewPlace: Bool = false, isFromEditVisit: Bool = false, onSave: ((Place) -> Void)? = nil) {
         self.originalPlace = place
         self.isNewPlace = isNewPlace
+        self.isFromEditVisit = isFromEditVisit
         self.onSave = onSave
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
         _editedPlaceId = State(initialValue: place.placeId)
@@ -216,6 +220,20 @@ struct EditPlaceView: View {
                     }
                 }
                 
+                // Add this section right after Basic Details section
+                if isFromEditVisit && isNewPlace {
+                    Section {
+                        Toggle(isOn: $isOneTimeVisit) {
+                            VStack(alignment: .leading) {
+                                Text("One-time Visit")
+                                Text("Use this for non-recurring visits or brief stops")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                
                 // Address Section
                 Section(header: Text("Address")) {
                     TextField("Street Address", text: $streetAddress)
@@ -382,7 +400,7 @@ struct EditPlaceView: View {
 
     private func savePlace() {
         let updatedPlace = Place(
-            placeId: editedPlaceId.trim(),
+            placeId: isOneTimeVisit ? "-1" : editedPlaceId.trim(),
             name: name.trim(),
             center: Center(latitude: Double(latitudeString.trim()) ?? 0,
                           longitude: Double(longitudeString.trim()) ?? 0),
@@ -402,7 +420,9 @@ struct EditPlaceView: View {
         
         do {
             if isNewPlace {
-                try PlaceManager.shared.addPlace(updatedPlace)
+                if !isOneTimeVisit {
+                    try PlaceManager.shared.addPlace(updatedPlace)
+                }
                 onSave?(updatedPlace)
             } else {
                 try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
