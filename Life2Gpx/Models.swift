@@ -187,75 +187,36 @@ class ManagePlacesViewModel: ObservableObject {
     @Published var places: [Place] = []
     
     init() {
-           #if DEBUG
-           if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-               // Load preview data
-               places = PlaceManager.shared.getPreviewPlaces()
-               return
-           }
-           #endif
-           loadPlaces()
-       }
-       
-
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            // Load preview data
+            self.places = Place.previewPlaces
+            return
+        }
+        #endif
+        loadPlaces()
+    }
+    
     init(places: [Place]) {
         self.places = places
     }
     
     func loadPlaces() {
+        // Only load from PlaceManager if not in preview mode
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" {
+            places = PlaceManager.shared.getAllPlaces()
+        }
+        #else
         places = PlaceManager.shared.getAllPlaces()
+        #endif
     }
-    // Static mock data for previews
+
+    // Single source of truth for preview data
     static var preview: ManagePlacesViewModel {
-        
-        let mockPlaces = [
-            Place(placeId: "1", 
-                 name: "Central Park", 
-                 center: Center(latitude: 40.785091, longitude: -73.968285), 
-                 radius: 200, 
-                 streetAddress: "New York, NY", 
-                 secondsFromGMT: -18000, 
-                 lastSaved: "2024-10-18", 
-                 facebookPlaceId: nil, 
-                 mapboxPlaceId: nil, 
-                 foursquareVenueId: nil, 
-                 foursquareCategoryId: nil, 
-                 previousIds: [nil],
-                 lastVisited: nil,
-                 isFavorite: nil,
-                 customIcon: nil),
-            Place(placeId: "2", 
-                 name: "Golden Gate Park", 
-                 center: Center(latitude: 37.769421, longitude: -122.486214), 
-                 radius: 300, 
-                 streetAddress: "San Francisco, CA", 
-                 secondsFromGMT: -28800, 
-                 lastSaved: "2024-10-19", 
-                 facebookPlaceId: "goldengatepark.sanfrancisco", 
-                 mapboxPlaceId: nil, 
-                 foursquareVenueId: "445e36bff964a520fb321fe3", 
-                 foursquareCategoryId: "16032", 
-                 previousIds: [nil],
-                 lastVisited: nil,
-                 isFavorite: nil,
-                 customIcon: nil),
-            Place(placeId: "3", 
-                 name: "Golden Gate Park", 
-                 center: Center(latitude: 37.769521, longitude: -122.486214), 
-                 radius: 200, 
-                 streetAddress: "San Francisco, CA", 
-                 secondsFromGMT: -28800, 
-                 lastSaved: "2024-10-19", 
-                 facebookPlaceId: "goldengatepark.sanfrancisco", 
-                 mapboxPlaceId: nil, 
-                 foursquareVenueId: "445e36bff964a520fb321fe3", 
-                 foursquareCategoryId: "16032", 
-                 previousIds: [nil],
-                 lastVisited: nil,
-                 isFavorite: nil,
-                 customIcon: nil)
-        ]
-        return ManagePlacesViewModel(places: mockPlaces)
+        let viewModel = ManagePlacesViewModel()
+        viewModel.places = Place.previewPlaces
+        return viewModel
     }
 }
 
@@ -293,4 +254,56 @@ class PerformanceTimer {
         measurements.map { TimerEntry(operation: $0.key, duration: $0.value.duration, parent: $0.value.parent) }
             .sorted { $0.duration > $1.duration }
     }
+}
+
+extension Place {
+    static let previewPlaces: [Place] = [
+        Place(placeId: "1", 
+             name: "Central Park", 
+             center: Center(latitude: 40.785091, longitude: -73.968285), 
+             radius: 200, 
+             streetAddress: "New York, NY", 
+             secondsFromGMT: -18000, 
+             lastSaved: "2024-10-18", 
+             facebookPlaceId: nil, 
+             mapboxPlaceId: nil, 
+             foursquareVenueId: nil, 
+             foursquareCategoryId: nil, 
+             previousIds: [nil],
+             lastVisited: nil,
+             isFavorite: nil,
+             customIcon: nil),
+        Place(placeId: "2", 
+             name: "Golden Gate Park", 
+             center: Center(latitude: 37.769421, longitude: -122.486214), 
+             radius: 300, 
+             streetAddress: "San Francisco, CA", 
+             secondsFromGMT: -28800, 
+             lastSaved: "2024-10-19", 
+             facebookPlaceId: "goldengatepark.sanfrancisco", 
+             mapboxPlaceId: nil, 
+             foursquareVenueId: "445e36bff964a520fb321fe3", 
+             foursquareCategoryId: "16032", 
+             previousIds: [nil],
+             lastVisited: nil,
+             isFavorite: nil,
+             customIcon: nil),
+        Place(placeId: "3", 
+             name: "Golden Gate Park", 
+             center: Center(latitude: 37.769421, longitude: -122.486314), 
+             radius: 200, 
+             streetAddress: "San Francisco, CA", 
+             secondsFromGMT: -28800, 
+             lastSaved: "2024-10-19", 
+             facebookPlaceId: "goldengatepark.sanfrancisco", 
+             mapboxPlaceId: nil, 
+             foursquareVenueId: "445e36bff964a520fb321fe3", 
+             foursquareCategoryId: "16032", 
+             previousIds: [nil],
+             lastVisited: nil,
+             isFavorite: nil,
+             customIcon: nil)
+    ]
+    
+    static let previewPlace: Place = previewPlaces[0]
 }

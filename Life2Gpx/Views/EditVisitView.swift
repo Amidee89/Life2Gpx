@@ -220,13 +220,8 @@ struct EditVisitView: View {
                     }
                     
                     Section("Visit Time") {
-                        DatePicker("Start Time", 
+                        DatePicker("", 
                                  selection: $startDate,
-                                 displayedComponents: [.date, .hourAndMinute])
-                            .font(.subheadline)
-                        
-                        DatePicker("End Time", 
-                                 selection: $endDate,
                                  displayedComponents: [.date, .hourAndMinute])
                             .font(.subheadline)
                     }
@@ -317,7 +312,6 @@ struct EditVisitView: View {
                     EditPlaceView(
                         place: place,
                         onSave: { updatedPlace in
-                            // Update the selected place with the edited version
                             selectedPlace = updatedPlace
                         }
                     )
@@ -326,16 +320,13 @@ struct EditVisitView: View {
         }
         .onAppear {
             if let coordinate = currentCoordinate {
-                // Initialize map region
                 region = MKCoordinateRegion(
                     center: coordinate,
                     span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                 )
                 
-                // Load nearby places
                 nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
                 
-                // If the visit has a name, try to find the corresponding place
                 if let visitName = timelineObject.name {
                     selectedPlace = nearbyPlaces.first { $0.name == visitName }
                 }
@@ -343,23 +334,20 @@ struct EditVisitView: View {
         }
         .onChange(of: selectedPlace) { newPlace in
             if let place = newPlace, let coordinate = currentCoordinate {
-                // Calculate the diagonal distance needed to show the circle
-                let radiusInDegrees = (place.radius * 2.0) / 111000.0 // Reduced from 2.2 to 2.0
-                let minimumSpan = 0.005 // Reduced from 0.01 to 0.005
+                let radiusInDegrees = (place.radius * 2.2) / 111000.0 
+                let minimumSpan = 0.005 
                 
-                // Calculate the span needed to show both the current location and the place
                 let latDelta = max(
-                    abs(coordinate.latitude - place.centerCoordinate.latitude) * 2.0,
+                    abs(coordinate.latitude - place.centerCoordinate.latitude) * 2.2,
                     radiusInDegrees,
                     minimumSpan
                 )
                 let lonDelta = max(
-                    abs(coordinate.longitude - place.centerCoordinate.longitude) * 2.0,
+                    abs(coordinate.longitude - place.centerCoordinate.longitude) * 2.2,
                     radiusInDegrees,
                     minimumSpan
                 )
                 
-                // Center point between current location and place
                 let center = CLLocationCoordinate2D(
                     latitude: (coordinate.latitude + place.centerCoordinate.latitude) / 2,
                     longitude: (coordinate.longitude + place.centerCoordinate.longitude) / 2

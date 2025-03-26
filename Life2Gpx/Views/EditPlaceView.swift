@@ -435,21 +435,6 @@ struct EditPlaceView: View {
 
 struct EditPlaceView_Previews: PreviewProvider {
     static var previews: some View {
-        EditPlaceView(place: Place(
-            placeId: "1", 
-            name: "Central Park", 
-            center: Center(latitude: 40.785091, longitude: -73.968285), 
-            radius: 200, 
-            streetAddress: "New York, NY", 
-            secondsFromGMT: -18000, 
-            lastSaved: "2024-10-18", 
-            facebookPlaceId: nil, 
-            mapboxPlaceId: nil, 
-            foursquareVenueId: nil, 
-            foursquareCategoryId: nil, 
-            previousIds: [nil],
-            lastVisited: nil,
-            isFavorite: nil,
-            customIcon: nil))
+        EditPlaceView(place: Place.previewPlace)
     }
 }
