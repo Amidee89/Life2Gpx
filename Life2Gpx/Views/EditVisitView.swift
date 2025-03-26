@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreLocation
 import MapKit
+import CoreGPX
 
 struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
@@ -334,7 +335,7 @@ struct EditVisitView: View {
         }
         .onChange(of: selectedPlace) { newPlace in
             if let place = newPlace, let coordinate = currentCoordinate {
-                let radiusInDegrees = (place.radius * 2.2) / 111000.0 
+                let radiusInDegrees = (place.radius * 2.2) / 111000.0
                 let minimumSpan = 0.005 
                 
                 let latDelta = max(
@@ -361,6 +362,32 @@ struct EditVisitView: View {
                     )
                 )
             }
+        }
+    }
+}
+
+struct EditVisitView_Previews: PreviewProvider {
+    static var previews: some View {
+        let point = CoreGPX.GPXWaypoint(latitude: 40.785091, longitude: -73.968285)
+        let previewTimelineObject = TimelineObject(
+            type: .waypoint,
+            startDate: Date(),
+            endDate: Date().addingTimeInterval(3600),
+            name: "Central Park",  // Match the place name
+            coordinates: [
+                IdentifiableCoordinates(coordinates: [
+                    CLLocationCoordinate2D(latitude: 40.785091, longitude: -73.968285)
+                ])
+            ],
+            points: [point]
+        )
+        
+        
+        NavigationView {
+            EditVisitView(
+                timelineObject: previewTimelineObject,
+                onSave: { _ in }
+            )
         }
     }
 } 

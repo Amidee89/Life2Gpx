@@ -242,3 +242,8 @@ extension Date {
         return Calendar.current.startOfDay(for: self)
     }
 }
+
+// Add preview provider at the bottom of the file
+#Preview {
+    ContentView()
+}
