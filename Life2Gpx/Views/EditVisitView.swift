@@ -201,35 +201,37 @@ struct EditVisitView: View {
                                 
                                 Spacer()
                                 
-                                // Edit button
                                 Button(action: {
                                     showingEditPlaceSheet = true
                                 }) {
                                     Image(systemName: "square.and.pencil")
                                         .foregroundColor(.blue)
                                 }
+                                
                             }
                             .padding(.vertical, 4)
-                            
-                            Button(role: .destructive) {
-                                selectedPlace = nil
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    Text("Clear Place")
-                                    Spacer()
-                                }
-                            }
                         }
                     }
                     
                     Section("Change Place") {
-                        Button(action: {
-                            showingNewPlaceSheet = true
-                        }) {
+                        HStack {
                             HStack {
                                 Image(systemName: "plus.circle.fill")
                                 Text("Add New Place")
+                            }
+                            .foregroundColor(.blue)
+                            .onTapGesture {
+                                showingNewPlaceSheet = true
+                            }
+                            
+                            Spacer()
+                            
+                            if selectedPlace != nil {
+                                Text("Clear Place")
+                                    .foregroundColor(.red)
+                                    .onTapGesture {
+                                        selectedPlace = nil
+                                    }
                             }
                         }
 
@@ -312,6 +314,9 @@ struct EditVisitView: View {
                         isFromEditVisit: true,
                         onSave: { updatedPlace in
                             selectedPlace = updatedPlace
+                            if let index = nearbyPlaces.firstIndex(where: { $0.placeId == updatedPlace.placeId }) {
+                                nearbyPlaces[index] = updatedPlace
+                            }
                         }
                     )
                 }
