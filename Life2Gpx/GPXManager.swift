@@ -87,11 +87,25 @@ class GPXManager {
             
             // Find the waypoint that matches our timelineObject
             var updatedWaypoints = waypoints
-            if let index = updatedWaypoints.firstIndex(where: { waypoint in
-                // Match by time since that's unique
-                waypoint.time == timelineObject.startDate
-            }) {
+            if let originalWaypoint = timelineObject.points.first,
+               let index = updatedWaypoints.firstIndex(where: { waypoint in
+                   // Match by multiple criteria to ensure we find the correct waypoint
+                   let timeMatch = waypoint.time == originalWaypoint.time
+                   let latMatch = abs((waypoint.latitude ?? 0) - (originalWaypoint.latitude ?? 0)) < 0.0000001
+                   let lonMatch = abs((waypoint.longitude ?? 0) - (originalWaypoint.longitude ?? 0)) < 0.0000001
+                   let nameMatch = waypoint.name == originalWaypoint.name
+                   let elevationMatch = abs((waypoint.elevation ?? 0) - (originalWaypoint.elevation ?? 0)) < 0.0000001
+                   
+                   // Consider it a match if most criteria match (at least 3 out of 5)
+                   let matchCount = [timeMatch, latMatch, lonMatch, nameMatch, elevationMatch]
+                       .filter { $0 }
+                       .count
+                   return matchCount >= 3
+               }) {
                 let waypoint = updatedWaypoints[index]
+                
+                // Update waypoint time if it changed
+                waypoint.time = timelineObject.startDate
                 
                 if let place = place {
                     // Update waypoint with place data
@@ -119,16 +133,10 @@ class GPXManager {
                         extensionData["FoursquareCategoryId"] = categoryId
                     }
                     
-                    // Create and set extensions
                     let extensions = GPXExtensions()
                     extensions.append(at: nil, contents: extensionData)
                     waypoint.extensions = extensions
-                } else {
-                    // If no place provided, just update the name
-                    waypoint.name = "Unknown Place"
-                }
-                
-                // Save the updated GPX file
+                } 
                 self.saveLocationData(updatedWaypoints, tracks: tracks, forDate: date)
             }
         }

@@ -270,7 +270,6 @@ struct EditVisitView: View {
                 trailing: Button("Save") {
                     // Update the timeline object's date
                     timelineObject.startDate = visitDate
-                    timelineObject.endDate = visitDate
                     onSave(selectedPlace)
                     dismiss()
                 }
