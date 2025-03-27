@@ -54,10 +54,26 @@ class PlaceManager {
     }
     
     private func buildGridIndex() {
+        // Clear the existing index first
+        gridIndex = [:]
+        
+        print("\nBuilding grid index for \(places.count) places")
+        var cellCounts: [GridCell: Int] = [:]
+        
         for place in places {
             let gridCells = gridCellsFor(boundingRect: place.boundingRect)
             for cell in gridCells {
                 gridIndex[cell, default: []].append(place)
+                cellCounts[cell, default: 0] += 1
+            }
+        }
+        
+        // Debug: Print cells with multiple places
+        for (cell, count) in cellCounts where count > 1 {
+            print("Cell \(cell) contains \(count) places")
+            if let placesInCell = gridIndex[cell] {
+                for place in placesInCell {
+                }
             }
         }
     }
@@ -228,13 +244,24 @@ class PlaceManager {
         // Get grid cells that intersect with our search bounds
         let gridCells = gridCellsFor(boundingRect: searchBounds)
         
+        // Add debug logging
+        print("Total places in manager: \(places.count)")
+        print("Grid cells searched: \(gridCells.count)")
+        
         // Collect unique places from all relevant grid cells
         var candidatePlaces = Set<Place>()
         for cell in gridCells {
             if let placesInCell = gridIndex[cell] {
+                let beforeCount = candidatePlaces.count
                 candidatePlaces.formUnion(placesInCell)
+                let afterCount = candidatePlaces.count
+                if afterCount - beforeCount != placesInCell.count {
+                    print("Potential duplicate detected in cell \(cell)")
+                }
             }
         }
+        
+        print("Unique candidates found: \(candidatePlaces.count)")
         
         // Calculate distances and sort
         let placesWithDistances = candidatePlaces.map { place -> (Place, Double) in

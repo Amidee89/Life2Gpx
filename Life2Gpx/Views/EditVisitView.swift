@@ -314,9 +314,6 @@ struct EditVisitView: View {
                         isFromEditVisit: true,
                         onSave: { updatedPlace in
                             selectedPlace = updatedPlace
-                            if let index = nearbyPlaces.firstIndex(where: { $0.placeId == updatedPlace.placeId }) {
-                                nearbyPlaces[index] = updatedPlace
-                            }
                         }
                     )
                 }
