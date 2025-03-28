@@ -209,9 +209,6 @@ struct ContentView: View {
     }
     
     private func handleVisitEdit(timelineObject: TimelineObject, place: Place?) {
-        // Get the current date from the timeline object or selected date
-        let date = timelineObject.startDate?.startOfDay() ?? selectedDate
-        GPXManager.shared.updateWaypoint(forDate: date, timelineObject: timelineObject, with: place)
         refreshData()
     }
 }

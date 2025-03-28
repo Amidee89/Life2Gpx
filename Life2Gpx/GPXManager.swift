@@ -80,65 +80,64 @@ class GPXManager {
         }
     }
 
-    func updateWaypoint(forDate date: Date, timelineObject: TimelineObject, with place: Place?) {
+    func updateWaypoint(originalWaypoint: GPXWaypoint, updatedWaypoint: GPXWaypoint, forDate date: Date) {
         // Load existing GPX file
         loadFile(forDate: date) { [weak self] waypoints, tracks in
             guard let self = self else { return }
             
-            // Find the waypoint that matches our timelineObject
-            var updatedWaypoints = waypoints
-            if let originalWaypoint = timelineObject.points.first,
-               let index = updatedWaypoints.firstIndex(where: { waypoint in
-                   // Match by multiple criteria to ensure we find the correct waypoint
-                   let timeMatch = waypoint.time == originalWaypoint.time
-                   let latMatch = abs((waypoint.latitude ?? 0) - (originalWaypoint.latitude ?? 0)) < 0.0000001
-                   let lonMatch = abs((waypoint.longitude ?? 0) - (originalWaypoint.longitude ?? 0)) < 0.0000001
-                   let nameMatch = waypoint.name == originalWaypoint.name
-                   let elevationMatch = abs((waypoint.elevation ?? 0) - (originalWaypoint.elevation ?? 0)) < 0.0000001
-                   
-                   // Consider it a match if most criteria match (at least 3 out of 5)
-                   let matchCount = [timeMatch, latMatch, lonMatch, nameMatch, elevationMatch]
-                       .filter { $0 }
-                       .count
-                   return matchCount >= 3
-               }) {
-                let waypoint = updatedWaypoints[index]
+            // Find the waypoint that matches our original waypoint
+            var fileWaypoints = waypoints
+            if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
+                // Match by multiple criteria to ensure we find the correct waypoint
+                let timeMatch = currentFileWaypoint.time == originalWaypoint.time
+                let latMatch = abs((currentFileWaypoint.latitude ?? 0) - (originalWaypoint.latitude ?? 0)) < 0.0000001
+                let lonMatch = abs((currentFileWaypoint.longitude ?? 0) - (originalWaypoint.longitude ?? 0)) < 0.0000001
+                let nameMatch = currentFileWaypoint.name == originalWaypoint.name
                 
-                // Update waypoint time if it changed
-                waypoint.time = timelineObject.startDate
-                
-                if let place = place {
-                    // Update waypoint with place data
-                    waypoint.name = place.name
-                    
-                    // Create extensions dictionary with place metadata
-                    var extensionData: [String: String] = [
-                        "PlaceId": place.placeId
-                    ]
-                    
-                    // Add optional metadata if available
-                    if let address = place.streetAddress {
-                        extensionData["Address"] = address
-                    }
-                    if let fbId = place.facebookPlaceId {
-                        extensionData["FacebookPlaceId"] = fbId
-                    }
-                    if let mapboxId = place.mapboxPlaceId {
-                        extensionData["MapboxPlaceId"] = mapboxId
-                    }
-                    if let foursquareId = place.foursquareVenueId {
-                        extensionData["FoursquareVenueId"] = foursquareId
-                    }
-                    if let categoryId = place.foursquareCategoryId {
-                        extensionData["FoursquareCategoryId"] = categoryId
-                    }
-                    
-                    let extensions = GPXExtensions()
-                    extensions.append(at: nil, contents: extensionData)
-                    waypoint.extensions = extensions
-                } 
-                self.saveLocationData(updatedWaypoints, tracks: tracks, forDate: date)
+                // Consider it a match if most criteria match
+                let matchCount = [timeMatch, latMatch, lonMatch, nameMatch]
+                    .filter { $0 }
+                    .count
+                return matchCount >= 3
+            }) {
+                fileWaypoints[index] = updatedWaypoint
+                self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)
+            }else{
+                print("Waypoint not found")
             }
         }
+    }
+
+    // Helper function to update a waypoint with place data
+    func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
+        updatedWaypoint.name = place.name
+        
+        var extensionData: [String: String] = [
+            "PlaceId": place.placeId
+        ]
+        
+        if let address = place.streetAddress {
+            extensionData["Address"] = address
+        }
+        if let fbId = place.facebookPlaceId {
+            extensionData["FacebookPlaceId"] = fbId
+        }
+        if let mapboxId = place.mapboxPlaceId {
+            extensionData["MapboxPlaceId"] = mapboxId
+        }
+        if let foursquareId = place.foursquareVenueId {
+            extensionData["FoursquareVenueId"] = foursquareId
+        }
+        if let categoryId = place.foursquareCategoryId {
+            extensionData["FoursquareCategoryId"] = categoryId
+        }
+        
+        if updatedWaypoint.extensions == nil {
+            updatedWaypoint.extensions = GPXExtensions()
+        }
+        
+        updatedWaypoint.extensions?.append(at: nil, contents: extensionData)
+        
+        return updatedWaypoint
     }
 }
