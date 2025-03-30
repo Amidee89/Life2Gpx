@@ -323,6 +323,9 @@ struct EditVisitView: View {
             )
             .sheet(isPresented: $showingNewPlaceSheet) {
                 if let coordinate = currentCoordinate {
+                    // Get elevation from the first point, or default to nil
+                    let initialElevation = timelineObject.points.first?.elevation
+
                     EditPlaceView(
                         place: Place(
                             placeId: UUID().uuidString,
@@ -342,7 +345,8 @@ struct EditVisitView: View {
                             previousIds: nil,
                             lastVisited: nil,
                             isFavorite: nil,
-                            customIcon: nil
+                            customIcon: nil,
+                            elevation: initialElevation
                         ),
                         isNewPlace: true,
                         isFromEditVisit: true,

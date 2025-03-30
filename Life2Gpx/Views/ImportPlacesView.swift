@@ -518,7 +518,8 @@ struct ImportProgressView: View {
                 previousIds: previousIds,
                 lastVisited: duplicate.lastVisited,
                 isFavorite: duplicate.isFavorite,
-                customIcon: duplicate.customIcon
+                customIcon: duplicate.customIcon,
+                elevation: duplicate.elevation
             )
             needsUpdate = true
         }
@@ -552,7 +553,8 @@ struct ImportProgressView: View {
                 previousIds: updatedPlace.previousIds,
                 lastVisited: updatedPlace.lastVisited,
                 isFavorite: updatedPlace.isFavorite,
-                customIcon: updatedPlace.customIcon
+                customIcon: updatedPlace.customIcon,
+                elevation: updatedPlace.elevation
             )
             needsUpdate = true
         }
@@ -572,31 +574,53 @@ struct ImportProgressView: View {
                 foursquareVenueId: place.foursquareVenueId,
                 foursquareCategoryId: place.foursquareCategoryId,
                 previousIds: updatedPlace.previousIds,
-                lastVisited: updatedPlace.lastVisited,
-                isFavorite: updatedPlace.isFavorite,
-                customIcon: updatedPlace.customIcon
+                lastVisited: place.lastVisited,
+                isFavorite: place.isFavorite,
+                customIcon: place.customIcon,
+                elevation: place.elevation
             )
             needsUpdate = true
-        } else {
-            let updatedMetadata = Place(
-                placeId: updatedPlace.placeId,
-                name: updatedPlace.name,
-                center: updatedPlace.center,
-                radius: updatedPlace.radius,
-                streetAddress: importOptions.mergeMetadata ? (updatedPlace.streetAddress ?? place.streetAddress) : updatedPlace.streetAddress,
-                secondsFromGMT: importOptions.mergeMetadata ? (updatedPlace.secondsFromGMT ?? place.secondsFromGMT) : updatedPlace.secondsFromGMT,
-                lastSaved: ISO8601DateFormatter().string(from: Date()),
-                facebookPlaceId: importOptions.mergeMetadata ? (updatedPlace.facebookPlaceId ?? place.facebookPlaceId) : updatedPlace.facebookPlaceId,
-                mapboxPlaceId: importOptions.mergeMetadata ? (updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId) : updatedPlace.mapboxPlaceId,
-                foursquareVenueId: importOptions.mergeMetadata ? (updatedPlace.foursquareVenueId ?? place.foursquareVenueId) : updatedPlace.foursquareVenueId,
-                foursquareCategoryId: importOptions.mergeMetadata ? (updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId) : updatedPlace.foursquareCategoryId,
-                previousIds: updatedPlace.previousIds,
-                lastVisited: importOptions.mergeMetadata ? (updatedPlace.lastVisited ?? place.lastVisited) : updatedPlace.lastVisited,
-                isFavorite: importOptions.mergeMetadata ? (updatedPlace.isFavorite ?? place.isFavorite) : updatedPlace.isFavorite,
-                customIcon: importOptions.mergeMetadata ? (updatedPlace.customIcon ?? place.customIcon) : updatedPlace.customIcon
-            )
-            if updatedMetadata != updatedPlace {
-                updatedPlace = updatedMetadata
+        } else if importOptions.mergeMetadata {
+            let mergedStreetAddress = updatedPlace.streetAddress ?? place.streetAddress
+            let mergedSecondsFromGMT = updatedPlace.secondsFromGMT ?? place.secondsFromGMT
+            let mergedFacebookId = updatedPlace.facebookPlaceId ?? place.facebookPlaceId
+            let mergedMapboxId = updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId
+            let mergedFoursquareId = updatedPlace.foursquareVenueId ?? place.foursquareVenueId
+            let mergedFoursquareCatId = updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId
+            let mergedLastVisited = updatedPlace.lastVisited ?? place.lastVisited
+            let mergedIsFavorite = updatedPlace.isFavorite ?? place.isFavorite
+            let mergedCustomIcon = updatedPlace.customIcon ?? place.customIcon
+            let mergedElevation = updatedPlace.elevation ?? place.elevation
+
+            if mergedStreetAddress != updatedPlace.streetAddress ||
+               mergedSecondsFromGMT != updatedPlace.secondsFromGMT ||
+               mergedFacebookId != updatedPlace.facebookPlaceId ||
+               mergedMapboxId != updatedPlace.mapboxPlaceId ||
+               mergedFoursquareId != updatedPlace.foursquareVenueId ||
+               mergedFoursquareCatId != updatedPlace.foursquareCategoryId ||
+               mergedLastVisited != updatedPlace.lastVisited ||
+               mergedIsFavorite != updatedPlace.isFavorite ||
+               mergedCustomIcon != updatedPlace.customIcon ||
+               mergedElevation != updatedPlace.elevation {
+
+                updatedPlace = Place(
+                    placeId: updatedPlace.placeId,
+                    name: updatedPlace.name,
+                    center: updatedPlace.center,
+                    radius: updatedPlace.radius,
+                    streetAddress: mergedStreetAddress,
+                    secondsFromGMT: mergedSecondsFromGMT,
+                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                    facebookPlaceId: mergedFacebookId,
+                    mapboxPlaceId: mergedMapboxId,
+                    foursquareVenueId: mergedFoursquareId,
+                    foursquareCategoryId: mergedFoursquareCatId,
+                    previousIds: updatedPlace.previousIds,
+                    lastVisited: mergedLastVisited,
+                    isFavorite: mergedIsFavorite,
+                    customIcon: mergedCustomIcon,
+                    elevation: mergedElevation
+                )
                 needsUpdate = true
             }
         }
@@ -693,6 +717,15 @@ struct ImportProgressView: View {
                     placeDict["radius"] = mean
                 }
                 
+                // <-- Attempt to parse elevation if available in Arc JSON (adjust key if needed)
+                if let elevationValue = jsonObject["elevation"] as? Double {
+                     placeDict["elevation"] = elevationValue
+                 } else if let elevationString = jsonObject["elevation"] as? String,
+                           let elevationDouble = Double(elevationString) {
+                     placeDict["elevation"] = elevationDouble
+                 }
+                // --> End elevation parsing
+
                 for field in ["streetAddress", "secondsFromGMT", "lastSaved", 
                              "facebookPlaceId", "mapboxPlaceId", 
                              "foursquareVenueId", "foursquareCategoryId"] {

@@ -160,7 +160,7 @@ struct ManagePlacesView: View {
                 EditPlaceView(place: Place(
                     placeId: UUID().uuidString,
                     name: "",
-                    center: Center(latitude: userLocation?.latitude ?? 37.7749, 
+                    center: Center(latitude: userLocation?.latitude ?? 37.7749,
                                   longitude: userLocation?.longitude ?? -122.4194),
                     radius: 40,
                     streetAddress: nil,
@@ -173,7 +173,8 @@ struct ManagePlacesView: View {
                     previousIds: nil,
                     lastVisited: nil,
                     isFavorite: nil,
-                    customIcon: nil
+                    customIcon: nil,
+                    elevation: nil
                 ), isNewPlace: true)
                 .onDisappear {
                     viewModel.loadPlaces()
@@ -198,6 +199,9 @@ struct ManagePlacesView: View {
             }
             Text("Radius: \(Int(place.radius)) meters")
             Text("Latitude: \(place.center.latitude), Longitude: \(place.center.longitude)")
+            if let elevation = place.elevation {
+                Text("Elevation: \(String(format: "%.1f", elevation)) meters")
+            }
             HStack {
                 Spacer()
                 Button("Edit") {

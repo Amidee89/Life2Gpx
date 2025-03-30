@@ -26,6 +26,7 @@ struct EditPlaceView: View {
     @State private var newPreviousId: String = ""
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var elevationString: String
     private let originalPlace: Place
 
     @State private var editedPlaceId: String
@@ -76,6 +77,13 @@ struct EditPlaceView: View {
         // Initialize lat/lon strings
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
+
+        // Initialize elevation
+        if let elevation = place.elevation {
+            _elevationString = State(initialValue: String(format: "%.1f", elevation))
+        } else {
+            _elevationString = State(initialValue: "")
+        }
 
         _isFavorite = State(initialValue: place.isFavorite ?? false)
         _customIcon = State(initialValue: place.customIcon ?? "")
@@ -207,6 +215,9 @@ struct EditPlaceView: View {
                                 )
                             }
                         }
+                    
+                    TextField("Elevation (meters)", text: $elevationString)
+                        .keyboardType(.decimalPad)
                     
                     VStack {
                         Text("Radius: \(radius) meters")
@@ -415,7 +426,8 @@ struct EditPlaceView: View {
             previousIds: editablePlace.previousIds,
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,
-            customIcon: customIcon.isEmpty ? nil : customIcon.trim()
+            customIcon: customIcon.isEmpty ? nil : customIcon.trim(),
+            elevation: Double(elevationString.trim())
         )
         
         do {
@@ -455,6 +467,15 @@ struct EditPlaceView: View {
 
 struct EditPlaceView_Previews: PreviewProvider {
     static var previews: some View {
-        EditPlaceView(place: Place.previewPlace)
+        // Ensure preview place has elevation if needed for testing UI
+        let previewPlaceWithElevation = Place(
+            placeId: "preview1", name: "Preview Place",
+            center: Center(latitude: 40.0, longitude: -74.0), radius: 100,
+            streetAddress: "123 Preview St", secondsFromGMT: -18000, lastSaved: nil,
+            facebookPlaceId: nil, mapboxPlaceId: nil, foursquareVenueId: nil,
+            foursquareCategoryId: nil, previousIds: nil, lastVisited: Date(),
+            isFavorite: true, customIcon: "star.fill", elevation: 15.5
+        )
+        EditPlaceView(place: previewPlaceWithElevation)
     }
 }

@@ -77,6 +77,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let lastVisited: Date?
     let isFavorite: Bool?
     let customIcon: String?
+    let elevation: Double?
     var id: String { placeId }
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
@@ -99,7 +100,8 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var lastVisited: Date?
         var isFavorite: Bool?
         var customIcon: String?
-        
+        var elevation: Double?
+
         init(from place: Place) {
             self.placeId = place.placeId
             self.name = place.name
@@ -116,6 +118,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.lastVisited = place.lastVisited
             self.isFavorite = place.isFavorite
             self.customIcon = place.customIcon
+            self.elevation = place.elevation
         }
         
         func toPlace() -> Place {
@@ -134,7 +137,8 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 previousIds: previousIds,
                 lastVisited: lastVisited,
                 isFavorite: isFavorite,
-                customIcon: customIcon
+                customIcon: customIcon,
+                elevation: elevation
             )
         }
     }
@@ -272,7 +276,8 @@ extension Place {
              previousIds: [nil],
              lastVisited: nil,
              isFavorite: nil,
-             customIcon: nil),
+             customIcon: nil,
+             elevation: 45.0),
         Place(placeId: "2", 
              name: "Golden Gate Park", 
              center: Center(latitude: 37.769421, longitude: -122.486214), 
@@ -287,7 +292,8 @@ extension Place {
              previousIds: [nil],
              lastVisited: nil,
              isFavorite: nil,
-             customIcon: nil),
+             customIcon: nil,
+             elevation: nil),
         Place(placeId: "3", 
              name: "Golden Gate Park", 
              center: Center(latitude: 37.769421, longitude: -122.486314), 
@@ -302,7 +308,8 @@ extension Place {
              previousIds: [nil],
              lastVisited: nil,
              isFavorite: nil,
-             customIcon: nil)
+             customIcon: nil,
+             elevation: 30.5)
     ]
     
     static let previewPlace: Place = previewPlaces[0]
