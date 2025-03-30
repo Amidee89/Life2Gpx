@@ -20,7 +20,6 @@ struct EditVisitView: View {
     @State private var elevationString: String = ""
     @State private var stepsString: String = ""
     
-    // Add these properties to store original values
     private var originalLatitude: Double?
     private var originalLongitude: Double?
     private var originalElevation: Double?
@@ -122,6 +121,32 @@ struct EditVisitView: View {
                                 TextField("Steps", text: $stepsString)
                                     .keyboardType(.numberPad)
                             }
+                        }
+                        
+                        if let place = selectedPlace {
+                            Button(action: {
+                                // Update coordinates with place's coordinates
+                                latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
+                                longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
+                                
+                                // Update the waypoint coordinates
+                                if let firstPoint = timelineObject.points.first {
+                                    firstPoint.latitude = place.centerCoordinate.latitude
+                                    firstPoint.longitude = place.centerCoordinate.longitude
+                                }
+                                
+                                // Update the map region to center on the place
+                                withAnimation {
+                                    region = MKCoordinateRegion(
+                                        center: place.centerCoordinate,
+                                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                                    )
+                                }
+                            }) {
+                                Label("Use Place Coordinates", systemImage: "location.fill")
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
                     
@@ -283,24 +308,19 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // Update the timeline object's date
                     timelineObject.startDate = visitDate
                     
-                    // Update the waypoint coordinates and elevation from the text fields
                     if let firstPoint = timelineObject.points.first, let date = timelineObject.startDate {
-                        // Create a new waypoint with the original values
                         let originalWaypoint = GPXWaypoint(latitude: originalLatitude ?? 0, 
                                                           longitude: originalLongitude ?? 0)
                         originalWaypoint.time = originalTime
                         originalWaypoint.elevation = originalElevation
                         
-                        // Create an updated waypoint with the new data
                         let updatedWaypoint = GPXWaypoint(latitude: Double(latitudeString) ?? 0, 
                                                          longitude: Double(longitudeString) ?? 0)
                         updatedWaypoint.time = visitDate
                         updatedWaypoint.elevation = Double(elevationString) ?? 0
                         
-                        // Add steps if they're not zero
                         if let steps = Int(stepsString), steps > 0 {
                             if updatedWaypoint.extensions == nil {
                                 updatedWaypoint.extensions = GPXExtensions()
@@ -308,12 +328,10 @@ struct EditVisitView: View {
                             updatedWaypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                         }
                         
-                        // Update the waypoint with place data if a place is selected
                         let finalWaypoint = selectedPlace != nil ? 
                             GPXManager.shared.updateWaypointMetadataFromPlace(updatedWaypoint: updatedWaypoint, place: selectedPlace!) : 
                             updatedWaypoint
                         
-                        // Save the changes using the existing GPXManager method
                         GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: date)
                     }
                     
@@ -323,7 +341,6 @@ struct EditVisitView: View {
             )
             .sheet(isPresented: $showingNewPlaceSheet) {
                 if let coordinate = currentCoordinate {
-                    // Get elevation from the first point, or default to nil
                     let initialElevation = timelineObject.points.first?.elevation
 
                     EditPlaceView(
