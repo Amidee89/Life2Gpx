@@ -210,6 +210,7 @@ struct ContentView: View {
     
     private func handleVisitEdit(timelineObject: TimelineObject, place: Place?) {
         refreshData()
+        centerAllData()
     }
 }
 
