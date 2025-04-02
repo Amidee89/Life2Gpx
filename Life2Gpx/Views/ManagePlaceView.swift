@@ -13,10 +13,11 @@ struct ManagePlacesView: View {
     @State private var searchText = ""
     @State private var selectedPlace: Place?
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var region = MKCoordinateRegion()
+    @State private var visibleRegion: MKCoordinateRegion?
     @State private var isEditingPlace = false
     @State private var isCreatingPlace = false
     @State private var userLocation: CLLocationCoordinate2D?
+    @State private var isMapLoaded = false
 
     init(viewModel: ManagePlacesViewModel = ManagePlacesViewModel()) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -32,22 +33,83 @@ struct ManagePlacesView: View {
             }
         }
     }
+    
+    var visiblePlaces: [Place] {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        defer {
+            let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
+            print("Time to calculate visiblePlaces: \(timeElapsed * 1000) ms")
+        }
+        
+        guard let region = visibleRegion else {
+            // If no visible region yet, return places near user or a limited set
+            if let userLocation = userLocation {
+                // Return places within 10km of user location
+                let filterStartTime = CFAbsoluteTimeGetCurrent()
+                let nearbyPlaces = filteredPlaces.filter { place in
+                    let placeLocation = CLLocation(latitude: place.coordinate.latitude, 
+                                                  longitude: place.coordinate.longitude)
+                    let userLoc = CLLocation(latitude: userLocation.latitude, 
+                                            longitude: userLocation.longitude)
+                    return placeLocation.distance(from: userLoc) <= 10000 // 10km radius
+                }
+                let filterTime = CFAbsoluteTimeGetCurrent() - filterStartTime
+                print("Time to filter by distance: \(filterTime * 1000) ms")
+                print("Loading \(nearbyPlaces.count) places within 10km of user location")
+                return nearbyPlaces
+            } else {
+                // If no user location, return first 20 places or all if less than 20
+                let limitedPlaces = Array(filteredPlaces.prefix(20))
+                print("Loading \(limitedPlaces.count) places (limited to 20) due to no user location")
+                return limitedPlaces
+            }
+        }
+        
+        // Calculate the visible region bounds with some padding
+        let minLat = region.center.latitude - (region.span.latitudeDelta * 0.6)
+        let maxLat = region.center.latitude + (region.span.latitudeDelta * 0.6)
+        let minLon = region.center.longitude - (region.span.longitudeDelta * 0.6)
+        let maxLon = region.center.longitude + (region.span.longitudeDelta * 0.6)
+        
+        // Filter places to only those within the visible region
+        let filterStartTime = CFAbsoluteTimeGetCurrent()
+        let visiblePlaces = filteredPlaces.filter { place in
+            let lat = place.coordinate.latitude
+            let lon = place.coordinate.longitude
+            return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon
+        }
+        let filterTime = CFAbsoluteTimeGetCurrent() - filterStartTime
+        print("Time to filter by region: \(filterTime * 1000) ms")
+        
+        print("Loading \(visiblePlaces.count) places in visible map region")
+        return visiblePlaces
+    }
 
     var body: some View {
         NavigationView {
             VStack {
                 Map(position: $cameraPosition, interactionModes: .all) {
-                    ForEach(filteredPlaces) { place in
-                        Annotation(place.name, coordinate: place.coordinate) {
-                            ZStack {
-                                Circle()
-                                    .fill(selectedPlace == place ? Color.purple : Color.red)
-                                    .frame(width: 10, height: 10)
+                    // Only render annotations if map is loaded to prevent initial overload
+                    if isMapLoaded {
+                        ForEach(visiblePlaces) { place in
+                            Annotation(place.name, coordinate: place.coordinate) {
+                                ZStack {
+                                    Circle()
+                                        .fill(selectedPlace == place ? Color.purple : Color.red)
+                                        .frame(width: 10, height: 10)
+                                }
                             }
+                            MapCircle(center: place.coordinate, radius: place.radius)
+                                .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
+                                .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
                         }
-                        MapCircle(center: place.coordinate, radius: place.radius)
-                            .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
-                            .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
+
+                    }
+                    
+                    // Add user location marker
+                    if let userLocation = userLocation {
+                        Marker("My Location", coordinate: userLocation)
+                            .tint(.blue)
                     }
                 }
                 .frame(height: 300)
@@ -64,7 +126,12 @@ struct ManagePlacesView: View {
                             .contentShape(Circle())
                             .onTapGesture {
                                 withAnimation {
-                                    cameraPosition = .userLocation(followsHeading: false, fallback: .region(region))
+                                    if let userLocation = userLocation {
+                                        cameraPosition = .region(MKCoordinateRegion(
+                                            center: userLocation,
+                                            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                                        ))
+                                    }
                                 }
                             }
                     }
@@ -74,12 +141,35 @@ struct ManagePlacesView: View {
                     .zIndex(1)
                 }
                 .onAppear {
-                    if let firstPlace = filteredPlaces.first {
+                    print("Total places in viewModel: \(viewModel.places.count)")
+                    viewModel.loadPlaces()
+                    print("Places after loading: \(viewModel.places.count)")
+                    
+                    // Get user's current location
+                    if let location = CLLocationManager().location?.coordinate {
+                        userLocation = location
+                        print("User location found: \(location.latitude), \(location.longitude)")
+                        
+                        // Set initial region to 3km around user (even smaller initial view)
+                        let region = MKCoordinateRegion(
+                            center: location,
+                            latitudinalMeters: 3000, // Reduced from 5km to 3km
+                            longitudinalMeters: 3000
+                        )
+                        cameraPosition = .region(region)
+                        visibleRegion = region
+                    } else if let firstPlace = filteredPlaces.first {
+                        print("No user location, centering on first place")
                         setRegion(firstPlace.coordinate)
                     }
-                    viewModel.loadPlaces()
                 }
-
+                .mapStyle(.standard)
+                .onMapCameraChange { context in
+                    // Update visible region when map moves
+                    visibleRegion = context.region
+                    isMapLoaded = true
+                }
+                
                 List {
                     ForEach(filteredPlaces) { place in
                         HStack {
@@ -121,9 +211,7 @@ struct ManagePlacesView: View {
                                 ? Color.blue.opacity(0.2)
                                 : Color.clear
                         )
-
                         .cornerRadius(8)
-               
                         .overlay(
                             selectedPlace == place ? Color.clear : Color.clear
                         )
@@ -135,8 +223,8 @@ struct ManagePlacesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 Button(action: {
-                    // Directly set the coordinate and show the sheet
-                    let defaultCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
+                    // Use user location if available, otherwise default
+                    let defaultCoordinate = userLocation ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
                     userLocation = defaultCoordinate
                     isCreatingPlace = true
                 }) {
@@ -184,10 +272,12 @@ struct ManagePlacesView: View {
     }
 
     private func setRegion(_ coordinate: CLLocationCoordinate2D) {
-        region = MKCoordinateRegion(
+        let region = MKCoordinateRegion(
             center: coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
+        cameraPosition = .region(region)
+        visibleRegion = region
     }
 
 
