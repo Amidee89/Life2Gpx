@@ -108,7 +108,7 @@ struct ManagePlacesView: View {
                     
                     // Add user location marker
                     if let userLocation = userLocation {
-                        Marker("My Location", coordinate: userLocation)
+                        Marker("Current Location", coordinate: userLocation)
                             .tint(.blue)
                     }
                 }
