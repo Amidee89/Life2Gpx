@@ -308,11 +308,26 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
+                    // First, backup the current GPX file
+                    if let date = timelineObject.startDate {
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd"
+                        let fileName = "\(dateFormatter.string(from: date)).gpx"
+                        let fileURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
+                        
+                        do {
+                            try FileManagerUtil.shared.backupFile(fileURL)
+                        } catch {
+                            print("Error backing up GPX file: \(error)")
+                            return
+                        }
+                    }
+                    
                     timelineObject.startDate = visitDate
                     
                     if let firstPoint = timelineObject.points.first, let date = timelineObject.startDate {
                         let originalWaypoint = GPXWaypoint(latitude: originalLatitude ?? 0, 
-                                                          longitude: originalLongitude ?? 0)
+                                                         longitude: originalLongitude ?? 0)
                         originalWaypoint.time = originalTime
                         originalWaypoint.elevation = originalElevation
                         
