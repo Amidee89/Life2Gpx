@@ -7,6 +7,7 @@ struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
     var onSave: (Place?) -> Void
+    let fileDate: Date
     
     @State private var selectedPlace: Place?
     @State private var nearbyPlaces: [Place] = []
@@ -26,8 +27,9 @@ struct EditVisitView: View {
     private var originalElevation: Double?
     private var originalTime: Date?
     
-    init(timelineObject: TimelineObject, onSave: @escaping (Place?) -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?) -> Void) {
         self.timelineObject = timelineObject
+        self.fileDate = fileDate
         self.onSave = onSave
         
         // Store the original waypoint values
@@ -327,18 +329,11 @@ struct EditVisitView: View {
                 },
                 trailing: Button("Save") {
                     // First, backup the current GPX file
-                    if let date = timelineObject.startDate {
-                        let dateFormatter = DateFormatter()
-                        dateFormatter.dateFormat = "yyyy-MM-dd"
-                        let fileName = "\(dateFormatter.string(from: date)).gpx"
-                        let fileURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
-                        
-                        do {
-                            try FileManagerUtil.shared.backupFile(fileURL)
-                        } catch {
-                            print("Error backing up GPX file: \(error)")
-                            return
-                        }
+                    do {
+                        try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                    } catch {
+                        print("Error backing up GPX file: \(error)")
+                        return
                     }
                     
                     timelineObject.startDate = visitDate
@@ -426,18 +421,11 @@ struct EditVisitView: View {
         ) {
             Button("Delete", role: .destructive) {
                 // First, backup the current GPX file
-                if let date = timelineObject.startDate {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "yyyy-MM-dd"
-                    let fileName = "\(dateFormatter.string(from: date)).gpx"
-                    let fileURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
-                    
-                    do {
-                        try FileManagerUtil.shared.backupFile(fileURL)
-                    } catch {
-                        print("Error backing up GPX file: \(error)")
-                        return
-                    }
+                do {
+                    try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                } catch {
+                    print("Error backing up GPX file: \(error)")
+                    return
                 }
                 
                 // Delete the waypoint
@@ -522,6 +510,7 @@ struct EditVisitView_Previews: PreviewProvider {
         NavigationView {
             EditVisitView(
                 timelineObject: previewTimelineObject,
+                fileDate: Date(),
                 onSave: { _ in }
             )
         }

@@ -180,10 +180,15 @@ struct TimelineView: View {
         }
         .listStyle(PlainListStyle())
         .sheet(isPresented: $showingEditSheet, content: {
-            if let timelineObject = editingTimelineObject {
-                EditVisitView(timelineObject: timelineObject) { place in
-                    onEditVisit?(timelineObject, place)
-                }
+            if let timelineObject = editingTimelineObject, 
+               let date = timelineObject.startDate {
+                EditVisitView(
+                    timelineObject: timelineObject,
+                    fileDate: Calendar.current.startOfDay(for: date),
+                    onSave: { place in
+                        onEditVisit?(timelineObject, place)
+                    }
+                )
             } else {
                 Text("Unable to edit location")
                     .padding()

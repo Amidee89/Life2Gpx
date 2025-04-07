@@ -103,6 +103,20 @@ class FileManagerUtil {
         try fileManager.copyItem(at: fileUrl, to: backupUrl)
     }
     
+    func backupFile(forDate date: Date) throws {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        // Create the file URL for the given date
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let fileName = "\(dateFormatter.string(from: date)).gpx"
+        let fileUrl = documentsUrl.appendingPathComponent(fileName)
+        
+        // Use existing backup method
+        try backupFile(fileUrl)
+    }
+    
     func cleanupEmptyFolders(in baseFolder: String) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
