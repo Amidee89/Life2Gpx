@@ -19,6 +19,7 @@ struct EditVisitView: View {
     @State private var longitudeString: String = ""
     @State private var elevationString: String = ""
     @State private var stepsString: String = ""
+    @State private var showingDeleteConfirmation = false
     
     private var originalLatitude: Double?
     private var originalLongitude: Double?
@@ -80,226 +81,243 @@ struct EditVisitView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                if let coordinate = currentCoordinate {
-                    Section("Visit Details") {
-                        DatePicker("Visit time", 
-                                 selection: $visitDate,
-                                 displayedComponents: [.date, .hourAndMinute])
-                        
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Latitude")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("Latitude", text: $latitudeString)
-                                    .keyboardType(.decimalPad)
-                            }
+            Form {
+                List {
+                    if let coordinate = currentCoordinate {
+                        Section("Visit Details") {
+                            DatePicker("Visit time", 
+                                     selection: $visitDate,
+                                     displayedComponents: [.date, .hourAndMinute])
                             
-                            VStack(alignment: .leading) {
-                                Text("Longitude")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("Longitude", text: $longitudeString)
-                                    .keyboardType(.decimalPad)
-                            }
-                        }
-                        
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Elevation (m)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("Elevation", text: $elevationString)
-                                    .keyboardType(.decimalPad)
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text("Steps")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("Steps", text: $stepsString)
-                                    .keyboardType(.numberPad)
-                            }
-                        }
-                        
-                        if let place = selectedPlace {
-                            Button(action: {
-                                // Update coordinates with place's coordinates
-                                latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
-                                longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
-                                
-                                // Update the waypoint coordinates
-                                if let firstPoint = timelineObject.points.first {
-                                    firstPoint.latitude = place.centerCoordinate.latitude
-                                    firstPoint.longitude = place.centerCoordinate.longitude
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Latitude")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    TextField("Latitude", text: $latitudeString)
+                                        .keyboardType(.decimalPad)
                                 }
                                 
-                                // Update the map region to center on the place
-                                withAnimation {
-                                    region = MKCoordinateRegion(
-                                        center: place.centerCoordinate,
-                                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                                    )
+                                VStack(alignment: .leading) {
+                                    Text("Longitude")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    TextField("Longitude", text: $longitudeString)
+                                        .keyboardType(.decimalPad)
                                 }
-                            }) {
-                                Label("Use Place Coordinates", systemImage: "location.fill")
-                                    .foregroundColor(.blue)
                             }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                    
-                    Section("Place Details") {
-                        ZStack(alignment: .bottomTrailing) {
-                            MapReader { reader in
-                                Map(position: .constant(.region(region))) {
-                                    if let coordinate = currentCoordinate {
-                                        Annotation("Visit Location", coordinate: coordinate) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(Color.white)
-                                                Circle()
-                                                    .fill(Color.black)
-                                                    .padding(4)
-                                            }
-                                            .frame(width: 24, height: 24)
-                                        }
+                            
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Elevation (m)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    TextField("Elevation", text: $elevationString)
+                                        .keyboardType(.decimalPad)
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Steps")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    TextField("Steps", text: $stepsString)
+                                        .keyboardType(.numberPad)
+                                }
+                            }
+                            
+                            if let place = selectedPlace {
+                                Button(action: {
+                                    // Update coordinates with place's coordinates
+                                    latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
+                                    longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
+                                    
+                                    // Update the waypoint coordinates
+                                    if let firstPoint = timelineObject.points.first {
+                                        firstPoint.latitude = place.centerCoordinate.latitude
+                                        firstPoint.longitude = place.centerCoordinate.longitude
                                     }
                                     
-                                    if let place = selectedPlace {
-                                        Annotation(place.name, coordinate: place.centerCoordinate) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(Color.white)
-                                                Circle()
-                                                    .fill(Color.orange)
-                                                    .padding(4)
-                                            }
-                                            .frame(width: 24, height: 24)
-                                        }
-                                        
-                                        MapCircle(center: place.centerCoordinate, radius: place.radius)
-                                            .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                                            .foregroundStyle(Color.orange.opacity(0.5))
-                                    }
-                                }
-                                .onTapGesture { screenCoord in
-                                    if let coordinate = reader.convert(screenCoord, from: .local) {
-                                        if let firstPoint = timelineObject.points.first {
-                                            firstPoint.latitude = coordinate.latitude
-                                            firstPoint.longitude = coordinate.longitude
-                                            latitudeString = String(format: "%.6f", coordinate.latitude)
-                                            longitudeString = String(format: "%.6f", coordinate.longitude)
-                                        }
-                                    }
-                                }
-                            }
-                            .frame(height: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                            Image(systemName: "location.viewfinder")
-                                .font(.title)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .clipShape(Circle())
-                                .shadow(radius: 3)
-                                .scaleEffect(0.8)
-                                .contentShape(Circle())
-                                .onTapGesture {
+                                    // Update the map region to center on the place
                                     withAnimation {
                                         region = MKCoordinateRegion(
-                                            center: currentCoordinate ?? CLLocationCoordinate2D(),
+                                            center: place.centerCoordinate,
                                             span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
                                         )
                                     }
+                                }) {
+                                    Label("Use Place Coordinates", systemImage: "location.fill")
+                                        .foregroundColor(.blue)
                                 }
-                                .padding(.trailing, 16)
-                                .padding(.bottom, 16)
+                                .padding(.vertical, 4)
+                            }
                         }
+                        
+                        Section("Place Details") {
+                            ZStack(alignment: .bottomTrailing) {
+                                MapReader { reader in
+                                    Map(position: .constant(.region(region))) {
+                                        if let coordinate = currentCoordinate {
+                                            Annotation("Visit Location", coordinate: coordinate) {
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                    Circle()
+                                                        .fill(Color.black)
+                                                        .padding(4)
+                                                }
+                                                .frame(width: 24, height: 24)
+                                            }
+                                        }
+                                        
+                                        if let place = selectedPlace {
+                                            Annotation(place.name, coordinate: place.centerCoordinate) {
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                    Circle()
+                                                        .fill(Color.orange)
+                                                        .padding(4)
+                                                }
+                                                .frame(width: 24, height: 24)
+                                            }
+                                            
+                                            MapCircle(center: place.centerCoordinate, radius: place.radius)
+                                                .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                                                .foregroundStyle(Color.orange.opacity(0.5))
+                                        }
+                                    }
+                                    .onTapGesture { screenCoord in
+                                        if let coordinate = reader.convert(screenCoord, from: .local) {
+                                            if let firstPoint = timelineObject.points.first {
+                                                firstPoint.latitude = coordinate.latitude
+                                                firstPoint.longitude = coordinate.longitude
+                                                latitudeString = String(format: "%.6f", coordinate.latitude)
+                                                longitudeString = String(format: "%.6f", coordinate.longitude)
+                                            }
+                                        }
+                                    }
+                                }
+                                .frame(height: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    
-                        if let place = selectedPlace {
-                            HStack {
-                                Image(systemName: place.customIcon ?? "smallcircle.filled.circle")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                                
-                                VStack(alignment: .leading) {
-                                    Text(place.name)
-                                        .font(.headline)
-                                    if let address = place.streetAddress {
-                                        Text(address)
-                                            .font(.subheadline)
+                                Image(systemName: "location.viewfinder")
+                                    .font(.title)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .clipShape(Circle())
+                                    .shadow(radius: 3)
+                                    .scaleEffect(0.8)
+                                    .contentShape(Circle())
+                                    .onTapGesture {
+                                        withAnimation {
+                                            region = MKCoordinateRegion(
+                                                center: currentCoordinate ?? CLLocationCoordinate2D(),
+                                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                                            )
+                                        }
+                                    }
+                                    .padding(.trailing, 16)
+                                    .padding(.bottom, 16)
+                            }
+
+                        
+                            if let place = selectedPlace {
+                                HStack {
+                                    Image(systemName: place.customIcon ?? "smallcircle.filled.circle")
+                                        .font(.title2)
+                                        .foregroundColor(.blue)
+                                    
+                                    VStack(alignment: .leading) {
+                                        Text(place.name)
+                                            .font(.headline)
+                                        if let address = place.streetAddress {
+                                            Text(address)
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        Text("Radius: \(Int(place.radius))m")
+                                            .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
-                                    Text("Radius: \(Int(place.radius))m")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        showingEditPlaceSheet = true
+                                    }) {
+                                        Image(systemName: "square.and.pencil")
+                                            .foregroundColor(.blue)
+                                    }
+                                    
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        
+                        Section("Change Place") {
+                            HStack {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add New Place")
+                                }
+                                .foregroundColor(.blue)
+                                .onTapGesture {
+                                    showingNewPlaceSheet = true
                                 }
                                 
                                 Spacer()
                                 
-                                Button(action: {
-                                    showingEditPlaceSheet = true
-                                }) {
-                                    Image(systemName: "square.and.pencil")
-                                        .foregroundColor(.blue)
-                                }
-                                
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                    
-                    Section("Change Place") {
-                        HStack {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Add New Place")
-                            }
-                            .foregroundColor(.blue)
-                            .onTapGesture {
-                                showingNewPlaceSheet = true
-                            }
-                            
-                            Spacer()
-                            
-                            if selectedPlace != nil {
-                                Text("Clear Place")
-                                    .foregroundColor(.red)
-                                    .onTapGesture {
-                                        selectedPlace = nil
-                                    }
-                            }
-                        }
-
-                        TextField("Search places", text: $searchText)
-                        
-                        ForEach(filteredPlaces) { place in
-                            Button(action: {
-                                selectedPlace = place
-                            }) {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(place.name)
-                                            .foregroundColor(.primary)
-                                        if let address = place.streetAddress {
-                                            Text(address)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
+                                if selectedPlace != nil {
+                                    Text("Clear Place")
+                                        .foregroundColor(.red)
+                                        .onTapGesture {
+                                            selectedPlace = nil
                                         }
-                                    }
-                                    Spacer()
-                                    Text(formattedDistance(to: place))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
                                 }
                             }
-                            .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
+
+                            TextField("Search places", text: $searchText)
+                            
+                            ForEach(filteredPlaces) { place in
+                                Button(action: {
+                                    selectedPlace = place
+                                }) {
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(place.name)
+                                                .foregroundColor(.primary)
+                                            if let address = place.streetAddress {
+                                                Text(address)
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                        Spacer()
+                                        Text(formattedDistance(to: place))
+                                            .foregroundColor(.secondary)
+                                            .font(.caption)
+                                    }
+                                }
+                                .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
+                            }
                         }
                     }
+
+                    // Add this new section at the end of the List
+                    Section {
+                        Button(action: {
+                            showingDeleteConfirmation = true
+                        }) {
+                            HStack {
+                                Spacer()
+                                Text("Delete Visit")
+                                    .foregroundColor(.red)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .listRowBackground(Color.red.opacity(0.1))
                 }
             }
             .navigationTitle("Edit Visit")
@@ -400,6 +418,42 @@ struct EditVisitView: View {
                     )
                 }
             }
+        }
+        .confirmationDialog(
+            "Are you sure you want to delete this visit?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                // First, backup the current GPX file
+                if let date = timelineObject.startDate {
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd"
+                    let fileName = "\(dateFormatter.string(from: date)).gpx"
+                    let fileURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(fileName)
+                    
+                    do {
+                        try FileManagerUtil.shared.backupFile(fileURL)
+                    } catch {
+                        print("Error backing up GPX file: \(error)")
+                        return
+                    }
+                }
+                
+                // Delete the waypoint
+                if let firstPoint = timelineObject.points.first {
+                    let originalWaypoint = GPXWaypoint(latitude: originalLatitude ?? 0, 
+                                                     longitude: originalLongitude ?? 0)
+                    originalWaypoint.time = originalTime
+                    originalWaypoint.elevation = originalElevation
+                    
+                    GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: visitDate)
+                }
+                
+                onSave(nil)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .onAppear {
             if let coordinate = currentCoordinate {
