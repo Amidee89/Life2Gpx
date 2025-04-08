@@ -68,6 +68,32 @@ class TimelineObject: Identifiable {
         self.customIcon = customIcon
         self.track = track
     }
+
+    static let previewTrack: TimelineObject = {
+        let coordinates = [
+            CLLocationCoordinate2D(latitude: 40.785091, longitude: -73.968285),
+            CLLocationCoordinate2D(latitude: 40.786091, longitude: -73.969285),
+            CLLocationCoordinate2D(latitude: 40.787091, longitude: -73.970285)
+        ]
+        
+        let identifiableCoordinates = [IdentifiableCoordinates(coordinates: coordinates)]
+        
+        return TimelineObject(
+            type: .track,
+            startDate: Date().addingTimeInterval(-3600),
+            endDate: Date(),
+            trackType: "walking",
+            name: "Preview Track",
+            duration: "1:00:00",
+            steps: 4500,
+            meters: 3000,
+            numberOfPoints: 3,
+            averageSpeed: 3.0,
+            coordinates: identifiableCoordinates,
+            points: [],
+            track: GPXTrack()
+        )
+    }()
 }
 
 struct IdentifiableCoordinates: Identifiable {

@@ -8,19 +8,34 @@ struct EditTrackView: View {
     let fileDate: Date
     
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var selectedTrackType: String
+    @State private var workingCopy: TimelineObject
     
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
-        _selectedTrackType = State(initialValue: timelineObject.trackType ?? "unknown")
+        _workingCopy = State(initialValue: TimelineObject(
+            type: timelineObject.type,
+            startDate: timelineObject.startDate,
+            endDate: timelineObject.endDate,
+            trackType: timelineObject.trackType,
+            name: timelineObject.name,
+            duration: timelineObject.duration,
+            steps: timelineObject.steps,
+            meters: timelineObject.meters,
+            numberOfPoints: timelineObject.numberOfPoints,
+            averageSpeed: timelineObject.averageSpeed,
+            coordinates: timelineObject.identifiableCoordinates,
+            points: timelineObject.points,
+            customIcon: timelineObject.customIcon,
+            track: timelineObject.track
+        ))
     }
     
     var body: some View {
         NavigationView {
             Form {
                 Section("Track Details") {
-                    Picker("Track Type", selection: $selectedTrackType) {
+                    Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
                         Text("Walking").tag("walking")
                         Text("Running").tag("running")
                         Text("Cycling").tag("cycling")
@@ -28,33 +43,33 @@ struct EditTrackView: View {
                         Text("Unknown").tag("unknown")
                     }
                     
-                    if let track = timelineObject.track {
-                        Text("Segments: \(track.segments.count)")
-                        Text("Total Points: \(timelineObject.numberOfPoints)")
-                        if timelineObject.steps > 0 {
-                            Text("Steps: \(timelineObject.steps)")
-                        }
-                        if timelineObject.meters > 0 {
-                            Text("Distance: \(String(format: "%.1f km", Double(timelineObject.meters) / 1000))")
-                        }
-                        if timelineObject.averageSpeed > 0 {
-                            Text("Average Speed: \(String(format: "%.1f km/h", timelineObject.averageSpeed))")
+                    if workingCopy.track != nil {
+                        LabeledContent("Number of Steps") {
+                            TextField("", value: $workingCopy.steps, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
                         }
                     }
                 }
                 
                 Section("Track Map") {
                     Map(position: $cameraPosition) {
-                        ForEach(timelineObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
-                            MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                                .stroke(.white,
-                                       style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                            MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                                .stroke(.black,
-                                       style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                            MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                                .stroke(trackTypeColorMapping[selectedTrackType] ?? .purple,
-                                       style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        if let track = workingCopy.track {
+                            ForEach(track.segments, id: \.self) { segment in
+                                let coordinates = segment.points.compactMap { point in
+                                    point.latitude != nil && point.longitude != nil ?
+                                        CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
+                                }
+                                MapPolyline(coordinates: coordinates)
+                                    .stroke(.white,
+                                           style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                                MapPolyline(coordinates: coordinates)
+                                    .stroke(.black,
+                                           style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                                MapPolyline(coordinates: coordinates)
+                                    .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
+                                           style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                            }
                         }
                     }
                     .frame(height: 300)
@@ -67,12 +82,12 @@ struct EditTrackView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // We'll implement the save functionality later
+                    // to be implemented
                     dismiss()
                 }
             )
             .onAppear {
-                let coordinates = timelineObject.identifiableCoordinates.flatMap { $0.coordinates }
+                let coordinates = workingCopy.identifiableCoordinates.flatMap { $0.coordinates }
                 if !coordinates.isEmpty {
                     let span = calculateSpan(for: coordinates)
                     let center = coordinates[coordinates.count / 2]
@@ -83,5 +98,15 @@ struct EditTrackView: View {
                 }
             }
         }
+    }
+}
+
+//handle optional binding for the track type
+extension Binding {
+    func toUnwrapped<T>(defaultValue: T) -> Binding<T> where Value == Optional<T> {
+        Binding<T>(
+            get: { self.wrappedValue ?? defaultValue },
+            set: { self.wrappedValue = $0 }
+        )
     }
 } 
