@@ -30,14 +30,28 @@ class TimelineObject: Identifiable {
     var duration: String
     var steps: Int
     var meters: Int
-    var numberOfPoints : Int
+    var numberOfPoints: Int
     var averageSpeed: Double //kmh
     var identifiableCoordinates: [IdentifiableCoordinates]
     var points: [GPXWaypoint]
     var selected: Bool
     var customIcon: String?
+    var track: GPXTrack?
     
-    init(type: TimelineObjectType, startDate: Date?, endDate: Date?, trackType: String? = nil, name: String? = nil, duration: String = "", steps: Int = 0, meters: Int = 0, numberOfPoints : Int = 0, averageSpeed : Double = 0, coordinates: [IdentifiableCoordinates] = [], points:[GPXWaypoint]=[], customIcon: String? = nil) {
+    init(type: TimelineObjectType, 
+         startDate: Date?, 
+         endDate: Date?, 
+         trackType: String? = nil, 
+         name: String? = nil, 
+         duration: String = "", 
+         steps: Int = 0, 
+         meters: Int = 0, 
+         numberOfPoints: Int = 0, 
+         averageSpeed: Double = 0, 
+         coordinates: [IdentifiableCoordinates] = [], 
+         points: [GPXWaypoint] = [], 
+         customIcon: String? = nil,
+         track: GPXTrack? = nil) { 
         self.type = type
         self.startDate = startDate
         self.endDate = endDate
@@ -52,6 +66,7 @@ class TimelineObject: Identifiable {
         self.points = points
         self.selected = false
         self.customIcon = customIcon
+        self.track = track
     }
 }
 

@@ -85,7 +85,8 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
                 numberOfPoints: numberOfPoints,
                 averageSpeed: averageSpeed,
                 coordinates: [IdentifiableCoordinates(coordinates: trackCoordinates)],
-                points: waypoints
+                points: waypoints,
+                track: track
             )
             timelineObjects.append(trackObject)
         }

@@ -127,25 +127,42 @@ struct TimelineView: View {
                     }
                     else
                     {
-                        Text(item.trackType?.capitalized ?? "Movement")
-                        HStack{
-                            if item.meters > 0 {
-                                if item.meters < 1000{
-                                    Text("\(item.meters) m")
-                                        .font(.footnote)
-                                }
-                                else{
-                                    Text("\(item.meters/1000) km")
-                                        .font(.footnote)
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(item.trackType?.capitalized ?? "Movement")
+                                HStack {
+                                    if item.meters > 0 {
+                                        if item.meters < 1000 {
+                                            Text("\(item.meters) m")
+                                                .font(.footnote)
+                                        } else {
+                                            Text("\(item.meters/1000) km")
+                                                .font(.footnote)
+                                        }
+                                    }
+                                    if item.steps > 0 {
+                                        Text("\(item.steps) steps")
+                                            .font(.footnote)
+                                    }
+                                    if item.averageSpeed > 0 {
+                                        Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
+                                            .font(.footnote)
+                                    }
                                 }
                             }
-                            if item.steps > 0{
-                                Text("\(item.steps) steps")
-                                    .font(.footnote)
-                            }
-                            if item.averageSpeed > 0 {
-                                Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
-                                    .font(.footnote)
+                            
+                            Spacer()
+                            
+                            if item.id == selectedTimelineObjectID {
+                                Button(action: {
+                                    editingTimelineObject = item
+                                    showingEditSheet = true
+                                }) {
+                                    Image(systemName: "square.and.pencil")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(BorderlessButtonStyle())
+                                .contentShape(Rectangle())
                             }
                         }
                     }
@@ -180,18 +197,21 @@ struct TimelineView: View {
         }
         .listStyle(PlainListStyle())
         .sheet(isPresented: $showingEditSheet, content: {
-            if let timelineObject = editingTimelineObject, 
-               let date = timelineObject.startDate {
-                EditVisitView(
-                    timelineObject: timelineObject,
-                    fileDate: Calendar.current.startOfDay(for: date),
-                    onSave: { place in
-                        onEditVisit?(timelineObject, place)
-                    }
-                )
-            } else {
-                Text("Unable to edit location")
-                    .padding()
+            if let timelineObject = editingTimelineObject {
+                if timelineObject.type == .waypoint {
+                    EditVisitView(
+                        timelineObject: timelineObject,
+                        fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date()),
+                        onSave: { place in
+                            onEditVisit?(timelineObject, place)
+                        }
+                    )
+                } else {
+                    EditTrackView(
+                        timelineObject: timelineObject,
+                        fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date())
+                    )
+                }
             }
         })
         .onChange(of: showingEditSheet) { newValue in
