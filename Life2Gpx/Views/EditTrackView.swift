@@ -34,7 +34,7 @@ struct EditTrackView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Track Details") {
+                Section("") {
                     Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
                         Text("Walking").tag("walking")
                         Text("Running").tag("running")
@@ -50,9 +50,9 @@ struct EditTrackView: View {
                                 .multilineTextAlignment(.trailing)
                         }
                     }
-                }
                 
-                Section("Track Map") {
+                
+                
                     Map(position: $cameraPosition) {
                         if let track = workingCopy.track {
                             ForEach(track.segments, id: \.self) { segment in
@@ -74,6 +74,85 @@ struct EditTrackView: View {
                     }
                     .frame(height: 300)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                
+                if let track = workingCopy.track {
+                    ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
+                        Section("Segment \(segmentIndex + 1)") {
+                            ForEach(Array(segment.points.enumerated()), id: \.offset) { pointIndex, point in
+                                DisclosureGroup("Point \(pointIndex + 1) - \(point.time?.formatted(date: .omitted, time: .standard) ?? "No time")") {
+                                    let timeBinding = Binding(
+                                        get: { point.time ?? Date() },
+                                        set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].time = $0 }
+                                    )
+                                    
+                                    DatePicker(
+                                        "Date",
+                                        selection: timeBinding,
+                                        displayedComponents: [.date]
+                                    )
+                                    
+                                    HStack {
+                                        Text("Time")
+                                        Spacer()
+                                        DatePicker(
+                                            "",
+                                            selection: timeBinding,
+                                            displayedComponents: [.hourAndMinute]
+                                        )
+                                        .labelsHidden()
+                                        
+                                        // Seconds picker
+                                        Picker("", selection: Binding(
+                                            get: { Calendar.current.component(.second, from: timeBinding.wrappedValue) },
+                                            set: { newSeconds in
+                                                var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: timeBinding.wrappedValue)
+                                                components.second = newSeconds
+                                                if let newDate = Calendar.current.date(from: components) {
+                                                    timeBinding.wrappedValue = newDate
+                                                }
+                                            }
+                                        )) {
+                                            ForEach(0..<60) { second in
+                                                Text(String(format: "%02d", second)).tag(second)
+                                            }
+                                        }
+                                        .labelsHidden()
+                                        .frame(width: 50)
+                                    }
+                                    
+                                    LabeledContent("Latitude") {
+                                        TextField("", value: Binding(
+                                            get: { point.latitude ?? 0 },
+                                            set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = $0 }
+                                        ), format: .number)
+                                            .multilineTextAlignment(.trailing)
+                                            .keyboardType(.decimalPad)
+                                    }
+                                    
+                                    LabeledContent("Longitude") {
+                                        TextField("", value: Binding(
+                                            get: { point.longitude ?? 0 },
+                                            set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = $0 }
+                                        ), format: .number)
+                                            .multilineTextAlignment(.trailing)
+                                            .keyboardType(.decimalPad)
+                                    }
+                                    
+                                    if point.elevation != nil {
+                                        LabeledContent("Elevation") {
+                                            TextField("", value: Binding(
+                                                get: { point.elevation ?? 0 },
+                                                set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = $0 }
+                                            ), format: .number)
+                                                .multilineTextAlignment(.trailing)
+                                                .keyboardType(.decimalPad)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Edit Track")
@@ -109,4 +188,9 @@ extension Binding {
             set: { self.wrappedValue = $0 }
         )
     }
+}
+
+// Add preview provider at the bottom of the file
+#Preview {
+    EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date())
 } 

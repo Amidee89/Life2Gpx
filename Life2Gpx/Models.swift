@@ -78,20 +78,39 @@ class TimelineObject: Identifiable {
         
         let identifiableCoordinates = [IdentifiableCoordinates(coordinates: coordinates)]
         
+        let startTime = Date().addingTimeInterval(-3600) // 1 hour ago
+        
+        // Create GPX track points with 30-minute intervals
+        let points = coordinates.enumerated().map { index, coord -> GPXWaypoint in
+            let point = GPXWaypoint(latitude: coord.latitude, longitude: coord.longitude)
+            point.time = startTime.addingTimeInterval(Double(index) * 25)
+            return point
+        }
+        
+        // Create GPX track with segment
+        let track = GPXTrack()
+        let segment = GPXTrackSegment()
+        points.forEach { point in
+            let trackPoint = GPXTrackPoint(latitude: point.latitude!, longitude: point.longitude!)
+            trackPoint.time = point.time
+            segment.add(trackpoint: trackPoint)
+        }
+        track.add(trackSegment: segment)
+        
         return TimelineObject(
             type: .track,
-            startDate: Date().addingTimeInterval(-3600),
-            endDate: Date(),
+            startDate: startTime,
+            endDate: startTime.addingTimeInterval(3600),
             trackType: "walking",
             name: "Preview Track",
             duration: "1:00:00",
-            steps: 4500,
+            steps: 120,
             meters: 3000,
             numberOfPoints: 3,
             averageSpeed: 3.0,
             coordinates: identifiableCoordinates,
-            points: [],
-            track: GPXTrack()
+            points: points,
+            track: track
         )
     }()
 }
