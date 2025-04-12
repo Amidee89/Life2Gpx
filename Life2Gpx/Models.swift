@@ -69,47 +69,99 @@ class TimelineObject: Identifiable {
         self.track = track
     }
 
+    private static func formatDuration(seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainingSeconds = seconds % 60
+        return String(format: "%d:%02d:%02d", hours, minutes, remainingSeconds)
+    }
+
     static let previewTrack: TimelineObject = {
-        let coordinates = [
+        // Create multiple sets of coordinates for different segments
+        let segment1Coordinates = [
             CLLocationCoordinate2D(latitude: 40.785091, longitude: -73.968285),
             CLLocationCoordinate2D(latitude: 40.786091, longitude: -73.969285),
-            CLLocationCoordinate2D(latitude: 40.787091, longitude: -73.970285)
+            CLLocationCoordinate2D(latitude: 40.787091, longitude: -73.970285),
+            CLLocationCoordinate2D(latitude: 40.788091, longitude: -73.971285),
+            CLLocationCoordinate2D(latitude: 40.789091, longitude: -73.972285)
         ]
         
-        let identifiableCoordinates = [IdentifiableCoordinates(coordinates: coordinates)]
+        let segment2Coordinates = [
+            CLLocationCoordinate2D(latitude: 40.789091, longitude: -73.972285),
+            CLLocationCoordinate2D(latitude: 40.789591, longitude: -73.973785),
+            CLLocationCoordinate2D(latitude: 40.790091, longitude: -73.975285),
+            CLLocationCoordinate2D(latitude: 40.790591, longitude: -73.976785)
+        ]
+        
+        let segment3Coordinates = [
+            CLLocationCoordinate2D(latitude: 40.790591, longitude: -73.976785),
+            CLLocationCoordinate2D(latitude: 40.791091, longitude: -73.976285),
+            CLLocationCoordinate2D(latitude: 40.791591, longitude: -73.975785),
+            CLLocationCoordinate2D(latitude: 40.792091, longitude: -73.975285),
+            CLLocationCoordinate2D(latitude: 40.792591, longitude: -73.974785),
+            CLLocationCoordinate2D(latitude: 40.793091, longitude: -73.974285)
+        ]
+        
+        let allCoordinates = [segment1Coordinates, segment2Coordinates, segment3Coordinates]
+        let identifiableCoordinates = allCoordinates.map { IdentifiableCoordinates(coordinates: $0) }
         
         let startTime = Date().addingTimeInterval(-3600) // 1 hour ago
         
-        // Create GPX track points with 30-minute intervals
-        let points = coordinates.enumerated().map { index, coord -> GPXWaypoint in
-            let point = GPXWaypoint(latitude: coord.latitude, longitude: coord.longitude)
-            point.time = startTime.addingTimeInterval(Double(index) * 25)
-            return point
+        // Create GPX track with multiple segments
+        let track = GPXTrack()
+        track.name = "Preview Track"
+        
+        // Create all waypoints for the flat list
+        var allPoints: [GPXWaypoint] = []
+        
+        // Create segments with points at 15-second intervals
+        var currentTime = startTime
+        for (segmentIndex, segmentCoords) in allCoordinates.enumerated() {
+            let segment = GPXTrackSegment()
+            
+            for (pointIndex, coord) in segmentCoords.enumerated() {
+                // Add some variation to elevation
+                let elevation = 100.0 + Double(segmentIndex * 10) + sin(Double(pointIndex) * 0.5) * 5.0
+                
+                // Create track point for the segment
+                let trackPoint = GPXTrackPoint(latitude: coord.latitude, longitude: coord.longitude)
+                trackPoint.time = currentTime
+                trackPoint.elevation = elevation
+                segment.add(trackpoint: trackPoint)
+                
+                // Create corresponding waypoint for the flat list
+                let waypoint = GPXWaypoint(latitude: coord.latitude, longitude: coord.longitude)
+                waypoint.time = currentTime
+                waypoint.elevation = elevation
+                allPoints.append(waypoint)
+                
+                // Advance time by 15 seconds for each point
+                currentTime = currentTime.addingTimeInterval(15)
+            }
+            
+            track.add(trackSegment: segment)
+            
+            // Add a small gap between segments
+            currentTime = currentTime.addingTimeInterval(60)
         }
         
-        // Create GPX track with segment
-        let track = GPXTrack()
-        let segment = GPXTrackSegment()
-        points.forEach { point in
-            let trackPoint = GPXTrackPoint(latitude: point.latitude!, longitude: point.longitude!)
-            trackPoint.time = point.time
-            segment.add(trackpoint: trackPoint)
-        }
-        track.add(trackSegment: segment)
+        let totalPoints = allPoints.count
+        let totalDuration = currentTime.timeIntervalSince(startTime)
+        let formattedDuration = formatDuration(seconds: Int(totalDuration))
         
         return TimelineObject(
             type: .track,
             startDate: startTime,
-            endDate: startTime.addingTimeInterval(3600),
+            endDate: currentTime,
             trackType: "walking",
             name: "Preview Track",
-            duration: "1:00:00",
-            steps: 120,
-            meters: 3000,
-            numberOfPoints: 3,
-            averageSpeed: 3.0,
+            duration: formattedDuration,
+            steps: 1200,
+            meters: 3500,
+            numberOfPoints: totalPoints,
+            averageSpeed: 3.5,
             coordinates: identifiableCoordinates,
-            points: points,
+            points: allPoints,
             track: track
         )
     }()

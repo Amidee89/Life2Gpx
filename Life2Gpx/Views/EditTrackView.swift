@@ -10,6 +10,7 @@ struct EditTrackView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var workingCopy: TimelineObject
     @State private var selectedPointIndex: Int? = nil
+    @State private var selectedSegmentIndex: Int? = nil
     @State private var isEditing: Bool = false
     
     init(timelineObject: TimelineObject, fileDate: Date) {
@@ -57,7 +58,7 @@ struct EditTrackView: View {
                 
                     Map(position: $cameraPosition) {
                         if let track = workingCopy.track {
-                            ForEach(track.segments, id: \.self) { segment in
+                            ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
                                 let coordinates = segment.points.compactMap { point in
                                     point.latitude != nil && point.longitude != nil ?
                                         CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
@@ -71,6 +72,52 @@ struct EditTrackView: View {
                                 MapPolyline(coordinates: coordinates)
                                     .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
                                            style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                                
+                                // First render all non-selected points
+                                ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
+                                    if let lat = point.latitude, let lon = point.longitude, 
+                                       !(index == selectedPointIndex && segmentIndex == selectedSegmentIndex) {
+                                        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                        let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+                                        
+                                        // Non-selected points (smaller, blue)
+                                        Annotation(timeLabel, coordinate: coordinate) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color.white)
+                                                    .frame(width: 16, height: 16)
+                                                Circle()
+                                                    .fill(Color.blue)
+                                                    .frame(width: 10, height: 10)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Then render the selected point in a separate loop to ensure it's on top
+                            if let selectedSegmentIndex = selectedSegmentIndex, 
+                               let selectedPointIndex = selectedPointIndex,
+                               track.segments.indices.contains(selectedSegmentIndex),
+                               track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex) {
+                                
+                                let point = track.segments[selectedSegmentIndex].points[selectedPointIndex]
+                                if let lat = point.latitude, let lon = point.longitude {
+                                    let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                    let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+                                    
+                                    // Selected point (larger, orange)
+                                    Annotation(timeLabel, coordinate: coordinate) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.white)
+                                                .frame(width: 24, height: 24)
+                                            Circle()
+                                                .fill(Color.orange)
+                                                .frame(width: 16, height: 16)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -80,9 +127,9 @@ struct EditTrackView: View {
                 
                 if let track = workingCopy.track {
                     ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
-                        if !isEditing || (isEditing && selectedPointIndex != nil && segment.points.indices.contains(selectedPointIndex!)) {
+                        if !isEditing || (isEditing && selectedPointIndex != nil && selectedSegmentIndex == segmentIndex) {
                             Section("Segment \(segmentIndex + 1)") {
-                                if isEditing && selectedPointIndex != nil {
+                                if isEditing && selectedPointIndex != nil && selectedSegmentIndex == segmentIndex {
                                     // Only show the selected point when editing
                                     let pointIndex = selectedPointIndex!
                                     if segment.points.indices.contains(pointIndex) {
@@ -211,7 +258,7 @@ struct EditTrackView: View {
                                             Text(point.time?.formatted(date: .numeric, time: .complete) ?? "No time")
                                                 .frame(maxWidth: .infinity, alignment: .leading)
                                             
-                                            if selectedPointIndex == pointIndex {
+                                            if selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex {
                                                 Button(action: {
                                                     isEditing = true
                                                 }) {
@@ -224,15 +271,17 @@ struct EditTrackView: View {
                                         .contentShape(Rectangle())
                                         .onTapGesture {
                                             withAnimation {
-                                                if selectedPointIndex == pointIndex {
+                                                if selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex {
                                                     selectedPointIndex = nil
+                                                    selectedSegmentIndex = nil
                                                 } else {
                                                     selectedPointIndex = pointIndex
+                                                    selectedSegmentIndex = segmentIndex
                                                     isEditing = false
                                                 }
                                             }
                                         }
-                                        .listRowBackground(selectedPointIndex == pointIndex && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
+                                        .listRowBackground(selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
                                     }
                                 }
                             }
@@ -279,3 +328,10 @@ extension Binding {
 #Preview {
     EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date())
 } 
+
+// Add this extension at the bottom of the file
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
