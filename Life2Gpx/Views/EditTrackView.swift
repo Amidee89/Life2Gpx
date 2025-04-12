@@ -77,25 +77,38 @@ struct EditTrackView: View {
                                 ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
                                     if let lat = point.latitude, let lon = point.longitude, 
                                        !(index == selectedPointIndex && segmentIndex == selectedSegmentIndex) {
-                                        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                                        let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                                         
-                                        // Non-selected points (smaller, blue)
-                                        Annotation(timeLabel, coordinate: coordinate) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(Color.white)
-                                                    .frame(width: 16, height: 16)
-                                                Circle()
-                                                    .fill(Color.blue)
-                                                    .frame(width: 10, height: 10)
+                                        // Skip points that are too close to the selected point to avoid overlap
+                                        let shouldSkip = selectedPointIndex != nil && selectedSegmentIndex != nil &&
+                                            isPointTooCloseToSelected(
+                                                lat: lat, 
+                                                lon: lon, 
+                                                selectedSegmentIndex: selectedSegmentIndex!, 
+                                                selectedPointIndex: selectedPointIndex!,
+                                                track: track
+                                            )
+                                        
+                                        if !shouldSkip {
+                                            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                            let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+                                            
+                                            // Non-selected points (smaller, blue)
+                                            Annotation(timeLabel, coordinate: coordinate) {
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                        .frame(width: 16, height: 16)
+                                                    Circle()
+                                                        .fill(Color.blue)
+                                                        .frame(width: 10, height: 10)
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                             
-                            // Then render the selected point in a separate loop to ensure it's on top
+                            // Render the selected point last to ensure it's on top
                             if let selectedSegmentIndex = selectedSegmentIndex, 
                                let selectedPointIndex = selectedPointIndex,
                                track.segments.indices.contains(selectedSegmentIndex),
@@ -311,6 +324,30 @@ struct EditTrackView: View {
                 }
             }
         }
+    }
+    
+    // Helper function to determine if a point is too close to the selected point
+    private func isPointTooCloseToSelected(lat: Double, lon: Double, selectedSegmentIndex: Int, selectedPointIndex: Int, track: GPXTrack) -> Bool {
+        guard track.segments.indices.contains(selectedSegmentIndex),
+              track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex),
+              let selectedLat = track.segments[selectedSegmentIndex].points[selectedPointIndex].latitude,
+              let selectedLon = track.segments[selectedSegmentIndex].points[selectedPointIndex].longitude else {
+            return false
+        }
+        
+        // Calculate distance between points using Haversine formula
+        let earthRadius = 6371000.0 // Earth radius in meters
+        let dLat = (selectedLat - lat) * .pi / 180
+        let dLon = (selectedLon - lon) * .pi / 180
+        let a = sin(dLat/2) * sin(dLat/2) +
+                cos(lat * .pi / 180) * cos(selectedLat * .pi / 180) *
+                sin(dLon/2) * sin(dLon/2)
+        let c = 2 * atan2(sqrt(a), sqrt(1-a))
+        let distance = earthRadius * c
+        
+        // Skip points that are within a certain distance (e.g., 50 meters)
+        // This threshold can be adjusted based on your map zoom level
+        return distance < 50
     }
 }
 
