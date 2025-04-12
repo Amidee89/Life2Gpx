@@ -9,6 +9,8 @@ struct EditTrackView: View {
     
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var workingCopy: TimelineObject
+    @State private var selectedPointIndex: Int? = nil
+    @State private var isEditing: Bool = false
     
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
@@ -78,76 +80,159 @@ struct EditTrackView: View {
                 
                 if let track = workingCopy.track {
                     ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
-                        Section("Segment \(segmentIndex + 1)") {
-                            ForEach(Array(segment.points.enumerated()), id: \.offset) { pointIndex, point in
-                                DisclosureGroup("Point \(pointIndex + 1) - \(point.time?.formatted(date: .omitted, time: .standard) ?? "No time")") {
-                                    let timeBinding = Binding(
-                                        get: { point.time ?? Date() },
-                                        set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].time = $0 }
-                                    )
-                                    
-                                    DatePicker(
-                                        "Date",
-                                        selection: timeBinding,
-                                        displayedComponents: [.date]
-                                    )
-                                    
-                                    HStack {
-                                        Text("Time")
-                                        Spacer()
-                                        DatePicker(
-                                            "",
-                                            selection: timeBinding,
-                                            displayedComponents: [.hourAndMinute]
-                                        )
-                                        .labelsHidden()
+                        if !isEditing || (isEditing && selectedPointIndex != nil && segment.points.indices.contains(selectedPointIndex!)) {
+                            Section("Segment \(segmentIndex + 1)") {
+                                if isEditing && selectedPointIndex != nil {
+                                    // Only show the selected point when editing
+                                    let pointIndex = selectedPointIndex!
+                                    if segment.points.indices.contains(pointIndex) {
+                                        let point = segment.points[pointIndex]
                                         
-                                        // Seconds picker
-                                        Picker("", selection: Binding(
-                                            get: { Calendar.current.component(.second, from: timeBinding.wrappedValue) },
-                                            set: { newSeconds in
-                                                var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: timeBinding.wrappedValue)
-                                                components.second = newSeconds
-                                                if let newDate = Calendar.current.date(from: components) {
-                                                    timeBinding.wrappedValue = newDate
+                                        VStack(alignment: .leading, spacing: 12) {
+                                            // Cancel and Done buttons at the top
+                                            HStack {
+                                                Button("Cancel") {
+                                                    isEditing = false
+                                                }
+                                                .foregroundColor(.red)
+                                                
+                                                Spacer()
+                                                
+                                                Button("Done") {
+                                                    isEditing = false
+                                                }
+                                                .foregroundColor(.blue)
+                                            }
+                                            .padding(.bottom, 8)
+                                            
+                                            // Date and Time
+                                            if let pointTime = point.time {
+                                                let calendar = Calendar.current
+                                                let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: pointTime)
+                                                
+                                                // Date picker
+                                                DatePicker("Date", selection: Binding(
+                                                    get: { pointTime },
+                                                    set: { newDate in
+                                                        // Preserve time while changing date
+                                                        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: pointTime)
+                                                        let dateComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
+                                                        
+                                                        var mergedComponents = DateComponents()
+                                                        mergedComponents.year = dateComponents.year
+                                                        mergedComponents.month = dateComponents.month
+                                                        mergedComponents.day = dateComponents.day
+                                                        mergedComponents.hour = timeComponents.hour
+                                                        mergedComponents.minute = timeComponents.minute
+                                                        mergedComponents.second = timeComponents.second
+                                                        
+                                                        if let mergedDate = calendar.date(from: mergedComponents) {
+                                                            segment.points[pointIndex].time = mergedDate
+                                                        }
+                                                    }
+                                                ), displayedComponents: .date)
+                                                
+                                                // Time picker
+                                                DatePicker("Time", selection: Binding(
+                                                    get: { pointTime },
+                                                    set: { newTime in
+                                                        // Preserve date while changing time
+                                                        let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
+                                                        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: newTime)
+                                                        
+                                                        var mergedComponents = DateComponents()
+                                                        mergedComponents.year = dateComponents.year
+                                                        mergedComponents.month = dateComponents.month
+                                                        mergedComponents.day = dateComponents.day
+                                                        mergedComponents.hour = timeComponents.hour
+                                                        mergedComponents.minute = timeComponents.minute
+                                                        mergedComponents.second = timeComponents.second
+                                                        
+                                                        if let mergedDate = calendar.date(from: mergedComponents) {
+                                                            segment.points[pointIndex].time = mergedDate
+                                                        }
+                                                    }
+                                                ), displayedComponents: .hourAndMinute)
+                                            } else {
+                                                Text("No time data available")
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            
+                                            // Coordinates
+                                            Group {
+                                                HStack {
+                                                    Text("Latitude:")
+                                                    TextField("Latitude", value: Binding(
+                                                        get: { point.latitude ?? 0.0 },
+                                                        set: { segment.points[pointIndex].latitude = $0 }
+                                                    ), format: .number.precision(.fractionLength(6)))
+                                                    .keyboardType(.decimalPad)
+                                                }
+                                                
+                                                HStack {
+                                                    Text("Longitude:")
+                                                    TextField("Longitude", value: Binding(
+                                                        get: { point.longitude ?? 0.0 },
+                                                        set: { segment.points[pointIndex].longitude = $0 }
+                                                    ), format: .number.precision(.fractionLength(6)))
+                                                    .keyboardType(.decimalPad)
+                                                }
+                                                
+                                                HStack {
+                                                    Text("Elevation:")
+                                                    TextField("Elevation (m)", value: Binding(
+                                                        get: { point.elevation ?? 0.0 },
+                                                        set: { segment.points[pointIndex].elevation = $0 }
+                                                    ), format: .number.precision(.fractionLength(1)))
+                                                    .keyboardType(.decimalPad)
                                                 }
                                             }
-                                        )) {
-                                            ForEach(0..<60) { second in
-                                                Text(String(format: "%02d", second)).tag(second)
+                                            
+                                            // Delete button at the bottom
+                                            Button(action: {
+                                                // For now, just close edit mode
+                                                isEditing = false
+                                            }) {
+                                                HStack {
+                                                    Image(systemName: "trash")
+                                                    Text("Delete Point")
+                                                }
+                                                .foregroundColor(.red)
+                                                .frame(maxWidth: .infinity)
+                                            }
+                                            .padding(.top, 12)
+                                        }
+                                        .padding(.vertical, 8)
+                                    }
+                                } else {
+                                    // Show all points when not editing
+                                    ForEach(Array(segment.points.enumerated()), id: \.offset) { pointIndex, point in
+                                        HStack {
+                                            Text(point.time?.formatted(date: .numeric, time: .complete) ?? "No time")
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            
+                                            if selectedPointIndex == pointIndex {
+                                                Button(action: {
+                                                    isEditing = true
+                                                }) {
+                                                    Image(systemName: "square.and.pencil")
+                                                        .foregroundColor(.blue)
+                                                }
+                                                .buttonStyle(BorderlessButtonStyle())
                                             }
                                         }
-                                        .labelsHidden()
-                                        .frame(width: 50)
-                                    }
-                                    
-                                    LabeledContent("Latitude") {
-                                        TextField("", value: Binding(
-                                            get: { point.latitude ?? 0 },
-                                            set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = $0 }
-                                        ), format: .number)
-                                            .multilineTextAlignment(.trailing)
-                                            .keyboardType(.decimalPad)
-                                    }
-                                    
-                                    LabeledContent("Longitude") {
-                                        TextField("", value: Binding(
-                                            get: { point.longitude ?? 0 },
-                                            set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = $0 }
-                                        ), format: .number)
-                                            .multilineTextAlignment(.trailing)
-                                            .keyboardType(.decimalPad)
-                                    }
-                                    
-                                    if point.elevation != nil {
-                                        LabeledContent("Elevation") {
-                                            TextField("", value: Binding(
-                                                get: { point.elevation ?? 0 },
-                                                set: { workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = $0 }
-                                            ), format: .number)
-                                                .multilineTextAlignment(.trailing)
-                                                .keyboardType(.decimalPad)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            withAnimation {
+                                                if selectedPointIndex == pointIndex {
+                                                    selectedPointIndex = nil
+                                                } else {
+                                                    selectedPointIndex = pointIndex
+                                                    isEditing = false
+                                                }
+                                            }
                                         }
+                                        .listRowBackground(selectedPointIndex == pointIndex && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
                                     }
                                 }
                             }
