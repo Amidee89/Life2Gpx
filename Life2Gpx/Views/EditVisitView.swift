@@ -87,44 +87,79 @@ struct EditVisitView: View {
                 List {
                     if let coordinate = currentCoordinate {
                         Section("Visit Details") {
-                            DatePicker("Visit time", 
-                                     selection: $visitDate,
-                                     displayedComponents: [.date, .hourAndMinute])
-                            
+                            // Split the date and time components
                             HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Latitude")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    TextField("Latitude", text: $latitudeString)
-                                        .keyboardType(.decimalPad)
-                                }
+                                // Date picker
+                                DatePicker("Date", 
+                                     selection: $visitDate,
+                                     displayedComponents: [.date])
+                            }
+                            
+                            // Time and seconds picker combined
+                            HStack {
+                                // Hour:minute picker
+                                DatePicker("Time", 
+                                     selection: $visitDate,
+                                     displayedComponents: [.hourAndMinute])
                                 
-                                VStack(alignment: .leading) {
-                                    Text("Longitude")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    TextField("Longitude", text: $longitudeString)
-                                        .keyboardType(.decimalPad)
+                                // Seconds component
+                                let calendar = Calendar.current
+                                let seconds = calendar.component(.second, from: visitDate)
+                                Text(":")
+                                    .font(.system(size: 17, weight: .regular))
+                                Menu {
+                                    Picker("", selection: Binding(
+                                        get: { seconds },
+                                        set: { newSeconds in
+                                            // Preserve date and hour/minute while changing seconds
+                                            var components = calendar.dateComponents(
+                                                [.year, .month, .day, .hour, .minute],
+                                                from: visitDate
+                                            )
+                                            components.second = newSeconds
+                                            
+                                            if let newDate = calendar.date(from: components) {
+                                                visitDate = newDate
+                                                
+                                                // Update the waypoint time
+                                                if let firstPoint = timelineObject.points.first {
+                                                    firstPoint.time = newDate
+                                                }
+                                            }
+                                        }
+                                    )) {
+                                        ForEach(0..<60) { second in
+                                            Text("\(second)").tag(second)
+                                        }
+                                    }
+                                } label: {
+                                    Text(String(format: "%02d", seconds))
+                                        .foregroundColor(.blue)
                                 }
                             }
                             
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Elevation (m)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    TextField("Elevation", text: $elevationString)
-                                        .keyboardType(.decimalPad)
-                                }
-                                
-                                VStack(alignment: .leading) {
-                                    Text("Steps")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    TextField("Steps", text: $stepsString)
-                                        .keyboardType(.numberPad)
-                                }
+                            LabeledContent("Latitude:") {
+                                TextField("", text: $latitudeString)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            
+                            LabeledContent("Longitude:") {
+                                TextField("", text: $longitudeString)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            
+                            LabeledContent("Elevation (m):") {
+                                TextField("", text: $elevationString)
+                                    .keyboardType(.decimalPad)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            
+                            LabeledContent("Steps:") {
+                                TextField("", text: $stepsString)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
                             }
                             
                             if let place = selectedPlace {
