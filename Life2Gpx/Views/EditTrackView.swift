@@ -12,6 +12,9 @@ struct EditTrackView: View {
     @State private var selectedPointIndex: Int? = nil
     @State private var selectedSegmentIndex: Int? = nil
     @State private var isEditing: Bool = false
+    @State private var selectedPointLatitude: Double = 0.0
+    @State private var selectedPointLongitude: Double = 0.0
+    @State private var selectedPointElevation: Double = 0.0
     
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
@@ -180,30 +183,45 @@ struct EditTrackView: View {
                                                 // Coordinates
                                                 Group {
                                                     LabeledContent("Latitude:") {
-                                                        TextField("", value: Binding(
-                                                            get: { point.latitude ?? 0.0 },
-                                                            set: { segment.points[pointIndex].latitude = $0 }
-                                                        ), format: .number.precision(.fractionLength(6)))
-                                                        .keyboardType(.decimalPad)
-                                                        .multilineTextAlignment(.trailing)
+                                                        TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(6)))
+                                                            .keyboardType(.decimalPad)
+                                                            .multilineTextAlignment(.trailing)
+                                                            .onChange(of: selectedPointLatitude) { newValue in
+                                                                if let segmentIndex = selectedSegmentIndex, 
+                                                                   let pointIndex = selectedPointIndex,
+                                                                   workingCopy.track?.segments.indices.contains(segmentIndex) == true,
+                                                                   workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                                    workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = newValue
+                                                                }
+                                                            }
                                                     }
                                                     
                                                     LabeledContent("Longitude:") {
-                                                        TextField("", value: Binding(
-                                                            get: { point.longitude ?? 0.0 },
-                                                            set: { segment.points[pointIndex].longitude = $0 }
-                                                        ), format: .number.precision(.fractionLength(6)))
-                                                        .keyboardType(.decimalPad)
-                                                        .multilineTextAlignment(.trailing)
+                                                        TextField("", value: $selectedPointLongitude, format: .number.precision(.fractionLength(6)))
+                                                            .keyboardType(.decimalPad)
+                                                            .multilineTextAlignment(.trailing)
+                                                            .onChange(of: selectedPointLongitude) { newValue in
+                                                                if let segmentIndex = selectedSegmentIndex, 
+                                                                   let pointIndex = selectedPointIndex,
+                                                                   workingCopy.track?.segments.indices.contains(segmentIndex) == true,
+                                                                   workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                                    workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = newValue
+                                                                }
+                                                            }
                                                     }
                                                     
                                                     LabeledContent("Elevation:") {
-                                                        TextField("", value: Binding(
-                                                            get: { point.elevation ?? 0.0 },
-                                                            set: { segment.points[pointIndex].elevation = $0 }
-                                                        ), format: .number.precision(.fractionLength(1)))
-                                                        .keyboardType(.decimalPad)
-                                                        .multilineTextAlignment(.trailing)
+                                                        TextField("", value: $selectedPointElevation, format: .number.precision(.fractionLength(1)))
+                                                            .keyboardType(.decimalPad)
+                                                            .multilineTextAlignment(.trailing)
+                                                            .onChange(of: selectedPointElevation) { newValue in
+                                                                if let segmentIndex = selectedSegmentIndex, 
+                                                                   let pointIndex = selectedPointIndex,
+                                                                   workingCopy.track?.segments.indices.contains(segmentIndex) == true,
+                                                                   workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                                    workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = newValue
+                                                                }
+                                                            }
                                                     }
                                                 }
                                                 
@@ -258,6 +276,13 @@ struct EditTrackView: View {
                                                         selectedPointIndex = pointIndex
                                                         selectedSegmentIndex = segmentIndex
                                                         isEditing = false
+                                                        
+                                                        // Update the state variables when a point is selected
+                                                        if let point = track.segments[segmentIndex].points[safe: pointIndex] {
+                                                            selectedPointLatitude = point.latitude ?? 0.0
+                                                            selectedPointLongitude = point.longitude ?? 0.0
+                                                            selectedPointElevation = point.elevation ?? 0.0
+                                                        }
                                                     }
                                                 }
                                             }
@@ -297,80 +322,100 @@ struct EditTrackView: View {
     
     // MARK: - Map View
     private var editTrackMapView: some View {
-        Map(position: $cameraPosition) {
-            if let track = workingCopy.track {
-                ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
-                    let coordinates = segment.points.compactMap { point in
-                        point.latitude != nil && point.longitude != nil ?
-                            CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
-                    }
-                    MapPolyline(coordinates: coordinates)
-                        .stroke(.white,
-                               style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    MapPolyline(coordinates: coordinates)
-                        .stroke(.black,
-                               style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    MapPolyline(coordinates: coordinates)
-                        .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
-                               style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    
-                    // First render all non-selected points
-                    ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
-                        if let lat = point.latitude, let lon = point.longitude, 
-                           !(index == selectedPointIndex && segmentIndex == selectedSegmentIndex) {
-                            
-                            // Skip points that are too close to the selected point to avoid overlap
-                            let shouldSkip = selectedPointIndex != nil && selectedSegmentIndex != nil &&
-                                isPointTooCloseToSelected(
-                                    lat: lat, 
-                                    lon: lon, 
-                                    selectedSegmentIndex: selectedSegmentIndex!, 
-                                    selectedPointIndex: selectedPointIndex!,
-                                    track: track
-                                )
-                            
-                            if !shouldSkip {
-                                let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                                let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+        MapReader { reader in
+            Map(position: $cameraPosition) {
+                if let track = workingCopy.track {
+                    ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
+                        let coordinates = segment.points.compactMap { point in
+                            point.latitude != nil && point.longitude != nil ?
+                                CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
+                        }
+                        MapPolyline(coordinates: coordinates)
+                            .stroke(.white,
+                                   style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: coordinates)
+                            .stroke(.black,
+                                   style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: coordinates)
+                            .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
+                                   style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        
+                        // First render all non-selected points
+                        ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
+                            if let lat = point.latitude, let lon = point.longitude, 
+                               !(index == selectedPointIndex && segmentIndex == selectedSegmentIndex) {
                                 
-                                // Non-selected points (smaller, blue)
-                                Annotation(timeLabel, coordinate: coordinate) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.white)
-                                            .frame(width: 16, height: 16)
-                                        Circle()
-                                            .fill(Color.blue)
-                                            .frame(width: 10, height: 10)
+                                // Skip points that are too close to the selected point to avoid overlap
+                                let shouldSkip = selectedPointIndex != nil && selectedSegmentIndex != nil &&
+                                    isPointTooCloseToSelected(
+                                        lat: lat, 
+                                        lon: lon, 
+                                        selectedSegmentIndex: selectedSegmentIndex!, 
+                                        selectedPointIndex: selectedPointIndex!,
+                                        track: track
+                                    )
+                                
+                                if !shouldSkip {
+                                    let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                    let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+                                    
+                                    // Non-selected points (smaller, blue)
+                                    Annotation(timeLabel, coordinate: coordinate) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.white)
+                                                .frame(width: 16, height: 16)
+                                            Circle()
+                                                .fill(Color.blue)
+                                                .frame(width: 10, height: 10)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                
-                if let selectedSegmentIndex = selectedSegmentIndex, 
-                   let selectedPointIndex = selectedPointIndex,
-                   track.segments.indices.contains(selectedSegmentIndex),
-                   track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex) {
                     
-                    let point = track.segments[selectedSegmentIndex].points[selectedPointIndex]
-                    if let lat = point.latitude, let lon = point.longitude {
-                        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-                        let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+                    if let selectedSegmentIndex = selectedSegmentIndex, 
+                       let selectedPointIndex = selectedPointIndex,
+                       track.segments.indices.contains(selectedSegmentIndex),
+                       track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex) {
                         
-                        // Selected point (larger, orange)
-                        Annotation(timeLabel, coordinate: coordinate) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 24, height: 24)
-                                Circle()
-                                    .fill(Color.orange)
-                                    .frame(width: 16, height: 16)
+                        let point = track.segments[selectedSegmentIndex].points[selectedPointIndex]
+                        if let lat = point.latitude, let lon = point.longitude {
+                            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                            let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
+                            
+                            // Selected point (larger, orange)
+                            Annotation(timeLabel, coordinate: coordinate) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 24, height: 24)
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .frame(width: 16, height: 16)
+                                }
                             }
                         }
                     }
+                }
+            }
+            .onTapGesture { screenCoord in
+                if isEditing, 
+                   let selectedSegmentIndex = selectedSegmentIndex, 
+                   let selectedPointIndex = selectedPointIndex,
+                   let track = workingCopy.track,
+                   track.segments.indices.contains(selectedSegmentIndex),
+                   track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex),
+                   let coordinate = reader.convert(screenCoord, from: .local) {
+                    
+                    // Update both the point and the state variables
+                    track.segments[selectedSegmentIndex].points[selectedPointIndex].latitude = coordinate.latitude
+                    track.segments[selectedSegmentIndex].points[selectedPointIndex].longitude = coordinate.longitude
+                    
+                    // Update the state variables for the form
+                    selectedPointLatitude = coordinate.latitude
+                    selectedPointLongitude = coordinate.longitude
                 }
             }
         }
