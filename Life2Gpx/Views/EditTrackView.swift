@@ -191,27 +191,61 @@ struct EditTrackView: View {
                                                     }
                                                 ), displayedComponents: .date)
                                                 
-                                                // Time picker
-                                                DatePicker("Time", selection: Binding(
-                                                    get: { pointTime },
-                                                    set: { newTime in
-                                                        // Preserve date while changing time
-                                                        let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
-                                                        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: newTime)
-                                                        
-                                                        var mergedComponents = DateComponents()
-                                                        mergedComponents.year = dateComponents.year
-                                                        mergedComponents.month = dateComponents.month
-                                                        mergedComponents.day = dateComponents.day
-                                                        mergedComponents.hour = timeComponents.hour
-                                                        mergedComponents.minute = timeComponents.minute
-                                                        mergedComponents.second = timeComponents.second
-                                                        
-                                                        if let mergedDate = calendar.date(from: mergedComponents) {
-                                                            segment.points[pointIndex].time = mergedDate
+                                                // Time and seconds picker combined
+                                                HStack {
+                                                    // Hour:minute picker
+                                                    DatePicker("Time", selection: Binding(
+                                                        get: { pointTime },
+                                                        set: { newTime in
+                                                            // Preserve date and seconds while changing hour/minute
+                                                            let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
+                                                            let timeComponents = calendar.dateComponents([.hour, .minute], from: newTime)
+                                                            let seconds = calendar.component(.second, from: pointTime)
+                                                            
+                                                            var mergedComponents = DateComponents()
+                                                            mergedComponents.year = dateComponents.year
+                                                            mergedComponents.month = dateComponents.month
+                                                            mergedComponents.day = dateComponents.day
+                                                            mergedComponents.hour = timeComponents.hour
+                                                            mergedComponents.minute = timeComponents.minute
+                                                            mergedComponents.second = seconds
+                                                            
+                                                            if let mergedDate = calendar.date(from: mergedComponents) {
+                                                                segment.points[pointIndex].time = mergedDate
+                                                            }
                                                         }
+                                                    ), displayedComponents: .hourAndMinute)
+                                                    
+                                                    // Seconds component
+                                                    let seconds = calendar.component(.second, from: pointTime)
+                                                    Text(":")
+                                                        .font(.system(size: 17, weight: .regular))
+                                                    Menu {
+                                                        Picker("", selection: Binding(
+                                                            get: { seconds },
+                                                            set: { newSeconds in
+                                                                // Preserve date and hour/minute while changing seconds
+                                                                var components = calendar.dateComponents(
+                                                                    [.year, .month, .day, .hour, .minute],
+                                                                    from: pointTime
+                                                                )
+                                                                components.second = newSeconds
+                                                                
+                                                                if let newDate = calendar.date(from: components) {
+                                                                    segment.points[pointIndex].time = newDate
+                                                                }
+                                                            }
+                                                        )) {
+                                                            ForEach(0..<60) { second in
+                                                                Text("\(second)").tag(second)
+                                                            }
+                                                        }
+                                                    } label: {
+                                                        Text(String(format: "%02d", seconds))
+                                                            .foregroundColor(.blue)
                                                     }
-                                                ), displayedComponents: .hourAndMinute)
+                                                }
+                                                .padding(.bottom, 8)
                                             } else {
                                                 Text("No time data available")
                                                     .foregroundColor(.secondary)
@@ -219,31 +253,31 @@ struct EditTrackView: View {
                                             
                                             // Coordinates
                                             Group {
-                                                HStack {
-                                                    Text("Latitude:")
-                                                    TextField("Latitude", value: Binding(
+                                                LabeledContent("Latitude:") {
+                                                    TextField("", value: Binding(
                                                         get: { point.latitude ?? 0.0 },
                                                         set: { segment.points[pointIndex].latitude = $0 }
                                                     ), format: .number.precision(.fractionLength(6)))
                                                     .keyboardType(.decimalPad)
+                                                    .multilineTextAlignment(.trailing)
                                                 }
                                                 
-                                                HStack {
-                                                    Text("Longitude:")
-                                                    TextField("Longitude", value: Binding(
+                                                LabeledContent("Longitude:") {
+                                                    TextField("", value: Binding(
                                                         get: { point.longitude ?? 0.0 },
                                                         set: { segment.points[pointIndex].longitude = $0 }
                                                     ), format: .number.precision(.fractionLength(6)))
                                                     .keyboardType(.decimalPad)
+                                                    .multilineTextAlignment(.trailing)
                                                 }
                                                 
-                                                HStack {
-                                                    Text("Elevation:")
-                                                    TextField("Elevation (m)", value: Binding(
+                                                LabeledContent("Elevation:") {
+                                                    TextField("", value: Binding(
                                                         get: { point.elevation ?? 0.0 },
                                                         set: { segment.points[pointIndex].elevation = $0 }
                                                     ), format: .number.precision(.fractionLength(1)))
                                                     .keyboardType(.decimalPad)
+                                                    .multilineTextAlignment(.trailing)
                                                 }
                                             }
                                             
