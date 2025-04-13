@@ -108,7 +108,6 @@ struct EditTrackView: View {
                                 }
                             }
                             
-                            // Render the selected point last to ensure it's on top
                             if let selectedSegmentIndex = selectedSegmentIndex, 
                                let selectedPointIndex = selectedPointIndex,
                                track.segments.indices.contains(selectedSegmentIndex),
@@ -268,8 +267,16 @@ struct EditTrackView: View {
                                     // Show all points when not editing
                                     ForEach(Array(segment.points.enumerated()), id: \.offset) { pointIndex, point in
                                         HStack {
-                                            Text(point.time?.formatted(date: .numeric, time: .complete) ?? "No time")
-                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            if let pointTime = point.time {
+                                                Text(pointTime.formatted(.dateTime.year().month().day()))
+                                                    .foregroundColor(.secondary)
+                                                Text(pointTime.formatted(.dateTime.hour().minute().second()))
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                            } else {
+                                                Text("No time")
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                            }
                                             
                                             if selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex {
                                                 Button(action: {
