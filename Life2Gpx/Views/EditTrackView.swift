@@ -38,25 +38,27 @@ struct EditTrackView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Fixed map at the top
-                mapView
+                editTrackMapView
                     .frame(height: 300)
                 
                 // Form based content below with internal scrolling
                 List {
-                    Section("Track Info") {
-                        Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
-                            Text("Walking").tag("walking")
-                            Text("Running").tag("running")
-                            Text("Cycling").tag("cycling")
-                            Text("Automotive").tag("automotive")
-                            Text("Unknown").tag("unknown")
-                        }
-                        
-                        if workingCopy.track != nil {
-                            LabeledContent("Number of Steps") {
-                                TextField("", value: $workingCopy.steps, format: .number)
-                                    .keyboardType(.numberPad)
-                                    .multilineTextAlignment(.trailing)
+                    if !isEditing {
+                        Section("Track Info") {
+                            Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
+                                Text("Walking").tag("walking")
+                                Text("Running").tag("running")
+                                Text("Cycling").tag("cycling")
+                                Text("Automotive").tag("automotive")
+                                Text("Unknown").tag("unknown")
+                            }
+                            
+                            if workingCopy.track != nil {
+                                LabeledContent("Number of Steps") {
+                                    TextField("", value: $workingCopy.steps, format: .number)
+                                        .keyboardType(.numberPad)
+                                        .multilineTextAlignment(.trailing)
+                                }
                             }
                         }
                     }
@@ -294,7 +296,7 @@ struct EditTrackView: View {
     }
     
     // MARK: - Map View
-    private var mapView: some View {
+    private var editTrackMapView: some View {
         Map(position: $cameraPosition) {
             if let track = workingCopy.track {
                 ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
@@ -374,7 +376,7 @@ struct EditTrackView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal)
-        .padding(.top, 8)
+        .padding(.vertical, 8)
     }
     
     // Helper function to determine if a point is too close to the selected point
