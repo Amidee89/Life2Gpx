@@ -15,6 +15,7 @@ struct EditTrackView: View {
     @State private var selectedPointLatitude: Double = 0.0
     @State private var selectedPointLongitude: Double = 0.0
     @State private var selectedPointElevation: Double = 0.0
+    @State private var shouldUpdateCamera: Bool = false
     
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
@@ -40,11 +41,9 @@ struct EditTrackView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Fixed map at the top
                 editTrackMapView
                     .frame(height: 300)
                 
-                // Form based content below with internal scrolling
                 List {
                     if !isEditing {
                         Section("Track Info") {
@@ -71,13 +70,11 @@ struct EditTrackView: View {
                             if !isEditing || (isEditing && selectedPointIndex != nil && selectedSegmentIndex == segmentIndex) {
                                 Section("Segment \(segmentIndex + 1)") {
                                     if isEditing && selectedPointIndex != nil && selectedSegmentIndex == segmentIndex {
-                                        // Only show the selected point when editing
                                         let pointIndex = selectedPointIndex!
                                         if segment.points.indices.contains(pointIndex) {
                                             let point = segment.points[pointIndex]
                                             
                                             VStack(alignment: .leading, spacing: 12) {
-                                                // Cancel and Done buttons at the top
                                                 HStack {
                                                     Button("Cancel") {
                                                         isEditing = false
@@ -93,16 +90,13 @@ struct EditTrackView: View {
                                                 }
                                                 .padding(.bottom, 8)
                                                 
-                                                // Date and Time
                                                 if let pointTime = point.time {
                                                     let calendar = Calendar.current
                                                     let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: pointTime)
                                                     
-                                                    // Date picker
                                                     DatePicker("Date", selection: Binding(
                                                         get: { pointTime },
                                                         set: { newDate in
-                                                            // Preserve time while changing date
                                                             let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: pointTime)
                                                             let dateComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
                                                             
@@ -120,13 +114,10 @@ struct EditTrackView: View {
                                                         }
                                                     ), displayedComponents: .date)
                                                     
-                                                    // Time and seconds picker combined
                                                     HStack {
-                                                        // Hour:minute picker
                                                         DatePicker("Time", selection: Binding(
                                                             get: { pointTime },
                                                             set: { newTime in
-                                                                // Preserve date and seconds while changing hour/minute
                                                                 let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
                                                                 let timeComponents = calendar.dateComponents([.hour, .minute], from: newTime)
                                                                 let seconds = calendar.component(.second, from: pointTime)
@@ -145,7 +136,6 @@ struct EditTrackView: View {
                                                             }
                                                         ), displayedComponents: .hourAndMinute)
                                                         
-                                                        // Seconds component
                                                         let seconds = calendar.component(.second, from: pointTime)
                                                         Text(":")
                                                             .font(.system(size: 17, weight: .regular))
@@ -153,7 +143,6 @@ struct EditTrackView: View {
                                                             Picker("", selection: Binding(
                                                                 get: { seconds },
                                                                 set: { newSeconds in
-                                                                    // Preserve date and hour/minute while changing seconds
                                                                     var components = calendar.dateComponents(
                                                                         [.year, .month, .day, .hour, .minute],
                                                                         from: pointTime
@@ -180,7 +169,6 @@ struct EditTrackView: View {
                                                         .foregroundColor(.secondary)
                                                 }
                                                 
-                                                // Coordinates
                                                 Group {
                                                     LabeledContent("Latitude:") {
                                                         TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(6)))
@@ -242,7 +230,6 @@ struct EditTrackView: View {
                                             .padding(.vertical, 8)
                                         }
                                     } else {
-                                        // Show all points when not editing
                                         ForEach(Array(segment.points.enumerated()), id: \.offset) { pointIndex, point in
                                             HStack {
                                                 if let pointTime = point.time {
@@ -277,11 +264,13 @@ struct EditTrackView: View {
                                                         selectedSegmentIndex = segmentIndex
                                                         isEditing = false
                                                         
-                                                        // Update the state variables when a point is selected
                                                         if let point = track.segments[segmentIndex].points[safe: pointIndex] {
                                                             selectedPointLatitude = point.latitude ?? 0.0
                                                             selectedPointLongitude = point.longitude ?? 0.0
                                                             selectedPointElevation = point.elevation ?? 0.0
+                                                            
+                                                            // Trigger camera update
+                                                            shouldUpdateCamera = true
                                                         }
                                                     }
                                                 }
@@ -317,6 +306,52 @@ struct EditTrackView: View {
                     ))
                 }
             }
+            .onChange(of: shouldUpdateCamera) { _ in
+                if shouldUpdateCamera, 
+                   let segmentIndex = selectedSegmentIndex, 
+                   let pointIndex = selectedPointIndex,
+                   let track = workingCopy.track,
+                   track.segments.indices.contains(segmentIndex) {
+                    
+                    let segment = track.segments[segmentIndex]
+                    
+                    // Get the selected point and adjacent points
+                    let selectedPoint = segment.points[pointIndex]
+                    let prevPoint = segment.points[safe: pointIndex - 1]
+                    let nextPoint = segment.points[safe: pointIndex + 1]
+                    
+                    // Collect coordinates for all valid points
+                    var coordinates: [CLLocationCoordinate2D] = []
+                    
+                    if let lat = selectedPoint.latitude, let lon = selectedPoint.longitude {
+                        coordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                    }
+                    
+                    if let prevPoint = prevPoint, let lat = prevPoint.latitude, let lon = prevPoint.longitude {
+                        coordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                    }
+                    
+                    if let nextPoint = nextPoint, let lat = nextPoint.latitude, let lon = nextPoint.longitude {
+                        coordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+                    }
+                    
+                    if !coordinates.isEmpty {
+                        // Calculate the region that contains all points with padding
+                        let span = calculateSpan(for: coordinates, withPadding: 1.5)
+                        let center = coordinates[0] // Center on the selected point
+                        
+                        withAnimation {
+                            cameraPosition = .region(MKCoordinateRegion(
+                                center: center,
+                                span: span
+                            ))
+                        }
+                    }
+                    
+                    // Reset the flag
+                    shouldUpdateCamera = false
+                }
+            }
         }
     }
     
@@ -340,12 +375,10 @@ struct EditTrackView: View {
                             .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         
-                        // First render all non-selected points
                         ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
                             if let lat = point.latitude, let lon = point.longitude, 
                                !(index == selectedPointIndex && segmentIndex == selectedSegmentIndex) {
                                 
-                                // Skip points that are too close to the selected point to avoid overlap
                                 let shouldSkip = selectedPointIndex != nil && selectedSegmentIndex != nil &&
                                     isPointTooCloseToSelected(
                                         lat: lat, 
@@ -359,7 +392,6 @@ struct EditTrackView: View {
                                     let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
                                     let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                                     
-                                    // Non-selected points (smaller, blue)
                                     Annotation(timeLabel, coordinate: coordinate) {
                                         ZStack {
                                             Circle()
@@ -385,7 +417,6 @@ struct EditTrackView: View {
                             let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
                             let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                             
-                            // Selected point (larger, orange)
                             Annotation(timeLabel, coordinate: coordinate) {
                                 ZStack {
                                     Circle()
@@ -433,7 +464,6 @@ struct EditTrackView: View {
             return false
         }
         
-        // Calculate distance between points using Haversine formula
         let earthRadius = 6371000.0 // Earth radius in meters
         let dLat = (selectedLat - lat) * .pi / 180
         let dLon = (selectedLon - lon) * .pi / 180
@@ -442,14 +472,40 @@ struct EditTrackView: View {
                 sin(dLon/2) * sin(dLon/2)
         let c = 2 * atan2(sqrt(a), sqrt(1-a))
         let distance = earthRadius * c
-        
-        // Skip points that are within a certain distance (e.g., 50 meters)
-        // This threshold can be adjusted based on your map zoom level
+
         return distance < 50
+    }
+    
+    // Update or add this helper function
+    private func calculateSpan(for coordinates: [CLLocationCoordinate2D], withPadding: Double = 1.0) -> MKCoordinateSpan {
+        guard !coordinates.isEmpty else { return MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01) }
+        
+        var minLat = coordinates[0].latitude
+        var maxLat = coordinates[0].latitude
+        var minLon = coordinates[0].longitude
+        var maxLon = coordinates[0].longitude
+        
+        for coordinate in coordinates {
+            minLat = min(minLat, coordinate.latitude)
+            maxLat = max(maxLat, coordinate.latitude)
+            minLon = min(minLon, coordinate.longitude)
+            maxLon = max(maxLon, coordinate.longitude)
+        }
+        
+        // Apply padding factor
+        let latDelta = (maxLat - minLat) * withPadding
+        let lonDelta = (maxLon - minLon) * withPadding
+        
+        // Ensure minimum zoom level
+        let minDelta = 0.005 // Minimum delta to prevent excessive zoom
+        
+        return MKCoordinateSpan(
+            latitudeDelta: max(latDelta, minDelta),
+            longitudeDelta: max(lonDelta, minDelta)
+        )
     }
 }
 
-//handle optional binding for the track type
 extension Binding {
     func toUnwrapped<T>(defaultValue: T) -> Binding<T> where Value == Optional<T> {
         Binding<T>(
@@ -459,12 +515,10 @@ extension Binding {
     }
 }
 
-// Add preview provider at the bottom of the file
 #Preview {
     EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date())
 } 
 
-// Add this extension at the bottom of the file
 extension Array {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
