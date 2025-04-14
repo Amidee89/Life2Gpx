@@ -492,13 +492,11 @@ struct EditTrackView: View {
             maxLon = max(maxLon, coordinate.longitude)
         }
         
-        // Apply padding factor
         let latDelta = (maxLat - minLat) * withPadding
         let lonDelta = (maxLon - minLon) * withPadding
         
-        // Ensure minimum zoom level
-        let minDelta = 0.005 // Minimum delta to prevent excessive zoom
-        
+        let minDelta = 0.002 
+
         return MKCoordinateSpan(
             latitudeDelta: max(latDelta, minDelta),
             longitudeDelta: max(lonDelta, minDelta)
