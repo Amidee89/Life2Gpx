@@ -293,13 +293,13 @@ class GPXUtils {
         return matchPercentage >= requiredPercentage
     }
     
-    static func areTracksSame(_ track1: GPXTrack, _ track2: GPXTrack, confidenceLevel: Int) -> Bool {
+    static func areTracksTheSame(_ track1: GPXTrack, _ track2: GPXTrack, confidenceLevel: Int) -> Bool {
         guard confidenceLevel >= 1 && confidenceLevel <= 5 else {
             // Default to medium confidence if invalid level provided
-            return areTracksSame(track1, track2, confidenceLevel: 3)
+            return areTracksTheSame(track1, track2, confidenceLevel: 3)
         }
         
-        // If the number of segments differ, tracks are different
+        // If the number of segments differ, tracks are differentx
         if track1.segments.count != track2.segments.count {
             return false
         }

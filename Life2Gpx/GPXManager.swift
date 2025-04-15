@@ -88,21 +88,11 @@ class GPXManager {
             // Find the waypoint that matches our original waypoint
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
-                // Match by multiple criteria to ensure we find the correct waypoint
-                let timeMatch = currentFileWaypoint.time == originalWaypoint.time
-                let latMatch = abs((currentFileWaypoint.latitude ?? 0) - (originalWaypoint.latitude ?? 0)) < 0.0000001
-                let lonMatch = abs((currentFileWaypoint.longitude ?? 0) - (originalWaypoint.longitude ?? 0)) < 0.0000001
-                let nameMatch = currentFileWaypoint.name == originalWaypoint.name
-                
-                // Consider it a match if most criteria match
-                let matchCount = [timeMatch, latMatch, lonMatch, nameMatch]
-                    .filter { $0 }
-                    .count
-                return matchCount >= 3
+                return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
             }) {
                 fileWaypoints[index] = updatedWaypoint
                 self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)
-            }else{
+            } else {
                 print("Waypoint not found")
             }
         }
@@ -149,17 +139,7 @@ class GPXManager {
             // Find and remove the waypoint that matches our original waypoint
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
-                // Match by multiple criteria to ensure we find the correct waypoint
-                let timeMatch = currentFileWaypoint.time == originalWaypoint.time
-                let latMatch = abs((currentFileWaypoint.latitude ?? 0) - (originalWaypoint.latitude ?? 0)) < 0.0000001
-                let lonMatch = abs((currentFileWaypoint.longitude ?? 0) - (originalWaypoint.longitude ?? 0)) < 0.0000001
-                let nameMatch = currentFileWaypoint.name == originalWaypoint.name
-                
-                // Consider it a match if most criteria match
-                let matchCount = [timeMatch, latMatch, lonMatch, nameMatch]
-                    .filter { $0 }
-                    .count
-                return matchCount >= 3
+                return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
             }) {
                 fileWaypoints.remove(at: index)
                 self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)

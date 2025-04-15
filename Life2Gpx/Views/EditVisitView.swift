@@ -21,37 +21,39 @@ struct EditVisitView: View {
     @State private var elevationString: String = ""
     @State private var stepsString: String = ""
     @State private var showingDeleteConfirmation = false
+    @State private var workingWaypoint: GPXWaypoint?
     
     private var originalLatitude: Double?
     private var originalLongitude: Double?
     private var originalElevation: Double?
     private var originalTime: Date?
+    private var originalWaypoint: GPXWaypoint?
     
     init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?) -> Void) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
         self.onSave = onSave
         
-        // Store the original waypoint values
+        // Store the original waypoint and its values
         if let firstPoint = timelineObject.points.first {
-            self.originalLatitude = firstPoint.latitude
-            self.originalLongitude = firstPoint.longitude
-            self.originalElevation = firstPoint.elevation
-            self.originalTime = firstPoint.time
+            self.originalWaypoint = firstPoint
         }
         
         _visitDate = State(initialValue: timelineObject.startDate ?? Date())
-        _latitudeString = State(initialValue: String(format: "%.6f", timelineObject.points.first?.latitude ?? 0))
-        _longitudeString = State(initialValue: String(format: "%.6f", timelineObject.points.first?.longitude ?? 0))
-        _elevationString = State(initialValue: String(format: "%.1f", timelineObject.points.first?.elevation ?? 0))
-        _stepsString = State(initialValue: String(timelineObject.steps))
+        _latitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.latitude ?? 0))
+        _longitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.longitude ?? 0))
+        _elevationString = State(initialValue: String(format: "%.1f", self.originalWaypoint?.elevation ?? 0))
+        _stepsString = State(initialValue: self.originalWaypoint?.extensions?.get(from: nil)?["Steps"] ?? "0")
+        
+        // Create a working copy of the waypoint (but need to assign it in onAppear)
+        _workingWaypoint = State(initialValue: nil)
     }
 
     private var currentCoordinate: CLLocationCoordinate2D? {
-        guard let firstPoint = timelineObject.points.first else { return nil }
+        guard let waypoint = workingWaypoint else { return nil }
         return CLLocationCoordinate2D(
-            latitude: firstPoint.latitude ?? 0,
-            longitude: firstPoint.longitude ?? 0
+            latitude: waypoint.latitude ?? 0,
+            longitude: waypoint.longitude ?? 0
         )
     }
 
@@ -122,8 +124,8 @@ struct EditVisitView: View {
                                                 visitDate = newDate
                                                 
                                                 // Update the waypoint time
-                                                if let firstPoint = timelineObject.points.first {
-                                                    firstPoint.time = newDate
+                                                if let waypoint = workingWaypoint {
+                                                    waypoint.time = newDate
                                                 }
                                             }
                                         }
@@ -169,9 +171,9 @@ struct EditVisitView: View {
                                     longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
                                     
                                     // Update the waypoint coordinates
-                                    if let firstPoint = timelineObject.points.first {
-                                        firstPoint.latitude = place.centerCoordinate.latitude
-                                        firstPoint.longitude = place.centerCoordinate.longitude
+                                    if let waypoint = workingWaypoint {
+                                        waypoint.latitude = place.centerCoordinate.latitude
+                                        waypoint.longitude = place.centerCoordinate.longitude
                                     }
                                     
                                     // Update the map region to center on the place
@@ -225,9 +227,9 @@ struct EditVisitView: View {
                                     }
                                     .onTapGesture { screenCoord in
                                         if let coordinate = reader.convert(screenCoord, from: .local) {
-                                            if let firstPoint = timelineObject.points.first {
-                                                firstPoint.latitude = coordinate.latitude
-                                                firstPoint.longitude = coordinate.longitude
+                                            if let waypoint = workingWaypoint {
+                                                waypoint.latitude = coordinate.latitude
+                                                waypoint.longitude = coordinate.longitude
                                                 latitudeString = String(format: "%.6f", coordinate.latitude)
                                                 longitudeString = String(format: "%.6f", coordinate.longitude)
                                             }
@@ -373,29 +375,27 @@ struct EditVisitView: View {
                     
                     timelineObject.startDate = visitDate
                     
-                    if let firstPoint = timelineObject.points.first, let date = timelineObject.startDate {
-                        let originalWaypoint = GPXWaypoint(latitude: originalLatitude ?? 0, 
-                                                         longitude: originalLongitude ?? 0)
-                        originalWaypoint.time = originalTime
-                        originalWaypoint.elevation = originalElevation
-                        
-                        let updatedWaypoint = GPXWaypoint(latitude: Double(latitudeString) ?? 0, 
-                                                         longitude: Double(longitudeString) ?? 0)
-                        updatedWaypoint.time = visitDate
-                        updatedWaypoint.elevation = Double(elevationString) ?? 0
+                    // Update the working waypoint with the latest values
+                    if let waypoint = workingWaypoint {
+                        waypoint.latitude = Double(latitudeString) ?? 0
+                        waypoint.longitude = Double(longitudeString) ?? 0
+                        waypoint.time = visitDate
+                        waypoint.elevation = Double(elevationString) ?? 0
                         
                         if let steps = Int(stepsString), steps > 0 {
-                            if updatedWaypoint.extensions == nil {
-                                updatedWaypoint.extensions = GPXExtensions()
+                            if waypoint.extensions == nil {
+                                waypoint.extensions = GPXExtensions()
                             }
-                            updatedWaypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
+                            waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                         }
                         
                         let finalWaypoint = selectedPlace != nil ? 
-                            GPXManager.shared.updateWaypointMetadataFromPlace(updatedWaypoint: updatedWaypoint, place: selectedPlace!) : 
-                            updatedWaypoint
+                            GPXManager.shared.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace!) : 
+                            waypoint
                         
-                        GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: date)
+                        if let originalWaypoint = self.originalWaypoint {
+                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: visitDate)
+                        }
                     }
                     
                     onSave(selectedPlace)
@@ -463,13 +463,8 @@ struct EditVisitView: View {
                     return
                 }
                 
-                // Delete the waypoint
-                if let firstPoint = timelineObject.points.first {
-                    let originalWaypoint = GPXWaypoint(latitude: originalLatitude ?? 0, 
-                                                     longitude: originalLongitude ?? 0)
-                    originalWaypoint.time = originalTime
-                    originalWaypoint.elevation = originalElevation
-                    
+                // Delete the waypoint using the original waypoint
+                if let originalWaypoint = self.originalWaypoint {
                     GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: visitDate)
                 }
                 
@@ -479,6 +474,11 @@ struct EditVisitView: View {
             Button("Cancel", role: .cancel) {}
         }
         .onAppear {
+            // Create a deep copy of the waypoint for editing
+            if let firstPoint = timelineObject.points.first {
+                self.workingWaypoint = GPXUtils.deepCopyPoint(firstPoint)
+            }
+            
             if let coordinate = currentCoordinate {
                 region = MKCoordinateRegion(
                     center: coordinate,
