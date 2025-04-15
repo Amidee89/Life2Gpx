@@ -26,7 +26,8 @@ struct EditTrackView: View {
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
-        _workingCopy = State(initialValue: TimelineObject(
+        
+        let copy = TimelineObject(
             type: timelineObject.type,
             startDate: timelineObject.startDate,
             endDate: timelineObject.endDate,
@@ -40,8 +41,10 @@ struct EditTrackView: View {
             coordinates: timelineObject.identifiableCoordinates,
             points: timelineObject.points,
             customIcon: timelineObject.customIcon,
-            track: timelineObject.track
-        ))
+            track: timelineObject.track != nil ? GPXUtils.deepCopyTrack(timelineObject.track!) : nil
+        )
+        
+        _workingCopy = State(initialValue: copy)
     }
     
     var body: some View {
@@ -82,7 +85,7 @@ struct EditTrackView: View {
                                             
                                             VStack(alignment: .leading, spacing: 12) {
                                                 HStack {
-                                                    Button("Cancel") {
+                                                    Button("Revert edits") {
                                                         // Restore original values
                                                         if let segmentIndex = selectedSegmentIndex, 
                                                            let pointIndex = selectedPointIndex,
@@ -97,9 +100,11 @@ struct EditTrackView: View {
                                                             selectedPointLatitude = originalPointLatitude
                                                             selectedPointLongitude = originalPointLongitude
                                                             selectedPointElevation = originalPointElevation
+                                                            print("Restored point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
                                                         }
                                                         isEditing = false
                                                     }
+                                                    .buttonStyle(BorderlessButtonStyle())
                                                     .foregroundColor(.red)
                                                     
                                                     Spacer()
@@ -110,6 +115,7 @@ struct EditTrackView: View {
                                                            let pointIndex = selectedPointIndex,
                                                            workingCopy.track?.segments.indices.contains(segmentIndex) == true,
                                                            workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                            print("Updating point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = selectedPointLatitude
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = selectedPointLongitude
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = selectedPointElevation
@@ -119,6 +125,7 @@ struct EditTrackView: View {
                                                         }
                                                         isEditing = false
                                                     }
+                                                    .buttonStyle(BorderlessButtonStyle())
                                                     .foregroundColor(.blue)
                                                 }
                                                 .padding(.bottom, 8)
@@ -208,6 +215,7 @@ struct EditTrackView: View {
                                                             .keyboardType(.decimalPad)
                                                             .multilineTextAlignment(.trailing)
                                                             .onChange(of: selectedPointLatitude) { newValue in
+                                                                print("Latitude changed to: \(newValue)")
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -258,6 +266,7 @@ struct EditTrackView: View {
                                                     .foregroundColor(.red)
                                                     .frame(maxWidth: .infinity)
                                                 }
+                                                .buttonStyle(BorderlessButtonStyle())
                                                 .padding(.top, 12)
                                             }
                                             .padding(.vertical, 8)
@@ -308,7 +317,7 @@ struct EditTrackView: View {
                                                             selectedPointLatitude = point.latitude ?? 0.0
                                                             selectedPointLongitude = point.longitude ?? 0.0
                                                             selectedPointElevation = point.elevation ?? 0.0
-                                                            
+                                                            print("Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
                                                             // Trigger camera update
                                                             shouldUpdateCamera = true
                                                         }
@@ -487,6 +496,7 @@ struct EditTrackView: View {
                     // Update the state variables for the form
                     selectedPointLatitude = coordinate.latitude
                     selectedPointLongitude = coordinate.longitude
+                    print("Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
                 }
             }
         }
