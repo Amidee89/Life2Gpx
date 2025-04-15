@@ -17,6 +17,12 @@ struct EditTrackView: View {
     @State private var selectedPointElevation: Double = 0.0
     @State private var shouldUpdateCamera: Bool = false
     
+    // Add state variables to store original values
+    @State private var originalPointLatitude: Double = 0.0
+    @State private var originalPointLongitude: Double = 0.0
+    @State private var originalPointElevation: Double = 0.0
+    @State private var originalPointTime: Date? = nil
+    
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
@@ -77,6 +83,21 @@ struct EditTrackView: View {
                                             VStack(alignment: .leading, spacing: 12) {
                                                 HStack {
                                                     Button("Cancel") {
+                                                        // Restore original values
+                                                        if let segmentIndex = selectedSegmentIndex, 
+                                                           let pointIndex = selectedPointIndex,
+                                                           workingCopy.track?.segments.indices.contains(segmentIndex) == true,
+                                                           workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = originalPointLatitude
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = originalPointLongitude
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = originalPointElevation
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].time = originalPointTime
+                                                            
+                                                            // Update the state variables to match
+                                                            selectedPointLatitude = originalPointLatitude
+                                                            selectedPointLongitude = originalPointLongitude
+                                                            selectedPointElevation = originalPointElevation
+                                                        }
                                                         isEditing = false
                                                     }
                                                     .foregroundColor(.red)
@@ -84,6 +105,18 @@ struct EditTrackView: View {
                                                     Spacer()
                                                     
                                                     Button("Done") {
+                                                        // Update the working copy with current values
+                                                        if let segmentIndex = selectedSegmentIndex, 
+                                                           let pointIndex = selectedPointIndex,
+                                                           workingCopy.track?.segments.indices.contains(segmentIndex) == true,
+                                                           workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = selectedPointLatitude
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = selectedPointLongitude
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = selectedPointElevation
+                                                            
+                                                            // Also update identifiableCoordinates to match the track
+                                                            updateDisplayCoordinates()
+                                                        }
                                                         isEditing = false
                                                     }
                                                     .foregroundColor(.blue)
@@ -265,6 +298,13 @@ struct EditTrackView: View {
                                                         isEditing = false
                                                         
                                                         if let point = track.segments[segmentIndex].points[safe: pointIndex] {
+                                                            // Store original values
+                                                            originalPointLatitude = point.latitude ?? 0.0
+                                                            originalPointLongitude = point.longitude ?? 0.0
+                                                            originalPointElevation = point.elevation ?? 0.0
+                                                            originalPointTime = point.time
+                                                            
+                                                            // Set current values
                                                             selectedPointLatitude = point.latitude ?? 0.0
                                                             selectedPointLongitude = point.longitude ?? 0.0
                                                             selectedPointElevation = point.elevation ?? 0.0
@@ -501,6 +541,25 @@ struct EditTrackView: View {
             latitudeDelta: max(latDelta, minDelta),
             longitudeDelta: max(lonDelta, minDelta)
         )
+    }
+    
+    private func updateDisplayCoordinates() {
+        // Update the identifiableCoordinates from the track data
+        if let track = workingCopy.track {
+            let trackCoordinates = track.segments.flatMap { segment in
+                segment.points.compactMap { point in
+                    point.latitude != nil && point.longitude != nil ?
+                        CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
+                }
+            }
+            
+            if !trackCoordinates.isEmpty {
+                workingCopy.identifiableCoordinates = [IdentifiableCoordinates(coordinates: trackCoordinates)]
+            }
+            
+            // Also update the flat points array
+            workingCopy.points = track.segments.flatMap { $0.points }
+        }
     }
 }
 
