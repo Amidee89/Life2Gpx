@@ -25,13 +25,13 @@ struct MapControlsView: View {
                 if !calendar.isDate(selectedDate, inSameDayAs: Date()){
                     Button(action: onSelectToday){
                         Image(systemName: "forward")
-                            .font(.title)
+                            .frame(width: 20, height: 20)
+                            .font(.system(size: 22))
                             .padding()
                             .background(Color.orange)
                             .foregroundColor(.white)
                             .clipShape(Circle())
                             .shadow(radius: 3)
-                            .scaleEffect(0.8)
                     }
                     .padding(.trailing, 30)
                     .padding(.top,30)
@@ -52,27 +52,26 @@ struct MapControlsView: View {
             HStack {
                 Button(action: onCenter) {
                     Image(systemName: "location.viewfinder")
-                        .font(.title)
+                        .frame(width: 20, height: 20)
+                        .font(.system(size: 22))
                         .padding()
                         .background(Color.blue)
                         .foregroundColor(.white)
                         .clipShape(Circle())
                         .shadow(radius: 3)
-                        .scaleEffect(0.8)
                 }
                 .padding(.leading, 30)
                 .padding(.bottom, 30)
                 Spacer()
-                
                 Button(action: onRefresh) {
                     Image(systemName: "arrow.clockwise")
-                        .font(.title)
+                        .frame(width: 20, height: 20)
+                        .font(.system(size: 22))
                         .padding()
                         .background(Color.green)
                         .foregroundColor(.white)
                         .clipShape(Circle())
                         .shadow(radius: 3)
-                        .scaleEffect(0.8)
                 }
                 .padding(.trailing, 30)
                 .padding(.bottom, 30)
