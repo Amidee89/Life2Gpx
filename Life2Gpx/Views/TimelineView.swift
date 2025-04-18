@@ -130,23 +130,25 @@ struct TimelineView: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(item.trackType?.capitalized ?? "Movement")
-                                HStack {
-                                    if item.meters > 0 {
-                                        if item.meters < 1000 {
-                                            Text("\(item.meters) m")
-                                                .font(.footnote)
-                                        } else {
-                                            Text("\(item.meters/1000) km")
+                                if item.meters > 0 || item.steps > 0 || item.averageSpeed > 0 {
+                                    HStack {
+                                        if item.meters > 0 {
+                                            if item.meters < 1000 {
+                                                Text("\(item.meters) m")
+                                                    .font(.footnote)
+                                            } else {
+                                                Text("\(item.meters/1000) km")
+                                                    .font(.footnote)
+                                            }
+                                        }
+                                        if item.steps > 0 {
+                                            Text("\(item.steps) steps")
                                                 .font(.footnote)
                                         }
-                                    }
-                                    if item.steps > 0 {
-                                        Text("\(item.steps) steps")
-                                            .font(.footnote)
-                                    }
-                                    if item.averageSpeed > 0 {
-                                        Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
-                                            .font(.footnote)
+                                        if item.averageSpeed > 0 {
+                                            Text("\(String(format: "%.1f", item.averageSpeed)) km/h")
+                                                .font(.footnote)
+                                        }
                                     }
                                 }
                             }
