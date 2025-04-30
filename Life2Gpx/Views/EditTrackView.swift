@@ -22,6 +22,10 @@ struct EditTrackView: View {
     @State private var originalPointLongitude: Double = 0.0
     @State private var originalPointElevation: Double = 0.0
     @State private var originalPointTime: Date? = nil
+    @State private var originalExtensionsDict: [String: String] = [:]
+    
+    // State for edited values
+    @State private var editedExtensions: [String: String] = [:]
     
     init(timelineObject: TimelineObject, fileDate: Date) {
         self.timelineObject = timelineObject
@@ -96,6 +100,10 @@ struct EditTrackView: View {
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = originalPointElevation
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].time = originalPointTime
                                                             
+                                                            // Restore original extensions
+                                                            editedExtensions = originalExtensionsDict
+                                                            // (Actual point extensions will be updated if user hits Done later)
+
                                                             // Update the state variables to match
                                                             selectedPointLatitude = originalPointLatitude
                                                             selectedPointLongitude = originalPointLongitude
@@ -120,6 +128,11 @@ struct EditTrackView: View {
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = selectedPointLongitude
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = selectedPointElevation
                                                             
+                                                            // Update extensions in the working copy
+                                                            let newExtensions = GPXExtensions()
+                                                            newExtensions.append(at: nil, contents: editedExtensions)
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].extensions = newExtensions.children.isEmpty ? nil : newExtensions
+
                                                             // Also update identifiableCoordinates to match the track
                                                             updateDisplayCoordinates()
                                                         }
@@ -254,17 +267,24 @@ struct EditTrackView: View {
                                                     }
                                                 }
                                                 
-                                                // Display extensions
-                                                if let extensions = point.extensions, !extensions.children.isEmpty {
-                                                    Section("Extensions") {
-                                                        ForEach(Array(extensions.children.sorted(by: { $0.name < $1.name }).enumerated()), id: \.offset) { _, childExtension in
-                                                            if let value = childExtension.text, !value.isEmpty {
-                                                                LabeledContent(childExtension.name) {
-                                                                    Text(value)
-                                                                        .foregroundColor(.secondary)
-                                                                }
+                                                // Display and edit extensions
+                                                if !editedExtensions.isEmpty {
+                                                    Section {
+                                                        ForEach(editedExtensions.keys.sorted(), id: \.self) { key in
+                                                            let binding = Binding<String>( // Custom binding for dictionary
+                                                                get: { editedExtensions[key] ?? "" },
+                                                                set: { editedExtensions[key] = $0 }
+                                                            )
+                                                            LabeledContent(key) {
+                                                                TextField("Value", text: binding)
+                                                                    .multilineTextAlignment(.trailing)
+                                                                    .foregroundColor(.secondary)
                                                             }
                                                         }
+                                                    } header: {
+                                                        Text("Extensions")
+                                                            .bold()
+                                                            .frame(maxWidth: .infinity, alignment: .center)
                                                     }
                                                 }
                                                 
@@ -327,6 +347,18 @@ struct EditTrackView: View {
                                                             originalPointElevation = point.elevation ?? 0.0
                                                             originalPointTime = point.time
                                                             
+                                                            // Store original extensions
+                                                            originalExtensionsDict = [:]
+                                                            if let extensions = point.extensions {
+                                                                for child in extensions.children {
+                                                                    if let value = child.text {
+                                                                        originalExtensionsDict[child.name] = value
+                                                                    }
+                                                                }
+                                                            }
+                                                            // Initialize edited extensions
+                                                            editedExtensions = originalExtensionsDict
+
                                                             // Set current values
                                                             selectedPointLatitude = point.latitude ?? 0.0
                                                             selectedPointLongitude = point.longitude ?? 0.0
