@@ -453,13 +453,15 @@ struct EditTrackView: View {
     // MARK: - Calculated Properties
     private var totalCalculatedSteps: Int {
         guard let track = workingCopy.track else { return 0 }
-        
+
         return track.segments.reduce(0) { segmentSum, segment in
             segmentSum + segment.points.reduce(0) { pointSum, point in
-                if let extensions = point.extensions,
-                   let stepsString = extensions.get(from: nil)?["Steps"], 
-                   let steps = Int(stepsString) {
-                    return pointSum + steps
+                if let extensions = point.extensions {
+                    for child in extensions.children {
+                        if child.name == "Steps", let stepsString = child.text, let steps = Int(stepsString) {
+                            return pointSum + steps
+                        }
+                    }
                 }
                 return pointSum
             }
