@@ -228,7 +228,6 @@ struct EditTrackView: View {
                                                             .keyboardType(.decimalPad)
                                                             .multilineTextAlignment(.trailing)
                                                             .onChange(of: selectedPointLatitude) { newValue in
-                                                                print("Latitude changed to: \(newValue)")
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -587,7 +586,7 @@ struct EditTrackView: View {
         let c = 2 * atan2(sqrt(a), sqrt(1-a))
         let distance = earthRadius * c
 
-        return distance < 50
+        return distance < 30
     }
     
     // Update or add this helper function
