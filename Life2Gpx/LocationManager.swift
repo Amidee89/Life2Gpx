@@ -30,6 +30,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     override init() {
         super.init()
         let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: ["DeadMansSwitch"])
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
                 print("Notification permission request error: \(error)")

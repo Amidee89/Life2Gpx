@@ -65,10 +65,10 @@ struct EditTrackView: View {
                             }
                             
                             if workingCopy.track != nil {
-                                LabeledContent("Number of Steps") {
-                                    TextField("", value: $workingCopy.steps, format: .number)
-                                        .keyboardType(.numberPad)
+                                LabeledContent("Total number of steps") {
+                                    Text("\(totalCalculatedSteps)")
                                         .multilineTextAlignment(.trailing)
+                                        .foregroundColor(.secondary)
                                 }
                             }
                         }
@@ -254,6 +254,20 @@ struct EditTrackView: View {
                                                     }
                                                 }
                                                 
+                                                // Display extensions
+                                                if let extensions = point.extensions, !extensions.children.isEmpty {
+                                                    Section("Extensions") {
+                                                        ForEach(Array(extensions.children.sorted(by: { $0.name < $1.name }).enumerated()), id: \.offset) { _, childExtension in
+                                                            if let value = childExtension.text, !value.isEmpty {
+                                                                LabeledContent(childExtension.name) {
+                                                                    Text(value)
+                                                                        .foregroundColor(.secondary)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                
                                                 // Delete button at the bottom
                                                 Button(action: {
                                                     // For now, just close edit mode
@@ -400,6 +414,22 @@ struct EditTrackView: View {
                     // Reset the flag
                     shouldUpdateCamera = false
                 }
+            }
+        }
+    }
+    
+    // MARK: - Calculated Properties
+    private var totalCalculatedSteps: Int {
+        guard let track = workingCopy.track else { return 0 }
+        
+        return track.segments.reduce(0) { segmentSum, segment in
+            segmentSum + segment.points.reduce(0) { pointSum, point in
+                if let extensions = point.extensions,
+                   let stepsString = extensions.get(from: nil)?["Steps"], 
+                   let steps = Int(stepsString) {
+                    return pointSum + steps
+                }
+                return pointSum
             }
         }
     }

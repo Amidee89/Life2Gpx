@@ -3,22 +3,27 @@ import CoreGPX
 
 class GPXUtils {
     static func copyExtensions(_ extensions: GPXExtensions?) -> GPXExtensions? {
-        guard let extensions = extensions else { return nil }
+        guard let sourceExtensions = extensions else { return nil }
         
-        let newExtensions = GPXExtensions()
+        var extensionsDict = [String: String]()
         
-        if let contents = extensions.get(from: nil) {
-            newExtensions.append(at: nil, contents: contents)
-        }
-        
-        for child in extensions.children {
-            let parentTagName = child.name
-            if let contents = extensions.get(from: parentTagName) {
-                newExtensions.append(at: parentTagName, contents: contents)
+        // Iterate through the direct children (like <TagName>Value</TagName>)
+        for child in sourceExtensions.children {
+            let key = child.name
+            if let value = child.text, !key.isEmpty {
+                extensionsDict[key] = value
             }
         }
         
-        return newExtensions
+        // If we collected any extensions, create the GPXExtensions object and append them
+        if !extensionsDict.isEmpty {
+            let newExtensions = GPXExtensions()
+            newExtensions.append(at: nil, contents: extensionsDict)
+            return newExtensions
+        }
+        
+        // Return nil if no extensions were found/copied
+        return nil
     }
     
     static func deepCopyPoint(_ point: GPXWaypoint) -> GPXWaypoint {
