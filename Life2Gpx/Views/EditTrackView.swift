@@ -89,7 +89,7 @@ struct EditTrackView: View {
                                             
                                             VStack(alignment: .leading, spacing: 12) {
                                                 HStack {
-                                                    Button("Revert edits") {
+                                                    Button("Cancel") {
                                                         // Restore original values
                                                         if let segmentIndex = selectedSegmentIndex, 
                                                            let pointIndex = selectedPointIndex,
