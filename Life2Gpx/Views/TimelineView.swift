@@ -19,6 +19,7 @@ struct TimelineView: View {
     var onRefresh: () -> Void
     var onSelectItem: (TimelineObject) -> Void
     var onEditVisit: ((TimelineObject, Place?) -> Void)?
+    var onRecenter: () -> Void
     
     var body: some View {
         List(timelineObjects) { item in
@@ -211,7 +212,11 @@ struct TimelineView: View {
                 } else {
                     EditTrackView(
                         timelineObject: timelineObject,
-                        fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date())
+                        fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date()),
+                        onDelete: {
+                            onRefresh()
+                            onRecenter()
+                        }
                     )
                 }
             }

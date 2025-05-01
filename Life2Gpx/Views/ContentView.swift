@@ -111,7 +111,8 @@ struct ContentView: View {
                             selectedTimelineObjectID = item.id
                             selectAndCenter(item)
                         },
-                        onEditVisit: handleVisitEdit
+                        onEditVisit: handleVisitEdit,
+                        onRecenter: centerAllData
                     )
                 }
                 .onReceive(locationManager.$dataHasBeenUpdated) { needsRefresh in

@@ -115,4 +115,23 @@ class GPXManager {
             }
         }
     }
+
+    func deleteTrack(originalTrack: GPXTrack, forDate date: Date) {
+        // Load existing GPX file
+        loadFile(forDate: date) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+
+            // Find and remove the track that matches our original track
+            var fileTracks = tracks
+            if let index = fileTracks.firstIndex(where: { currentFileTrack in
+                // Use confidence level 5 for exact match
+                return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
+            }) {
+                fileTracks.remove(at: index)
+                self.saveLocationData(waypoints, tracks: fileTracks, forDate: date)
+            } else {
+                print("Track not found for deletion")
+            }
+        }
+    }
 }

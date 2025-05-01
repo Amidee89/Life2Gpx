@@ -6,6 +6,7 @@ struct EditTrackView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
     let fileDate: Date
+    var onDelete: () -> Void
     
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var workingCopy: TimelineObject
@@ -27,9 +28,13 @@ struct EditTrackView: View {
     // State for edited values
     @State private var editedExtensions: [String: String] = [:]
     
-    init(timelineObject: TimelineObject, fileDate: Date) {
+    // State for delete confirmation
+    @State private var showingDeleteConfirmation = false
+    
+    init(timelineObject: TimelineObject, fileDate: Date, onDelete: @escaping () -> Void) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
+        self.onDelete = onDelete
         
         let copy = TimelineObject(
             type: timelineObject.type,
@@ -376,6 +381,22 @@ struct EditTrackView: View {
                             }
                         }
                     }
+                    // Delete Track Button Section (Moved inside the List)
+                    if !isEditing && workingCopy.track != nil {
+                        Section {
+                            Button(action: {
+                                showingDeleteConfirmation = true
+                            }) {
+                                HStack {
+                                    Spacer()
+                                    Text("Delete Track")
+                                        .foregroundColor(.red)
+                                    Spacer()
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.red.opacity(0.1))
+                    }
                 }
                 .listStyle(InsetGroupedListStyle())
             }
@@ -446,6 +467,39 @@ struct EditTrackView: View {
                     shouldUpdateCamera = false
                 }
             }
+        }
+        .confirmationDialog(
+            "Are you sure you want to delete this track?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Track", role: .destructive) {
+                // Ensure we have the original track to delete
+                guard let originalTrack = timelineObject.track else {
+                    print("Error: Original track is missing.")
+                    return
+                }
+
+                // First, backup the current GPX file
+                do {
+                    try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                } catch {
+                    print("Error backing up GPX file: \(error)")
+                    // Decide if you want to proceed even if backup fails
+                    // For now, we'll stop here
+                    return
+                }
+
+                // Delete the track using GPXManager
+                GPXManager.shared.deleteTrack(originalTrack: originalTrack, forDate: fileDate)
+
+                // Call the onDelete callback before dismissing
+                onDelete()
+
+                // Dismiss the view
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
     
@@ -646,7 +700,7 @@ extension Binding {
 }
 
 #Preview {
-    EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date())
+    EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date(), onDelete: {})
 } 
 
 extension Array {
