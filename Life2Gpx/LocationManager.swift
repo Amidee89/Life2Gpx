@@ -145,7 +145,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.distanceFilter = 20
         locationManager.startUpdatingLocation()
-        locationManager.startMonitoringSignificantLocationChanges()
+        //this completely breaks everything if I just add it. To be investigated! locationManager.startMonitoringSignificantLocationChanges()
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
