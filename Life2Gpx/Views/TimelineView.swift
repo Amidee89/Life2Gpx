@@ -168,7 +168,7 @@ struct TimelineView: View {
                         showingEditSheet = true
                     }) {
                         Image(systemName: "square.and.pencil")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.black)
                     }
                     .buttonStyle(BorderlessButtonStyle())
                     .contentShape(Rectangle())
