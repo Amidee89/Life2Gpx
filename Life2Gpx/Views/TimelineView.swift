@@ -108,22 +108,6 @@ struct TimelineView: View {
                                     }
                                 }
                             }
-                            Spacer()
-                            if (item.id == selectedTimelineObjectID ||
-                                item.name == nil || 
-                                item.name == "Unknown Place" || 
-                                item.name == "Unknown place") {
-                                Button(action: {
-                                    editingTimelineObject = item
-                                    onSelectItem(item)
-                                    showingEditSheet = true
-                                }) {
-                                    Image(systemName: "square.and.pencil")
-                                        .foregroundColor(item.id == selectedTimelineObjectID ? .black : .blue)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .contentShape(Rectangle())
-                            }
                         }
                     }
                     else
@@ -153,20 +137,6 @@ struct TimelineView: View {
                                     }
                                 }
                             }
-                            
-                            Spacer()
-                            
-                            if item.id == selectedTimelineObjectID {
-                                Button(action: {
-                                    editingTimelineObject = item
-                                    showingEditSheet = true
-                                }) {
-                                    Image(systemName: "square.and.pencil")
-                                        .foregroundColor(.blue)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                                .contentShape(Rectangle())
-                            }
                         }
                     }
                     if item.numberOfPoints == 1 {
@@ -178,6 +148,32 @@ struct TimelineView: View {
                             .font(.footnote)
                     }
                 }
+
+                Spacer()
+
+                if item.type == .waypoint && (item.id == selectedTimelineObjectID || item.name == nil || item.name == "Unknown Place" || item.name == "Unknown place") {
+                    Button(action: {
+                        editingTimelineObject = item
+                        onSelectItem(item)
+                        showingEditSheet = true
+                    }) {
+                        Image(systemName: "square.and.pencil")
+                            .foregroundColor(item.id == selectedTimelineObjectID ? .black : .blue)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                    .contentShape(Rectangle())
+                } else if item.type == .track && item.id == selectedTimelineObjectID {
+                    Button(action: {
+                        editingTimelineObject = item
+                        showingEditSheet = true
+                    }) {
+                        Image(systemName: "square.and.pencil")
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                    .contentShape(Rectangle())
+                }
+
             }
             //.listRowSeparator(.hidden) //an option for the future?
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
