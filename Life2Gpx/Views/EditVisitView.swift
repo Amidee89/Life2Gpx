@@ -389,12 +389,10 @@ struct EditVisitView: View {
                             waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                         }
                         
-                        let finalWaypoint = selectedPlace != nil ? 
-                            GPXManager.shared.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace!) : 
-                            waypoint
+                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace!)
                         
                         if let originalWaypoint = self.originalWaypoint {
-                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: visitDate)
+                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: visitDate)
                         }
                     }
                     

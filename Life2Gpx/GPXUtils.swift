@@ -469,4 +469,37 @@ class GPXUtils {
         let matchPercentage = Double(matchingFields) / Double(totalFields)
         return matchPercentage >= requiredPercentage
     }
+
+    // Helper function to update a waypoint with place data
+    static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
+        updatedWaypoint.name = place.name
+        
+        var extensionData: [String: String] = [
+            "PlaceId": place.placeId
+        ]
+        
+        if let address = place.streetAddress {
+            extensionData["Address"] = address
+        }
+        if let fbId = place.facebookPlaceId {
+            extensionData["FacebookPlaceId"] = fbId
+        }
+        if let mapboxId = place.mapboxPlaceId {
+            extensionData["MapboxPlaceId"] = mapboxId
+        }
+        if let foursquareId = place.foursquareVenueId {
+            extensionData["FoursquareVenueId"] = foursquareId
+        }
+        if let categoryId = place.foursquareCategoryId {
+            extensionData["FoursquareCategoryId"] = categoryId
+        }
+        
+        if updatedWaypoint.extensions == nil {
+            updatedWaypoint.extensions = GPXExtensions()
+        }
+        
+        updatedWaypoint.extensions?.append(at: nil, contents: extensionData)
+        
+        return updatedWaypoint
+    }
 } 
