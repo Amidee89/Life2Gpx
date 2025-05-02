@@ -224,38 +224,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.previousSavedLocation = newLocation
         }
         currentDate = newUpdateDate
-        
+
         // End time measurement
         let endTime = Date()
         let executionTime = endTime.timeIntervalSince(functionStartTime)
-
-        // Log execution time to file
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-
         let executionTimeString = String(format: "%.10f", executionTime)
-        let logMessage = "\(dateFormatter.string(from: functionStartTime)) - Execution time: \(executionTimeString) seconds - Call count: \(locationManagerCallCount)\n"
-
-        let logFileURL = getLogFileURL()
-
-        if FileManager.default.fileExists(atPath: logFileURL.path) {
-            if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
-                fileHandle.seekToEndOfFile()
-                if let data = logMessage.data(using: .utf8) {
-                    fileHandle.write(data)
-                }
-                fileHandle.closeFile()
-            } else {
-                print("Could not open file handle for \(logFileURL.path)")
-            }
-        } else {
-            do {
-                try logMessage.write(to: logFileURL, atomically: true, encoding: .utf8)
-            } catch {
-                print("Failed to write to \(logFileURL.path): \(error)")
-            }
-        }
-        
+        let logContent = "Execution time: \(executionTimeString) seconds - Call count: \(locationManagerCallCount)"
+        FileManagerUtil.logData(context: "LocationUpdate", content: logContent)
     }
     private func adjustSettingsForMovement() {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -505,23 +480,4 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         return (nil)
     }
-}
-
-private func getLogFileURL() -> URL {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd"
-    let fileName = formatter.string(from: Date()) + ".log"
-    
-    var documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    let logsDirectory = documentDirectory.appendingPathComponent("Logs")
-    if !FileManager.default.fileExists(atPath: logsDirectory.path) {
-        do {
-            try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
-        } catch {
-            print("Failed to create Logs directory: \(error)")
-        }
-    }
-    
-    // Return the full path to the log file in the "Logs" directory
-    return logsDirectory.appendingPathComponent(fileName)
 }

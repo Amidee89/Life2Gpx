@@ -173,4 +173,63 @@ class FileManagerUtil {
             print("Base folder not empty: \(baseFolderUrl.lastPathComponent)")
         }
     }
+
+    static func getLogFileURL() -> URL {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let fileName = formatter.string(from: Date()) + ".log"
+
+        let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs")
+        if !FileManager.default.fileExists(atPath: logsDirectory.path) {
+            do {
+                try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+                print("Created Logs directory")
+            } catch {
+                print("Failed to create Logs directory: \(error)")
+            }
+        }
+        
+        // Ensure the 'Logs' folder is included in the setup
+        if !FileManager.default.fileExists(atPath: logsDirectory.path) {
+            do {
+                try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
+                print("Created directory: Logs")
+            } catch {
+                print("Error creating directory Logs: \(error)")
+            }
+        }
+
+        // Return the full path to the log file in the "Logs" directory
+        return logsDirectory.appendingPathComponent(fileName)
+    }
+
+    static func logData(context: String, content: String) {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss.SSS"
+        let timestamp = dateFormatter.string(from: Date())
+
+        let sanitizedContent = content.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+        let logMessage = "\(context) - \(timestamp) - \(sanitizedContent)\n"
+
+        let logFileURL = getLogFileURL()
+
+        if FileManager.default.fileExists(atPath: logFileURL.path) {
+            if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                fileHandle.seekToEndOfFile()
+                if let data = logMessage.data(using: .utf8) {
+                    fileHandle.write(data)
+                }
+                fileHandle.closeFile()
+            } else {
+                print("Could not open file handle for \(logFileURL.path)")
+            }
+        } else {
+            do {
+                try logMessage.write(to: logFileURL, atomically: true, encoding: .utf8)
+            } catch {
+                print("Failed to write to \(logFileURL.path): \(error)")
+            }
+        }
+    }
 } 
