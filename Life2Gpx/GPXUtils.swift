@@ -4,6 +4,7 @@ import CoreGPX
 class GPXUtils {
     static func copyExtensions(_ extensions: GPXExtensions?) -> GPXExtensions? {
         guard let sourceExtensions = extensions else { return nil }
+        FileManagerUtil.logData(context: "GPXUtils", content: "copyExtensions called.")
         
         var extensionsDict = [String: String]()
         
@@ -19,14 +20,17 @@ class GPXUtils {
         if !extensionsDict.isEmpty {
             let newExtensions = GPXExtensions()
             newExtensions.append(at: nil, contents: extensionsDict)
+            FileManagerUtil.logData(context: "GPXUtils", content: "copyExtensions created new extensions object with \(extensionsDict.count) items.")
             return newExtensions
         }
         
         // Return nil if no extensions were found/copied
+        FileManagerUtil.logData(context: "GPXUtils", content: "copyExtensions found no extensions to copy.")
         return nil
     }
     
     static func deepCopyPoint(_ point: GPXWaypoint) -> GPXWaypoint {
+        FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyPoint called for point at time \(point.time?.description ?? "N/A").")
         let copy: GPXWaypoint
         
         if point is GPXTrackPoint {
@@ -64,10 +68,12 @@ class GPXUtils {
         
         copy.extensions = copyExtensions(point.extensions)
         
+        FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyPoint finished copying point.")
         return copy
     }
     
     static func deepCopyTrack(_ track: GPXTrack) -> GPXTrack {
+        FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyTrack called for track named '\(track.name ?? "Unnamed")'.")
         let copy = GPXTrack()
         
         copy.name = track.name
@@ -102,12 +108,15 @@ class GPXUtils {
             copy.add(trackSegment: newSegment)
         }
         
+        FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyTrack finished copying track with \(copy.segments.count) segments.")
         return copy
     }
     
     static func arePointsTheSame(_ point1: GPXWaypoint, _ point2: GPXWaypoint, confidenceLevel: Int) -> Bool {
+        FileManagerUtil.logData(context: "GPXUtils", content: "arePointsTheSame called with confidence level \(confidenceLevel).")
         guard confidenceLevel >= 1 && confidenceLevel <= 5 else {
             // Default to medium confidence if invalid level provided
+            FileManagerUtil.logData(context: "GPXUtils", content: "arePointsTheSame: Invalid confidence level \(confidenceLevel). Defaulting to 3.")
             return arePointsTheSame(point1, point2, confidenceLevel: 3)
         }
         
@@ -295,12 +304,16 @@ class GPXUtils {
         guard totalFields > 0 else { return false }
         
         let matchPercentage = Double(matchingFields) / Double(totalFields)
-        return matchPercentage >= requiredPercentage
+        let result = matchPercentage >= requiredPercentage
+        FileManagerUtil.logData(context: "GPXUtils", content: "arePointsTheSame: Fields matched: \(matchingFields)/\(totalFields) (\(String(format: "%.2f", matchPercentage * 100))%). Required: \(String(format: "%.2f", requiredPercentage * 100))%. Result: \(result).")
+        return result
     }
     
     static func areTracksTheSame(_ track1: GPXTrack, _ track2: GPXTrack, confidenceLevel: Int) -> Bool {
+        FileManagerUtil.logData(context: "GPXUtils", content: "areTracksTheSame called with confidence level \(confidenceLevel). Track1 segments: \(track1.segments.count), Track2 segments: \(track2.segments.count).")
         guard confidenceLevel >= 1 && confidenceLevel <= 5 else {
             // Default to medium confidence if invalid level provided
+            FileManagerUtil.logData(context: "GPXUtils", content: "areTracksTheSame: Invalid confidence level \(confidenceLevel). Defaulting to 3.")
             return areTracksTheSame(track1, track2, confidenceLevel: 3)
         }
         
@@ -467,11 +480,14 @@ class GPXUtils {
         guard totalFields > 0 else { return false }
         
         let matchPercentage = Double(matchingFields) / Double(totalFields)
-        return matchPercentage >= requiredPercentage
+        let result = matchPercentage >= requiredPercentage
+        FileManagerUtil.logData(context: "GPXUtils", content: "areTracksTheSame: Fields matched: \(matchingFields)/\(totalFields) (\(String(format: "%.2f", matchPercentage * 100))%). Required: \(String(format: "%.2f", requiredPercentage * 100))%. Result: \(result).")
+        return result
     }
 
     // Helper function to update a waypoint with place data
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
+        FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name ?? "Unnamed").")
         updatedWaypoint.name = place.name
         
         var extensionData: [String: String] = [
@@ -499,6 +515,7 @@ class GPXUtils {
         }
         
         updatedWaypoint.extensions?.append(at: nil, contents: extensionData)
+        FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace finished updating waypoint.")
         
         return updatedWaypoint
     }
