@@ -149,9 +149,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = 20
-        //this is for making the app startup when the device gets rebooted.
-        //locationManager.startMonitoringSignificantLocationChanges()
+        locationManager.distanceFilter = kCLDistanceFilterNone
         locationManager.startUpdatingLocation()
     }
     
@@ -162,6 +160,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let lastCallTime = lastLocationManagerCallTimestamp, currentTime.timeIntervalSince(lastCallTime) < 1.0 {
             FileManagerUtil.logData(context: "LocationManager", content: "Debouncing locationManager call. Time since last call: \(currentTime.timeIntervalSince(lastCallTime)) seconds.")
             return 
+        } else if let lastCallTime = lastLocationManagerCallTimestamp, currentTime.timeIntervalSince(lastCallTime) > 1.0 {
+            FileManagerUtil.logData(context: "LocationManager", content: "LocationManager call. Time since last call: \(currentTime.timeIntervalSince(lastCallTime)) seconds.")
         }
         lastLocationManagerCallTimestamp = currentTime 
 
