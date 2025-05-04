@@ -27,7 +27,9 @@ struct ManagementView: View {
                 }
                 Text("Edit activity rules")
                 Text("GPX Tidy up")
-                Text("Settings")
+                NavigationLink(destination: SettingsView()) {
+                    Text("Settings")
+                }
                 Text("Data import instructions")
             }
             .navigationTitle("Options")

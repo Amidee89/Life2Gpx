@@ -22,6 +22,7 @@
 		A96B279E2DC65660002B2D2B /* SignificantLocationChangeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B279D2DC65660002B2D2B /* SignificantLocationChangeManager.swift */; };
 		A96B27A02DC67BB9002B2D2B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */; };
 		A96B27A22DC7C811002B2D2B /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B27A12DC7C811002B2D2B /* SettingsManager.swift */; };
+		A96B27A42DC7DD45002B2D2B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B27A32DC7DD45002B2D2B /* SettingsView.swift */; };
 		A98A65412CC1944200061903 /* ManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98A65402CC1943F00061903 /* ManagementView.swift */; };
 		A98A65432CC2DCEC00061903 /* PlaceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98A65422CC2DCE800061903 /* PlaceManager.swift */; };
 		A9A3E9022DA5763400F8E32E /* EditTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A3E9012DA5763400F8E32E /* EditTrackView.swift */; };
@@ -100,6 +101,7 @@
 		A96B279D2DC65660002B2D2B /* SignificantLocationChangeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignificantLocationChangeManager.swift; sourceTree = "<group>"; };
 		A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A96B27A12DC7C811002B2D2B /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		A96B27A32DC7DD45002B2D2B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A98A65402CC1943F00061903 /* ManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementView.swift; sourceTree = "<group>"; };
 		A98A65422CC2DCE800061903 /* PlaceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceManager.swift; sourceTree = "<group>"; };
 		A9A3E9012DA5763400F8E32E /* EditTrackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTrackView.swift; sourceTree = "<group>"; };
@@ -185,6 +187,7 @@
 				A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */,
 				A937C4B12D870738009BC131 /* TimingReportView.swift */,
 				A9A3E9012DA5763400F8E32E /* EditTrackView.swift */,
+				A96B27A32DC7DD45002B2D2B /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -480,6 +483,7 @@
 				A98A65412CC1944200061903 /* ManagementView.swift in Sources */,
 				A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */,
 				A9A3E9042DAE871400F8E32E /* FileManagerUtil.swift in Sources */,
+				A96B27A42DC7DD45002B2D2B /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
