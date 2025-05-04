@@ -128,7 +128,7 @@ struct ContentView: View {
                     centerAllData()
                 }
                 .fullScreenCover(isPresented: $showSettings) {
-                             SettingsView()
+                        ManagementView()
                     
                     
                 .onChange(of: scenePhase) { oldPhase, newPhase in

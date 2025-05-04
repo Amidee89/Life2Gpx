@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct SettingsView: View {
+struct ManagementView: View {
     @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
@@ -39,5 +39,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    ManagementView()
 }

@@ -19,7 +19,8 @@ class FileManagerUtil {
             "Places",
             "Backups",
             "Backups/GPX",
-            "Backups/Places"
+            "Backups/Places",
+            "Logs"
         ]
         
         // Create each folder if it doesn't exist
@@ -29,9 +30,9 @@ class FileManagerUtil {
                 do {
                     try fileManager.createDirectory(at: folderUrl, 
                                                   withIntermediateDirectories: true)
-                    print("Created directory: \(folder)")
+                    FileManagerUtil.logData(context: "Setup", content: "Created directory: \(folder)", verbosity: 4)
                 } catch {
-                    print("Error creating directory \(folder): \(error)")
+                    FileManagerUtil.logData(context: "Setup", content: "Error creating directory \(folder): \(error)", verbosity: 1)
                 }
             }
         }
@@ -55,10 +56,12 @@ class FileManagerUtil {
                                              withIntermediateDirectories: true)
                 
                 if fileManager.fileExists(atPath: destinationUrl.path) {
+                    FileManagerUtil.logData(context: "MoveFile", content: "Removing existing file at destination: \(destinationUrl.path)", verbosity: 4)
                     try fileManager.removeItem(at: destinationUrl)
                 }
                 
                 try fileManager.moveItem(at: fileUrl, to: destinationUrl)
+                FileManagerUtil.logData(context: "MoveFile", content: "Moved \(fileUrl.lastPathComponent) to \(destinationUrl.path)", verbosity: 3)
             } else {
                 // For Life2Gpx files, just move them directly to the Done folder
                 let filename = fileUrl.lastPathComponent
@@ -69,12 +72,15 @@ class FileManagerUtil {
                                              withIntermediateDirectories: true)
                 
                 if fileManager.fileExists(atPath: destinationUrl.path) {
+                    FileManagerUtil.logData(context: "MoveFile", content: "Removing existing file at destination: \(destinationUrl.path)", verbosity: 4)
                     try fileManager.removeItem(at: destinationUrl)
                 }
                 
                 try fileManager.moveItem(at: fileUrl, to: destinationUrl)
+                FileManagerUtil.logData(context: "MoveFile", content: "Moved \(fileUrl.lastPathComponent) to \(destinationUrl.path)", verbosity: 3)
             }
         } else {
+            FileManagerUtil.logData(context: "MoveFile", content: "Could not find 'Import' in path: \(fileUrl.path)", verbosity: 1)
             throw NSError(domain: "FileManagerError", code: 1,
                          userInfo: [NSLocalizedDescriptionKey: "Could not find 'Import' in path"])
         }
@@ -101,6 +107,7 @@ class FileManagerUtil {
         
         // Copy file to backup location
         try fileManager.copyItem(at: fileUrl, to: backupUrl)
+        FileManagerUtil.logData(context: "Backup", content: "Backed up \(fileUrl.lastPathComponent) to \(backupUrl.path)", verbosity: 3)
     }
     
     func backupFile(forDate date: Date) throws {
@@ -122,15 +129,15 @@ class FileManagerUtil {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let baseFolderUrl = documentsUrl.appendingPathComponent(baseFolder)
         
-        print("Starting cleanup of: \(baseFolderUrl.path)")
+        FileManagerUtil.logData(context: "Cleanup", content: "Starting cleanup of: \(baseFolderUrl.path)", verbosity: 4)
         
         func removeEmptySubfolders(at url: URL) throws -> Bool {
-            print("Checking folder: \(url.lastPathComponent)")
+            FileManagerUtil.logData(context: "Cleanup", content: "Checking folder: \(url.lastPathComponent)", verbosity: 5)
             let contents = try fileManager.contentsOfDirectory(at: url, 
                                                              includingPropertiesForKeys: nil)
                 .filter { !$0.lastPathComponent.hasPrefix(".") } // Ignore hidden files
             
-            print("Contents of \(url.lastPathComponent): \(contents.map { $0.lastPathComponent })")
+            FileManagerUtil.logData(context: "Cleanup", content: "Contents of \(url.lastPathComponent): \(contents.map { $0.lastPathComponent })", verbosity: 5)
             
             var isEmpty = true
             
@@ -139,17 +146,17 @@ class FileManagerUtil {
                 fileManager.fileExists(atPath: contentUrl.path, isDirectory: &isDirectory)
                 
                 if isDirectory.boolValue {
-                    print("Processing subfolder: \(contentUrl.lastPathComponent)")
+                    FileManagerUtil.logData(context: "Cleanup", content: "Processing subfolder: \(contentUrl.lastPathComponent)", verbosity: 5)
                     // If subfolder is empty after processing, remove it
                     if try removeEmptySubfolders(at: contentUrl) {
-                        print("Removing empty folder: \(contentUrl.lastPathComponent)")
+                        FileManagerUtil.logData(context: "Cleanup", content: "Removing empty folder: \(contentUrl.lastPathComponent)", verbosity: 4)
                         try fileManager.removeItem(at: contentUrl)
                     } else {
-                        print("Folder not empty: \(contentUrl.lastPathComponent)")
+                        FileManagerUtil.logData(context: "Cleanup", content: "Folder not empty: \(contentUrl.lastPathComponent)", verbosity: 5)
                         isEmpty = false
                     }
                 } else {
-                    print("Found file: \(contentUrl.lastPathComponent)")
+                    FileManagerUtil.logData(context: "Cleanup", content: "Found file: \(contentUrl.lastPathComponent)", verbosity: 5)
                     isEmpty = false
                 }
             }
@@ -157,20 +164,20 @@ class FileManagerUtil {
             // Remove .DS_Store file if present
             let dsStoreUrl = url.appendingPathComponent(".DS_Store")
             if fileManager.fileExists(atPath: dsStoreUrl.path) {
-                print("Removing .DS_Store from \(url.lastPathComponent)")
+                FileManagerUtil.logData(context: "Cleanup", content: "Removing .DS_Store from \(url.lastPathComponent)", verbosity: 4)
                 try fileManager.removeItem(at: dsStoreUrl)
             }
             
-            print("Folder \(url.lastPathComponent) is \(isEmpty ? "empty" : "not empty")")
+            FileManagerUtil.logData(context: "Cleanup", content: "Folder \(url.lastPathComponent) is \(isEmpty ? "empty" : "not empty")", verbosity: 5)
             return isEmpty
         }
         
         // Process subfolders and check if base folder should be removed
         if try removeEmptySubfolders(at: baseFolderUrl) {
-            print("Removing base folder: \(baseFolderUrl.lastPathComponent)")
+            FileManagerUtil.logData(context: "Cleanup", content: "Removing base folder: \(baseFolderUrl.lastPathComponent)", verbosity: 4)
             try fileManager.removeItem(at: baseFolderUrl)
         } else {
-            print("Base folder not empty: \(baseFolderUrl.lastPathComponent)")
+            FileManagerUtil.logData(context: "Cleanup", content: "Base folder not empty: \(baseFolderUrl.lastPathComponent)", verbosity: 5)
         }
     }
 
@@ -184,19 +191,9 @@ class FileManagerUtil {
         if !FileManager.default.fileExists(atPath: logsDirectory.path) {
             do {
                 try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
-                print("Created Logs directory")
+                FileManagerUtil.logData(context: "LogSetup", content: "Created Logs directory via getLogFileURL (should not happen)", verbosity: 2)
             } catch {
-                print("Failed to create Logs directory: \(error)")
-            }
-        }
-        
-        // Ensure the 'Logs' folder is included in the setup
-        if !FileManager.default.fileExists(atPath: logsDirectory.path) {
-            do {
-                try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
-                print("Created directory: Logs")
-            } catch {
-                print("Error creating directory Logs: \(error)")
+                FileManagerUtil.logData(context: "LogSetup", content: "Failed to create Logs directory: \(error)", verbosity: 1)
             }
         }
 
@@ -204,13 +201,18 @@ class FileManagerUtil {
         return logsDirectory.appendingPathComponent(fileName)
     }
 
-    static func logData(context: String, content: String) {
+    static func logData(context: String, content: String, verbosity: Int) {
+        guard SettingsManager.shared.debugLogVerbosity > 0, 
+              verbosity <= SettingsManager.shared.debugLogVerbosity else {
+            return
+        }
+
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "HH:mm:ss.SSS"
         let timestamp = dateFormatter.string(from: Date())
 
         let sanitizedContent = content.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
-        let logMessage = "\(context) - \(timestamp) - \(sanitizedContent)\n"
+        let logMessage = "\(context) [V\(verbosity)] - \(timestamp) - \(sanitizedContent)\n"
 
         let logFileURL = getLogFileURL()
 
@@ -222,13 +224,13 @@ class FileManagerUtil {
                 }
                 fileHandle.closeFile()
             } else {
-                print("Could not open file handle for \(logFileURL.path)")
+                print("[V1] Could not open file handle for \(logFileURL.path)")
             }
         } else {
             do {
                 try logMessage.write(to: logFileURL, atomically: true, encoding: .utf8)
             } catch {
-                print("Failed to write to \(logFileURL.path): \(error)")
+                print("[V1] Failed to write to \(logFileURL.path): \(error)")
             }
         }
     }

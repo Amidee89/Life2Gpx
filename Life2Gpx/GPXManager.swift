@@ -19,7 +19,7 @@ class GPXManager {
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
 
-        FileManagerUtil.logData(context: "GPXManager", content: "Saving GPX data to \(fileName). Waypoints: \(waypoints.count), Tracks: \(tracks.count)")
+        FileManagerUtil.logData(context: "GPXManager", content: "Saving GPX data to \(fileName). Waypoints: \(waypoints.count), Tracks: \(tracks.count)", verbosity: 4)
 
         let gpx = GPXRoot(creator: "Life2Gpx App")
         waypoints.forEach { gpx.add(waypoint: $0) }
@@ -28,10 +28,10 @@ class GPXManager {
         do {
             let gpxString = gpx.gpx() // Serialize the GPXRoot object to a GPX format string
             try gpxString.write(to: fileURL, atomically: true, encoding: .utf8)
-            FileManagerUtil.logData(context: "GPXManager", content: "GPX data saved successfully to \(fileName).")
+            FileManagerUtil.logData(context: "GPXManager", content: "GPX data saved successfully to \(fileName).", verbosity: 3)
         } catch {
             print("Error writing GPX file: \(error)")
-            FileManagerUtil.logData(context: "GPXManager", content: "Error writing GPX file \(fileName): \(error.localizedDescription)")
+            FileManagerUtil.logData(context: "GPXManager", content: "Error writing GPX file \(fileName): \(error.localizedDescription)", verbosity: 1)
         }
     }
 
@@ -42,14 +42,14 @@ class GPXManager {
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
         print(fileURL.path) //when we need to find current data folder for simulator
-        FileManagerUtil.logData(context: "GPXManager", content: "Loading GPX file: \(fileName)")
+        FileManagerUtil.logData(context: "GPXManager", content: "Loading GPX file: \(fileName)", verbosity: 4)
 
         guard let gpx = GPXParser(withURL: fileURL)?.parsedData() else {
-            FileManagerUtil.logData(context: "GPXManager", content: "Failed to load or parse GPX file: \(fileName). Returning empty data.")
+            FileManagerUtil.logData(context: "GPXManager", content: "Failed to load or parse GPX file: \(fileName). Returning empty data.", verbosity: 2)
             completion([], []) // File does not exist or can't be parsed
             return
         }
-        FileManagerUtil.logData(context: "GPXManager", content: "Successfully loaded and parsed GPX file: \(fileName). Waypoints: \(gpx.waypoints.count), Tracks: \(gpx.tracks.count)")
+        FileManagerUtil.logData(context: "GPXManager", content: "Successfully loaded and parsed GPX file: \(fileName). Waypoints: \(gpx.waypoints.count), Tracks: \(gpx.tracks.count)", verbosity: 3)
         completion(gpx.waypoints, gpx.tracks)
     }
 
@@ -65,11 +65,11 @@ class GPXManager {
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
         let exists = FileManager.default.fileExists(atPath: fileURL.path)
-        FileManagerUtil.logData(context: "GPXManager", content: "Checking existence for file: \(fileName). Exists: \(exists)")
+        FileManagerUtil.logData(context: "GPXManager", content: "Checking existence for file: \(fileName). Exists: \(exists)", verbosity: 5)
         return exists
     }
     func getDateRange(completion: @escaping (Date?, Date?) -> Void) {
-        FileManagerUtil.logData(context: "GPXManager", content: "Getting date range from documents directory.")
+        FileManagerUtil.logData(context: "GPXManager", content: "Getting date range from documents directory.", verbosity: 4)
         let fileManager = FileManager.default
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
         let files = try? fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
@@ -81,7 +81,7 @@ class GPXManager {
             return dateFormatter.date(from: dateString)
         }
 
-        FileManagerUtil.logData(context: "GPXManager", content: "Found \(dates?.count ?? 0) potential date files.")
+        FileManagerUtil.logData(context: "GPXManager", content: "Found \(dates?.count ?? 0) potential date files.", verbosity: 4)
         let sortedDates = dates?.sorted()
         let earliestDate = sortedDates?.first
         let latestDate = sortedDates?.last
@@ -97,7 +97,7 @@ class GPXManager {
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
-            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to update waypoint for date: \(dateFormatter.string(from: date))")
+            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to update waypoint for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
             // Find the waypoint that matches our original waypoint
             var fileWaypoints = waypoints
@@ -105,11 +105,11 @@ class GPXManager {
                 return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
             }) {
                 fileWaypoints[index] = updatedWaypoint
-                FileManagerUtil.logData(context: "GPXManager", content: "Found waypoint at index \(index). Updating.")
+                FileManagerUtil.logData(context: "GPXManager", content: "Found waypoint at index \(index). Updating.", verbosity: 3)
                 self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)
             } else {
                 print("Waypoint not found")
-                FileManagerUtil.logData(context: "GPXManager", content: "Waypoint not found for update.")
+                FileManagerUtil.logData(context: "GPXManager", content: "Waypoint not found for update.", verbosity: 2)
             }
         }
     }
@@ -120,7 +120,7 @@ class GPXManager {
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
-            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to delete waypoint for date: \(dateFormatter.string(from: date))")
+            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to delete waypoint for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
             // Find and remove the waypoint that matches our original waypoint
             var fileWaypoints = waypoints
@@ -128,11 +128,11 @@ class GPXManager {
                 return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
             }) {
                 fileWaypoints.remove(at: index)
-                FileManagerUtil.logData(context: "GPXManager", content: "Found waypoint at index \(index). Deleting.")
+                FileManagerUtil.logData(context: "GPXManager", content: "Found waypoint at index \(index). Deleting.", verbosity: 3)
                 self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)
             } else {
                 print("Waypoint not found for deletion")
-                FileManagerUtil.logData(context: "GPXManager", content: "Waypoint not found for deletion.")
+                FileManagerUtil.logData(context: "GPXManager", content: "Waypoint not found for deletion.", verbosity: 2)
             }
         }
     }
@@ -143,7 +143,7 @@ class GPXManager {
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
-            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to delete track for date: \(dateFormatter.string(from: date))")
+            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to delete track for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
             // Find and remove the track that matches our original track
             var fileTracks = tracks
@@ -152,11 +152,11 @@ class GPXManager {
                 return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
             }) {
                 fileTracks.remove(at: index)
-                FileManagerUtil.logData(context: "GPXManager", content: "Found track at index \(index). Deleting.")
+                FileManagerUtil.logData(context: "GPXManager", content: "Found track at index \(index). Deleting.", verbosity: 3)
                 self.saveLocationData(waypoints, tracks: fileTracks, forDate: date)
             } else {
                 print("Track not found for deletion")
-                FileManagerUtil.logData(context: "GPXManager", content: "Track not found for deletion.")
+                FileManagerUtil.logData(context: "GPXManager", content: "Track not found for deletion.", verbosity: 2)
             }
         }
     }

@@ -13,27 +13,36 @@ struct Life2GpxApp: App {
     // Instantiate the manager to start monitoring significant changes
     private let significantLocationChangeManager = SignificantLocationChangeManager()
     @Environment(\.scenePhase) private var scenePhase
+    
+    // Create the LocationManager instance using StateObject
+    @StateObject private var locationManager = LocationManager()
 
     init() {
-           // This ensures that `loadPlaces()` is called early on
-           _ = PlaceManager.shared
-           FileManagerUtil.logData(context: "AppLifecycle", content: "App Initialized.")
-       }
+        // Initialize other singletons here
+        _ = SettingsManager.shared
+        _ = FileManagerUtil.shared
+        // _ = LocationManager.shared // Removed incorrect initialization
+        // _ = SignificantLocationChangeManager.shared // This is initialized above as a private let
+        _ = PlaceManager.shared // Initialize PlaceManager
+        FileManagerUtil.logData(context: "AppLifecycle", content: "App Initialized.", verbosity: 2)
+    }
        
     var body: some Scene {
         WindowGroup {
+            // Pass the locationManager into the environment
             ContentView()
+                .environmentObject(locationManager)
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
-                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became active.")
+                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became active.", verbosity: 3)
             case .inactive:
-                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became inactive.")
+                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became inactive.", verbosity: 3)
             case .background:
-                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene moved to background.")
+                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene moved to background.", verbosity: 3)
             @unknown default:
-                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene entered unknown state.")
+                FileManagerUtil.logData(context: "AppLifecycle", content: "Scene entered unknown state.", verbosity: 2)
             }
         }
     }
