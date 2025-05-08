@@ -11,7 +11,7 @@ import CoreGPX
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
-    @StateObject private var locationManager = LocationManager()
+    @EnvironmentObject var locationManager: LocationManager
 
     @State private var selectedDate = Date()
     @State private var cameraPosition: MapCameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 360, longitudeDelta: 360)))

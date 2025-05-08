@@ -27,6 +27,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var notificationResetTimer: Timer?
     private var locationManagerCallCount = 0
     private var lastLocationManagerCallTimestamp: Date?
+    private var locationHistory: [(location: CLLocation, receivedAt: Date)] = []
+    private let locationHistoryLock = NSLock()
 
     override init() {
         super.init()
@@ -144,6 +146,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func setupLocationManager() {
+        FileManagerUtil.logData(context: "LocationManager", content: "Setting up location manager.", verbosity: 5)
         locationManager.delegate = self
         locationManager.requestAlwaysAuthorization()
         locationManager.allowsBackgroundLocationUpdates = true
@@ -158,20 +161,45 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let functionStartTime = Date()
-
         let currentTime = Date()
-        if let lastCallTime = lastLocationManagerCallTimestamp, currentTime.timeIntervalSince(lastCallTime) < 1.0 {
-            FileManagerUtil.logData(context: "LocationManager", content: "Debouncing locationManager call. Time since last call: \(currentTime.timeIntervalSince(lastCallTime)) seconds.", verbosity: 5)
-            return 
-        } else if let lastCallTime = lastLocationManagerCallTimestamp, currentTime.timeIntervalSince(lastCallTime) > 1.0 {
-            FileManagerUtil.logData(context: "LocationManager", content: "LocationManager call. Time since last call: \(currentTime.timeIntervalSince(lastCallTime)) seconds.", verbosity: 5)
-        }
-        lastLocationManagerCallTimestamp = currentTime 
 
         locationManagerCallCount += 1
         FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
+           
+        var shouldProcessThisLocation: Bool
+        locationHistoryLock.lock()
+        if let lastEntryInHistory = locationHistory.last {
+            // Queue is not empty. Allow processing if current time is > 1s after the last entry's received time.
+            if currentTime.timeIntervalSince(lastEntryInHistory.receivedAt) > 1.0 {
+                shouldProcessThisLocation = true
+                FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: currentTime \(currentTime) > 1s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
+            } else {
+                shouldProcessThisLocation = false
+                FileManagerUtil.logData(context: "LocationManager", content: "Debouncing: currentTime \(currentTime) NOT > 1s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
+            }
+        } else {
+            // Queue is empty, "just add it" (allow processing for the first entry)
+            shouldProcessThisLocation = true
+            FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: History empty, allowing first entry at \(currentTime).", verbosity: 5)
+        }
+           
+        if shouldProcessThisLocation {
+            locationHistory.append((location: newLocation, receivedAt: currentTime))
+            if locationHistory.count > 20 {
+                locationHistory.removeFirst()
+            }
+            locationHistoryLock.unlock()
+            FileManagerUtil.logData(context: "LocationManager", content: "Location added to history. LocTS: \(newLocation.timestamp), RecTS: \(currentTime). History size: \(locationHistory.count).", verbosity: 5)
+        } else {
+            // Debouncing based on time since last item was added to history.
+            // The user's log "Debouncing location update." is appropriate here.
+            FileManagerUtil.logData(context: "LocationManager", content: "Debouncing location update.", verbosity: 5)
+            locationHistoryLock.unlock()
+            return
+        }
+
            
         let newUpdateDate = Date()
         FileManagerUtil.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)

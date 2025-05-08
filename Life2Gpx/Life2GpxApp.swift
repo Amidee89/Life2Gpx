@@ -21,8 +21,6 @@ struct Life2GpxApp: App {
         // Initialize other singletons here
         _ = SettingsManager.shared
         _ = FileManagerUtil.shared
-        // _ = LocationManager.shared // Removed incorrect initialization
-        // _ = SignificantLocationChangeManager.shared // This is initialized above as a private let
         _ = PlaceManager.shared // Initialize PlaceManager
         FileManagerUtil.logData(context: "AppLifecycle", content: "App Initialized.", verbosity: 2)
     }
