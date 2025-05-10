@@ -209,7 +209,7 @@ struct TimelineView: View {
                     EditTrackView(
                         timelineObject: timelineObject,
                         fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date()),
-                        onDelete: {
+                        onSaveChanges: {
                             onRefresh()
                             onRecenter()
                         }

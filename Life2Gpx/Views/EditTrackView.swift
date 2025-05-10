@@ -6,7 +6,7 @@ struct EditTrackView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
     let fileDate: Date
-    var onDelete: () -> Void
+    var onSaveChanges: () -> Void
     
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var workingCopy: TimelineObject
@@ -31,10 +31,10 @@ struct EditTrackView: View {
     // State for delete confirmation
     @State private var showingDeleteConfirmation = false
     
-    init(timelineObject: TimelineObject, fileDate: Date, onDelete: @escaping () -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
-        self.onDelete = onDelete
+        self.onSaveChanges = onSaveChanges
         
         let copy = TimelineObject(
             type: timelineObject.type,
@@ -445,8 +445,8 @@ struct EditTrackView: View {
                     // Update the track using GPXManager
                     GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
 
-                    // Call the onDelete callback which should trigger a refresh in the parent view
-                    onDelete()
+                    // Call the onSaveChanges callback which should trigger a refresh in the parent view
+                    onSaveChanges()
 
                     // Dismiss the view
                     dismiss()
@@ -535,8 +535,8 @@ struct EditTrackView: View {
                 // Delete the track using GPXManager
                 GPXManager.shared.deleteTrack(originalTrack: originalTrack, forDate: fileDate)
 
-                // Call the onDelete callback before dismissing
-                onDelete()
+                // Call the onSaveChanges callback before dismissing
+                onSaveChanges()
 
                 // Dismiss the view
                 dismiss()
@@ -742,7 +742,7 @@ extension Binding {
 }
 
 #Preview {
-    EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date(), onDelete: {})
+    EditTrackView(timelineObject: TimelineObject.previewTrack, fileDate: Date(), onSaveChanges: {})
 } 
 
 extension Array {
