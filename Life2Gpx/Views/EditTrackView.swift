@@ -294,8 +294,25 @@ struct EditTrackView: View {
                                                 
                                                 // Delete button at the bottom
                                                 Button(action: {
-                                                    // For now, just close edit mode
-                                                    isEditing = false
+                                                    if let segmentIndex = selectedSegmentIndex,
+                                                       let pointIndex = selectedPointIndex,
+                                                       workingCopy.track?.segments.indices.contains(segmentIndex) == true,
+                                                       workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
+                                                        
+                                                        workingCopy.track?.segments[segmentIndex].points.remove(at: pointIndex)
+                                                        
+                                                        // If the segment becomes empty after deleting the point, remove the segment
+                                                        if workingCopy.track?.segments[segmentIndex].points.isEmpty == true {
+                                                            workingCopy.track?.segments.remove(at: segmentIndex)
+                                                        }
+                                                        
+                                                        updateDisplayCoordinates()
+                                                        
+                                                        // Reset selection and editing state
+                                                        selectedPointIndex = nil
+                                                        selectedSegmentIndex = nil
+                                                        isEditing = false
+                                                    }
                                                 }) {
                                                     HStack {
                                                         Image(systemName: "trash")
