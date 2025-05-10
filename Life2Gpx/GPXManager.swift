@@ -160,4 +160,28 @@ class GPXManager {
             }
         }
     }
+
+    func updateTrack(originalTrack: GPXTrack, updatedTrack: GPXTrack, forDate date: Date) {
+        // Load existing GPX file
+        loadFile(forDate: date) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            FileManagerUtil.logData(context: "GPXManager", content: "Attempting to update track for date: \(dateFormatter.string(from: date))", verbosity: 4)
+
+            // Find the track that matches our original track
+            var fileTracks = tracks
+            if let index = fileTracks.firstIndex(where: { currentFileTrack in
+                // Use confidence level 5 for exact match
+                return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
+            }) {
+                fileTracks[index] = updatedTrack
+                FileManagerUtil.logData(context: "GPXManager", content: "Found track at index \(index). Updating.", verbosity: 3)
+                self.saveLocationData(waypoints, tracks: fileTracks, forDate: date)
+            } else {
+                print("Track not found for update")
+                FileManagerUtil.logData(context: "GPXManager", content: "Track not found for update.", verbosity: 2)
+            }
+        }
+    }
 }

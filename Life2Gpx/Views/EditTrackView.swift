@@ -423,7 +423,32 @@ struct EditTrackView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // to be implemented
+                    // Ensure we have the original track and the updated track
+                    guard let originalTrack = timelineObject.track,
+                          let updatedTrack = workingCopy.track else {
+                        print("Error: Original or updated track is missing.")
+                        // Optionally, show an alert to the user
+                        dismiss()
+                        return
+                    }
+
+                    // First, backup the current GPX file
+                    do {
+                        try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                    } catch {
+                        print("Error backing up GPX file: \(error)")
+                        // Decide if you want to proceed even if backup fails
+                        // For now, we'll stop here, but you might want to alert the user or allow proceeding
+                        return
+                    }
+
+                    // Update the track using GPXManager
+                    GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
+
+                    // Call the onDelete callback which should trigger a refresh in the parent view
+                    onDelete()
+
+                    // Dismiss the view
                     dismiss()
                 }
             )
