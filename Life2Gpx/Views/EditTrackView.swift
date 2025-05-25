@@ -9,7 +9,7 @@ struct EditTrackView: View {
     var onSaveChanges: () -> Void
     
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var workingCopy: TimelineObject
+    @StateObject var workingCopy: TimelineObject
     @State private var selectedPointIndex: Int? = nil
     @State private var selectedSegmentIndex: Int? = nil
     @State private var isEditing: Bool = false
@@ -18,17 +18,14 @@ struct EditTrackView: View {
     @State private var selectedPointElevation: Double = 0.0
     @State private var shouldUpdateCamera: Bool = false
     
-    // Add state variables to store original values
     @State private var originalPointLatitude: Double = 0.0
     @State private var originalPointLongitude: Double = 0.0
     @State private var originalPointElevation: Double = 0.0
     @State private var originalPointTime: Date? = nil
     @State private var originalExtensionsDict: [String: String] = [:]
     
-    // State for edited values
     @State private var editedExtensions: [String: String] = [:]
     
-    // State for delete confirmation
     @State private var showingDeleteConfirmation = false
     
     init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void) {
@@ -53,7 +50,7 @@ struct EditTrackView: View {
             track: timelineObject.track != nil ? GPXUtils.deepCopyTrack(timelineObject.track!) : nil
         )
         
-        _workingCopy = State(initialValue: copy)
+        _workingCopy = StateObject(wrappedValue: copy)
     }
     
     var body: some View {
@@ -71,6 +68,9 @@ struct EditTrackView: View {
                                 Text("Cycling").tag("cycling")
                                 Text("Automotive").tag("automotive")
                                 Text("Unknown").tag("unknown")
+                            }
+                            .onChange(of: workingCopy.trackType) { oldValue, newValue in
+                                print("[EditTrackView] Picker selection changed: workingCopy.trackType is now \(newValue ?? "nil") (was \(oldValue ?? "nil"))")
                             }
                             
                             if workingCopy.track != nil {
@@ -95,7 +95,6 @@ struct EditTrackView: View {
                                             VStack(alignment: .leading, spacing: 12) {
                                                 HStack {
                                                     Button("Cancel") {
-                                                        // Restore original values
                                                         if let segmentIndex = selectedSegmentIndex, 
                                                            let pointIndex = selectedPointIndex,
                                                            workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -105,11 +104,8 @@ struct EditTrackView: View {
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = originalPointElevation
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].time = originalPointTime
                                                             
-                                                            // Restore original extensions
                                                             editedExtensions = originalExtensionsDict
-                                                            // (Actual point extensions will be updated if user hits Done later)
 
-                                                            // Update the state variables to match
                                                             selectedPointLatitude = originalPointLatitude
                                                             selectedPointLongitude = originalPointLongitude
                                                             selectedPointElevation = originalPointElevation
@@ -123,7 +119,6 @@ struct EditTrackView: View {
                                                     Spacer()
                                                     
                                                     Button("Done") {
-                                                        // Update the working copy with current values
                                                         if let segmentIndex = selectedSegmentIndex, 
                                                            let pointIndex = selectedPointIndex,
                                                            workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -133,12 +128,10 @@ struct EditTrackView: View {
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = selectedPointLongitude
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = selectedPointElevation
                                                             
-                                                            // Update extensions in the working copy
                                                             let newExtensions = GPXExtensions()
                                                             newExtensions.append(at: nil, contents: editedExtensions)
                                                             workingCopy.track?.segments[segmentIndex].points[pointIndex].extensions = newExtensions.children.isEmpty ? nil : newExtensions
 
-                                                            // Also update identifiableCoordinates to match the track
                                                             updateDisplayCoordinates()
                                                         }
                                                         isEditing = false
@@ -271,11 +264,10 @@ struct EditTrackView: View {
                                                     }
                                                 }
                                                 
-                                                // Display and edit extensions
                                                 if !editedExtensions.isEmpty {
                                                     Section {
                                                         ForEach(editedExtensions.keys.sorted(), id: \.self) { key in
-                                                            let binding = Binding<String>( // Custom binding for dictionary
+                                                            let binding = Binding<String>( 
                                                                 get: { editedExtensions[key] ?? "" },
                                                                 set: { editedExtensions[key] = $0 }
                                                             )
@@ -292,7 +284,6 @@ struct EditTrackView: View {
                                                     }
                                                 }
                                                 
-                                                // Delete button at the bottom
                                                 Button(action: {
                                                     if let segmentIndex = selectedSegmentIndex,
                                                        let pointIndex = selectedPointIndex,
@@ -362,13 +353,11 @@ struct EditTrackView: View {
                                                         isEditing = false
                                                         
                                                         if let point = track.segments[segmentIndex].points[safe: pointIndex] {
-                                                            // Store original values
                                                             originalPointLatitude = point.latitude ?? 0.0
                                                             originalPointLongitude = point.longitude ?? 0.0
                                                             originalPointElevation = point.elevation ?? 0.0
                                                             originalPointTime = point.time
                                                             
-                                                            // Store original extensions
                                                             originalExtensionsDict = [:]
                                                             if let extensions = point.extensions {
                                                                 for child in extensions.children {
@@ -377,15 +366,12 @@ struct EditTrackView: View {
                                                                     }
                                                                 }
                                                             }
-                                                            // Initialize edited extensions
                                                             editedExtensions = originalExtensionsDict
 
-                                                            // Set current values
                                                             selectedPointLatitude = point.latitude ?? 0.0
                                                             selectedPointLongitude = point.longitude ?? 0.0
                                                             selectedPointElevation = point.elevation ?? 0.0
                                                             print("Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
-                                                            // Trigger camera update
                                                             shouldUpdateCamera = true
                                                         }
                                                     }
@@ -398,7 +384,6 @@ struct EditTrackView: View {
                             }
                         }
                     }
-                    // Delete Track Button Section (Moved inside the List)
                     if !isEditing && workingCopy.track != nil {
                         Section {
                             Button(action: {
@@ -423,32 +408,26 @@ struct EditTrackView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // Ensure we have the original track and the updated track
                     guard let originalTrack = timelineObject.track,
                           let updatedTrack = workingCopy.track else {
                         print("Error: Original or updated track is missing.")
-                        // Optionally, show an alert to the user
                         dismiss()
                         return
                     }
 
-                    // First, backup the current GPX file
                     do {
                         try FileManagerUtil.shared.backupFile(forDate: fileDate)
                     } catch {
-                        print("Error backing up GPX file: \(error)")
-                        // Decide if you want to proceed even if backup fails
-                        // For now, we'll stop here, but you might want to alert the user or allow proceeding
+
                         return
                     }
 
-                    // Update the track using GPXManager
+                    workingCopy.track?.type = workingCopy.trackType
+
                     GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
 
-                    // Call the onSaveChanges callback which should trigger a refresh in the parent view
                     onSaveChanges()
 
-                    // Dismiss the view
                     dismiss()
                 }
             )
@@ -472,12 +451,10 @@ struct EditTrackView: View {
                     
                     let segment = track.segments[segmentIndex]
                     
-                    // Get the selected point and adjacent points
                     let selectedPoint = segment.points[pointIndex]
                     let prevPoint = segment.points[safe: pointIndex - 1]
                     let nextPoint = segment.points[safe: pointIndex + 1]
                     
-                    // Collect coordinates for all valid points
                     var coordinates: [CLLocationCoordinate2D] = []
                     
                     if let lat = selectedPoint.latitude, let lon = selectedPoint.longitude {
@@ -493,9 +470,8 @@ struct EditTrackView: View {
                     }
                     
                     if !coordinates.isEmpty {
-                        // Calculate the region that contains all points with padding
                         let span = calculateSpan(for: coordinates, withPadding: 1.5)
-                        let center = coordinates[0] // Center on the selected point
+                        let center = coordinates[0] 
                         
                         withAnimation {
                             cameraPosition = .region(MKCoordinateRegion(
@@ -505,7 +481,6 @@ struct EditTrackView: View {
                         }
                     }
                     
-                    // Reset the flag
                     shouldUpdateCamera = false
                 }
             }
@@ -516,29 +491,22 @@ struct EditTrackView: View {
             titleVisibility: .visible
         ) {
             Button("Delete Track", role: .destructive) {
-                // Ensure we have the original track to delete
                 guard let originalTrack = timelineObject.track else {
                     print("Error: Original track is missing.")
                     return
                 }
 
-                // First, backup the current GPX file
                 do {
                     try FileManagerUtil.shared.backupFile(forDate: fileDate)
                 } catch {
                     print("Error backing up GPX file: \(error)")
-                    // Decide if you want to proceed even if backup fails
-                    // For now, we'll stop here
                     return
                 }
 
-                // Delete the track using GPXManager
                 GPXManager.shared.deleteTrack(originalTrack: originalTrack, forDate: fileDate)
 
-                // Call the onSaveChanges callback before dismissing
                 onSaveChanges()
 
-                // Dismiss the view
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
@@ -648,11 +616,9 @@ struct EditTrackView: View {
                    track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex),
                    let coordinate = reader.convert(screenCoord, from: .local) {
                     
-                    // Update both the point and the state variables
                     track.segments[selectedSegmentIndex].points[selectedPointIndex].latitude = coordinate.latitude
                     track.segments[selectedSegmentIndex].points[selectedPointIndex].longitude = coordinate.longitude
                     
-                    // Update the state variables for the form
                     selectedPointLatitude = coordinate.latitude
                     selectedPointLongitude = coordinate.longitude
                     print("Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
@@ -664,7 +630,6 @@ struct EditTrackView: View {
         .padding(.vertical, 8)
     }
     
-    // Helper function to determine if a point is too close to the selected point
     private func isPointTooCloseToSelected(lat: Double, lon: Double, selectedSegmentIndex: Int, selectedPointIndex: Int, track: GPXTrack) -> Bool {
         guard track.segments.indices.contains(selectedSegmentIndex),
               track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex),
@@ -685,7 +650,6 @@ struct EditTrackView: View {
         return distance < 30
     }
     
-    // Update or add this helper function
     private func calculateSpan(for coordinates: [CLLocationCoordinate2D], withPadding: Double = 1.0) -> MKCoordinateSpan {
         guard !coordinates.isEmpty else { return MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01) }
         
@@ -713,7 +677,6 @@ struct EditTrackView: View {
     }
     
     private func updateDisplayCoordinates() {
-        // Update the identifiableCoordinates from the track data
         if let track = workingCopy.track {
             let trackCoordinates = track.segments.flatMap { segment in
                 segment.points.compactMap { point in
@@ -726,7 +689,6 @@ struct EditTrackView: View {
                 workingCopy.identifiableCoordinates = [IdentifiableCoordinates(coordinates: trackCoordinates)]
             }
             
-            // Also update the flat points array
             workingCopy.points = track.segments.flatMap { $0.points }
         }
     }

@@ -11,7 +11,6 @@ class FileManagerUtil {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         
-        // Define required folders
         let folders = [
             "Import",
             "Import/Arc",
@@ -23,7 +22,6 @@ class FileManagerUtil {
             "Logs"
         ]
         
-        // Create each folder if it doesn't exist
         for folder in folders {
             let folderUrl = documentsUrl.appendingPathComponent(folder)
             if !fileManager.fileExists(atPath: folderUrl.path) {
@@ -43,15 +41,11 @@ class FileManagerUtil {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let doneFolder = documentsUrl.appendingPathComponent("Import/Done/\(sessionTimestamp)")
         
-        // Get the relative path after "Import"
         let components = fileUrl.pathComponents
         if let importIndex = components.firstIndex(of: "Import") {
-            // For Arc files, preserve the folder structure after "Arc"
             if let arcIndex = components.firstIndex(of: "Arc"), arcIndex > importIndex {
                 let subPath = components[(arcIndex + 1)...].joined(separator: "/")
                 let destinationUrl = doneFolder.appendingPathComponent(subPath)
-                
-                // Create intermediate directories if needed
                 try fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(),
                                              withIntermediateDirectories: true)
                 
@@ -63,11 +57,9 @@ class FileManagerUtil {
                 try fileManager.moveItem(at: fileUrl, to: destinationUrl)
                 FileManagerUtil.logData(context: "MoveFile", content: "Moved \(fileUrl.lastPathComponent) to \(destinationUrl.path)", verbosity: 3)
             } else {
-                // For Life2Gpx files, just move them directly to the Done folder
                 let filename = fileUrl.lastPathComponent
                 let destinationUrl = doneFolder.appendingPathComponent(filename)
-                
-                // Create the Done folder if needed
+
                 try fileManager.createDirectory(at: doneFolder,
                                              withIntermediateDirectories: true)
                 
@@ -89,23 +81,13 @@ class FileManagerUtil {
     func backupFile(_ fileUrl: URL) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        
-        // Create timestamp for backup folder
-        let dateFormatter = DateFormatter()
+                let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let timestamp = dateFormatter.string(from: Date())
-        
-        // Determine backup folder based on file type
         let backupType = fileUrl.pathExtension == "gpx" ? "GPX" : "Places"
         let backupFolder = documentsUrl.appendingPathComponent("Backups/\(backupType)/\(timestamp)")
-        
-        // Create the backup folder
         try fileManager.createDirectory(at: backupFolder, withIntermediateDirectories: true)
-        
-        // Create backup URL with original filename
         let backupUrl = backupFolder.appendingPathComponent(fileUrl.lastPathComponent)
-        
-        // Copy file to backup location
         try fileManager.copyItem(at: fileUrl, to: backupUrl)
         FileManagerUtil.logData(context: "Backup", content: "Backed up \(fileUrl.lastPathComponent) to \(backupUrl.path)", verbosity: 3)
     }
@@ -113,14 +95,11 @@ class FileManagerUtil {
     func backupFile(forDate date: Date) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        
-        // Create the file URL for the given date
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileUrl = documentsUrl.appendingPathComponent(fileName)
-        
-        // Use existing backup method
+
         try backupFile(fileUrl)
     }
     
@@ -147,7 +126,6 @@ class FileManagerUtil {
                 
                 if isDirectory.boolValue {
                     FileManagerUtil.logData(context: "Cleanup", content: "Processing subfolder: \(contentUrl.lastPathComponent)", verbosity: 5)
-                    // If subfolder is empty after processing, remove it
                     if try removeEmptySubfolders(at: contentUrl) {
                         FileManagerUtil.logData(context: "Cleanup", content: "Removing empty folder: \(contentUrl.lastPathComponent)", verbosity: 4)
                         try fileManager.removeItem(at: contentUrl)
@@ -172,7 +150,6 @@ class FileManagerUtil {
             return isEmpty
         }
         
-        // Process subfolders and check if base folder should be removed
         if try removeEmptySubfolders(at: baseFolderUrl) {
             FileManagerUtil.logData(context: "Cleanup", content: "Removing base folder: \(baseFolderUrl.lastPathComponent)", verbosity: 4)
             try fileManager.removeItem(at: baseFolderUrl)
@@ -197,7 +174,6 @@ class FileManagerUtil {
             }
         }
 
-        // Return the full path to the log file in the "Logs" directory
         return logsDirectory.appendingPathComponent(fileName)
     }
 

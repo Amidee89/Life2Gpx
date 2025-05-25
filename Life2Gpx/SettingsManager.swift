@@ -1,7 +1,5 @@
 import Foundation
 
-// Removed AppSettings struct as we'll use UserDefaults directly
-
 class SettingsManager {
     static let shared = SettingsManager()
     private let defaults = UserDefaults.standard

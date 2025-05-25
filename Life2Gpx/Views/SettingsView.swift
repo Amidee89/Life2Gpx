@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct SettingsView: View {
-    // Directly use AppStorage to bind to the UserDefaults value managed by SettingsManager
-    // Ensure the key matches the one used in SettingsManager
     @AppStorage("debugLogVerbosity") private var debugLogVerbosity: Int = SettingsManager.shared.debugLogVerbosity
 
     var body: some View {
@@ -21,7 +19,6 @@ struct SettingsView: View {
                         set: { debugLogVerbosity = Int($0) }
                     ), in: 0...5, step: 1)
                     
-                    // Explanation of levels
                     VStack(alignment: .leading, spacing: 4) {
                         Text("0: None - No logs").font(.caption)
                         Text("1: Errors - Only critical errors").font(.caption)
@@ -33,17 +30,15 @@ struct SettingsView: View {
                     .foregroundColor(.gray)
                     .padding(.top, 5)
                 }
-                .padding(.vertical) // Add some vertical padding for the VStack content
+                .padding(.vertical)
             }
         }
         .navigationTitle("Settings")
-        // Optional: Add a navigation bar title display mode if desired
-        // .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 #Preview {
-    NavigationView { // Wrap in NavigationView for preview context
+    NavigationView {
         SettingsView()
     }
 } 

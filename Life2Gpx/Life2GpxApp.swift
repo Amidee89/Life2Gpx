@@ -10,24 +10,21 @@ import SwiftUI
 @main
 struct Life2GpxApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    // Instantiate the manager to start monitoring significant changes
     private let significantLocationChangeManager = SignificantLocationChangeManager()
     @Environment(\.scenePhase) private var scenePhase
     
-    // Create the LocationManager instance using StateObject
     @StateObject private var locationManager = LocationManager()
 
     init() {
-        // Initialize other singletons here
+        // Singletons
         _ = SettingsManager.shared
         _ = FileManagerUtil.shared
-        _ = PlaceManager.shared // Initialize PlaceManager
+        _ = PlaceManager.shared
         FileManagerUtil.logData(context: "AppLifecycle", content: "App Initialized.", verbosity: 2)
     }
        
     var body: some Scene {
         WindowGroup {
-            // Pass the locationManager into the environment
             ContentView()
                 .environmentObject(locationManager)
         }

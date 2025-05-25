@@ -12,7 +12,6 @@ class GPXManager {
 
     private init() {}
 
-    // Saves locations directly using CoreGPX models
     func saveLocationData(_ waypoints: [GPXWaypoint], tracks: [GPXTrack], forDate date: Date) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -26,7 +25,7 @@ class GPXManager {
         tracks.forEach { gpx.add(track: $0) }
 
         do {
-            let gpxString = gpx.gpx() // Serialize the GPXRoot object to a GPX format string
+            let gpxString = gpx.gpx()
             try gpxString.write(to: fileURL, atomically: true, encoding: .utf8)
             FileManagerUtil.logData(context: "GPXManager", content: "GPX data saved successfully to \(fileName).", verbosity: 3)
         } catch {
@@ -34,19 +33,18 @@ class GPXManager {
             FileManagerUtil.logData(context: "GPXManager", content: "Error writing GPX file \(fileName): \(error.localizedDescription)", verbosity: 1)
         }
     }
-
-    // Loads GPX file and returns CoreGPX objects
+    
     func loadFile(forDate date: Date, completion: @escaping ([GPXWaypoint], [GPXTrack]) -> Void) {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.fileURL(forName: fileName)
-        print(fileURL.path) //when we need to find current data folder for simulator
+        print(fileURL.path)
         FileManagerUtil.logData(context: "GPXManager", content: "Loading GPX file: \(fileName)", verbosity: 4)
 
         guard let gpx = GPXParser(withURL: fileURL)?.parsedData() else {
             FileManagerUtil.logData(context: "GPXManager", content: "Failed to load or parse GPX file: \(fileName). Returning empty data.", verbosity: 2)
-            completion([], []) // File does not exist or can't be parsed
+            completion([], [])
             return
         }
         FileManagerUtil.logData(context: "GPXManager", content: "Successfully loaded and parsed GPX file: \(fileName). Waypoints: \(gpx.waypoints.count), Tracks: \(gpx.tracks.count)", verbosity: 3)
@@ -92,14 +90,12 @@ class GPXManager {
     }
 
     func updateWaypoint(originalWaypoint: GPXWaypoint, updatedWaypoint: GPXWaypoint, forDate date: Date) {
-        // Load existing GPX file
         loadFile(forDate: date) { [weak self] waypoints, tracks in
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             FileManagerUtil.logData(context: "GPXManager", content: "Attempting to update waypoint for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
-            // Find the waypoint that matches our original waypoint
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
                 return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
@@ -115,14 +111,12 @@ class GPXManager {
     }
 
     func deleteWaypoint(originalWaypoint: GPXWaypoint, forDate date: Date) {
-        // Load existing GPX file
         loadFile(forDate: date) { [weak self] waypoints, tracks in
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             FileManagerUtil.logData(context: "GPXManager", content: "Attempting to delete waypoint for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
-            // Find and remove the waypoint that matches our original waypoint
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
                 return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
@@ -138,17 +132,14 @@ class GPXManager {
     }
 
     func deleteTrack(originalTrack: GPXTrack, forDate date: Date) {
-        // Load existing GPX file
         loadFile(forDate: date) { [weak self] waypoints, tracks in
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             FileManagerUtil.logData(context: "GPXManager", content: "Attempting to delete track for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
-            // Find and remove the track that matches our original track
             var fileTracks = tracks
             if let index = fileTracks.firstIndex(where: { currentFileTrack in
-                // Use confidence level 5 for exact match
                 return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
             }) {
                 fileTracks.remove(at: index)
@@ -162,17 +153,14 @@ class GPXManager {
     }
 
     func updateTrack(originalTrack: GPXTrack, updatedTrack: GPXTrack, forDate date: Date) {
-        // Load existing GPX file
         loadFile(forDate: date) { [weak self] waypoints, tracks in
             guard let self = self else { return }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
             FileManagerUtil.logData(context: "GPXManager", content: "Attempting to update track for date: \(dateFormatter.string(from: date))", verbosity: 4)
 
-            // Find the track that matches our original track
             var fileTracks = tracks
             if let index = fileTracks.firstIndex(where: { currentFileTrack in
-                // Use confidence level 5 for exact match
                 return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
             }) {
                 fileTracks[index] = updatedTrack

@@ -118,12 +118,12 @@ struct ContentView: View {
                 .onReceive(locationManager.$dataHasBeenUpdated) { needsRefresh in
                         if needsRefresh {
                             refreshData()
-                            locationManager.dataHasBeenUpdated = false // Reset the flag
+                            locationManager.dataHasBeenUpdated = false
                         }
                     }
                               }
                 .onAppear {
-                    _ = FileManagerUtil.shared  // Initialize folder structure
+                    _ = FileManagerUtil.shared
                     refreshData()
                     centerAllData()
                 }
@@ -148,7 +148,6 @@ struct ContentView: View {
     }
     
     private func selectAndCenter(_ item: TimelineObject) {
-         // Deselect all and select the current one
          for index in timelineObjects.indices {
              timelineObjects[index].selected = false
          }
@@ -217,7 +216,7 @@ struct ContentView: View {
 
 public func formatDateToHoursMinutes(_ date: Date) -> String {
     let formatter = DateFormatter()
-    formatter.dateFormat = "HH:mm" // Hour:Minutes format
+    formatter.dateFormat = "HH:mm"
     return formatter.string(from: date)
 }
 
@@ -235,14 +234,12 @@ public func calculateSpan(for coordinates: [CLLocationCoordinate2D]) -> MKCoordi
     return MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
 }
 
-// Helper extension to get start of day
 extension Date {
     func startOfDay() -> Date {
         return Calendar.current.startOfDay(for: self)
     }
 }
 
-// Add preview provider at the bottom of the file
 #Preview {
     ContentView()
 }

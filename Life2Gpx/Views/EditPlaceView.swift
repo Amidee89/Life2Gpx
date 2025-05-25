@@ -68,17 +68,14 @@ struct EditPlaceView: View {
             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
         )))
         
-        // Initialize additional fields
         _facebookPlaceId = State(initialValue: place.facebookPlaceId ?? "")
         _mapboxPlaceId = State(initialValue: place.mapboxPlaceId ?? "")
         _foursquareVenueId = State(initialValue: place.foursquareVenueId ?? "")
         _foursquareCategoryId = State(initialValue: place.foursquareCategoryId ?? "")
         
-        // Initialize lat/lon strings
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
 
-        // Initialize elevation
         if let elevation = place.elevation {
             _elevationString = State(initialValue: String(format: "%.1f", elevation))
         } else {
@@ -90,9 +87,7 @@ struct EditPlaceView: View {
         _lastVisited = State(initialValue: place.lastVisited ?? Date())
     }
 
-    // Add these helper functions at the top of the view struct
     private func logSliderValue(from radius: Int) -> Double {
-        // Convert radius to log scale (using natural log)
         let minRadius = 5.0
         let maxRadius = 2000.0
         let minLog = log(minRadius)
@@ -102,7 +97,6 @@ struct EditPlaceView: View {
     }
 
     private func radiusFromLogSlider(_ value: Double) -> Int {
-        // Convert slider value back to radius using exponential
         let minRadius = 5.0
         let maxRadius = 2000.0
         let minLog = log(minRadius)
@@ -115,7 +109,6 @@ struct EditPlaceView: View {
     var body: some View {
         NavigationView {
             Form {
-                // Map Section
                 Section {
                     ZStack(alignment: .bottomTrailing) {
                         MapReader { reader in
@@ -140,9 +133,7 @@ struct EditPlaceView: View {
                             }
                         }
 
-                        // Map Control Buttons
                         VStack(spacing: 10) {
-                            // Center on selected point button
                             Image(systemName: "location.viewfinder")
                                 .font(.title)
                                 .padding()
@@ -166,7 +157,6 @@ struct EditPlaceView: View {
                                     }
                                 }
                             
-                            // Center on user location button
                             Image(systemName: "location")
                                 .font(.title)
                                 .padding()
@@ -190,7 +180,7 @@ struct EditPlaceView: View {
                     .listRowInsets(EdgeInsets())
                 }
                 
-                // Basic Details Section
+
                 Section(header: Text("Basic Details")) {
                     TextField("Name", text: $name)
                     
@@ -231,7 +221,6 @@ struct EditPlaceView: View {
                     }
                 }
                 
-                // Add this section right after Basic Details section
                 if isFromEditVisit && isNewPlace {
                     Section {
                         Toggle(isOn: $isOneTimeVisit) {
@@ -245,12 +234,10 @@ struct EditPlaceView: View {
                     }
                 }
                 
-                // Address Section
                 Section(header: Text("Address")) {
                     TextField("Street Address", text: $streetAddress)
                 }
                 
-                // Icon Picker Section
                 Section(header: Text("Icon")) {
                     HStack {
                         Image(systemName: customIcon.isEmpty ? "smallcircle.filled.circle" : customIcon)
@@ -262,7 +249,6 @@ struct EditPlaceView: View {
                     }
                 }
                 
-                // Last Visited Section
                 Section(header: Text("Last Visited")) {
                     DatePicker(
                         "Last Visited",
@@ -271,7 +257,6 @@ struct EditPlaceView: View {
                     )
                 }
                 
-                // External IDs Section
                 Section(header: Text("External IDs")) {
                     VStack(alignment: .leading) {
                         Text("Facebook Place ID")
@@ -302,7 +287,6 @@ struct EditPlaceView: View {
                     }
                 }
                 
-                // Identifiers Section
                 DisclosureGroup(
                     isExpanded: $isIdentifiersSectionExpanded,
                     content: {
@@ -346,7 +330,6 @@ struct EditPlaceView: View {
                     }
                 )
                 
-                // Only show delete button for existing places
                 if !isNewPlace {
                     Section {
                         Button(action: {
@@ -390,7 +373,6 @@ struct EditPlaceView: View {
             } message: {
                 Text(errorMessage)
             }
-            // Add this modifier after the Form
             .confirmationDialog(
                 "Are you sure you want to delete this place?",
                 isPresented: $showingDeleteConfirmation,
@@ -453,7 +435,6 @@ struct EditPlaceView: View {
         }
     }
 
-    // Add this new function
     private func deletePlace() {
         do {
             try PlaceManager.shared.deletePlace(originalPlace)
@@ -467,7 +448,6 @@ struct EditPlaceView: View {
 
 struct EditPlaceView_Previews: PreviewProvider {
     static var previews: some View {
-        // Ensure preview place has elevation if needed for testing UI
         let previewPlaceWithElevation = Place(
             placeId: "preview1", name: "Preview Place",
             center: Center(latitude: 40.0, longitude: -74.0), radius: 100,

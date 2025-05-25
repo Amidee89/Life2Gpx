@@ -20,12 +20,12 @@ enum TimelineObjectType {
     case waypoint, track
 }
 
-class TimelineObject: Identifiable {
+class TimelineObject: Identifiable, ObservableObject {
     let id = UUID()
     var type: TimelineObjectType
     var startDate: Date?
     var endDate: Date?
-    var trackType: String?
+    @Published var trackType: String?
     var name: String?
     var duration: String
     var steps: Int
@@ -77,7 +77,6 @@ class TimelineObject: Identifiable {
     }
 
     static let previewTrack: TimelineObject = {
-        // Create multiple sets of coordinates for different segments
         let segment1Coordinates = [
             CLLocationCoordinate2D(latitude: 40.785091, longitude: -73.968285),
             CLLocationCoordinate2D(latitude: 40.786091, longitude: -73.969285),
@@ -107,41 +106,29 @@ class TimelineObject: Identifiable {
         
         let startTime = Date().addingTimeInterval(-3600) // 1 hour ago
         
-        // Create GPX track with multiple segments
         let track = GPXTrack()
         track.name = "Preview Track"
         
-        // Create all waypoints for the flat list
         var allPoints: [GPXWaypoint] = []
         
-        // Create segments with points at 15-second intervals
         var currentTime = startTime
         for (segmentIndex, segmentCoords) in allCoordinates.enumerated() {
             let segment = GPXTrackSegment()
             
             for (pointIndex, coord) in segmentCoords.enumerated() {
-                // Add some variation to elevation
                 let elevation = 100.0 + Double(segmentIndex * 10) + sin(Double(pointIndex) * 0.5) * 5.0
-                
-                // Create track point for the segment
                 let trackPoint = GPXTrackPoint(latitude: coord.latitude, longitude: coord.longitude)
                 trackPoint.time = currentTime
                 trackPoint.elevation = elevation
                 segment.add(trackpoint: trackPoint)
-                
-                // Create corresponding waypoint for the flat list
                 let waypoint = GPXWaypoint(latitude: coord.latitude, longitude: coord.longitude)
                 waypoint.time = currentTime
                 waypoint.elevation = elevation
                 allPoints.append(waypoint)
-                
-                // Advance time by 15 seconds for each point
                 currentTime = currentTime.addingTimeInterval(15)
             }
             
             track.add(trackSegment: segment)
-            
-            // Add a small gap between segments
             currentTime = currentTime.addingTimeInterval(60)
         }
         
@@ -195,7 +182,6 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
     }
 
-    // Create a mutable copy for editing
     struct EditableCopy {
         var placeId: String
         var name: String
@@ -255,9 +241,8 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         }
     }
 
-    // Add hash function
     func hash(into hasher: inout Hasher) {
-        hasher.combine(placeId)  // Since placeId is unique, we can just hash that
+        hasher.combine(placeId)
     }
 }
 
@@ -266,8 +251,6 @@ extension Place {
     var centerCoordinate: CLLocationCoordinate2D {
         return CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
     }
-
-    // Helper to compute the bounding rectangle of the place
     var boundingRect: BoundingRect {
         let radiusDegrees = radius / 111320.0 // Approximate conversion from meters to degrees latitude
         let minLat = center.latitude - radiusDegrees
@@ -305,7 +288,6 @@ class ManagePlacesViewModel: ObservableObject {
     init() {
         #if DEBUG
         if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-            // Load preview data
             self.places = Place.previewPlaces
             return
         }
@@ -318,7 +300,6 @@ class ManagePlacesViewModel: ObservableObject {
     }
     
     func loadPlaces() {
-        // Only load from PlaceManager if not in preview mode
         #if DEBUG
         if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" {
             places = PlaceManager.shared.getAllPlaces()

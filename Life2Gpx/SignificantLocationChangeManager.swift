@@ -16,8 +16,6 @@ class SignificantLocationChangeManager: NSObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Started monitoring significant location changes.", verbosity: 3)
     }
 
-    // MARK: - CLLocationManagerDelegate
-
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         let timestamp = Date()

@@ -8,7 +8,6 @@ class GPXUtils {
         
         var extensionsDict = [String: String]()
         
-        // Iterate through the direct children (like <TagName>Value</TagName>)
         for child in sourceExtensions.children {
             let key = child.name
             if let value = child.text, !key.isEmpty {
@@ -16,7 +15,6 @@ class GPXUtils {
             }
         }
         
-        // If we collected any extensions, create the GPXExtensions object and append them
         if !extensionsDict.isEmpty {
             let newExtensions = GPXExtensions()
             newExtensions.append(at: nil, contents: extensionsDict)
@@ -24,7 +22,6 @@ class GPXUtils {
             return newExtensions
         }
         
-        // Return nil if no extensions were found/copied
         FileManagerUtil.logData(context: "GPXUtils", content: "copyExtensions found no extensions to copy.", verbosity: 5)
         return nil
     }
@@ -115,7 +112,6 @@ class GPXUtils {
     static func arePointsTheSame(_ point1: GPXWaypoint, _ point2: GPXWaypoint, confidenceLevel: Int) -> Bool {
         FileManagerUtil.logData(context: "GPXUtils", content: "arePointsTheSame called with confidence level \(confidenceLevel).", verbosity: 5)
         guard confidenceLevel >= 1 && confidenceLevel <= 5 else {
-            // Default to medium confidence if invalid level provided
             FileManagerUtil.logData(context: "GPXUtils", content: "arePointsTheSame: Invalid confidence level \(confidenceLevel). Defaulting to 3.", verbosity: 2)
             return arePointsTheSame(point1, point2, confidenceLevel: 3)
         }
@@ -239,11 +235,9 @@ class GPXUtils {
             if point1.DGPSid == point2.DGPSid { matchingFields += 1 }
         }
         
-        // Compare links
         if !point1.links.isEmpty || !point2.links.isEmpty {
             totalFields += 1
             
-            // Simple check - if same number of links, check if all hrefs match
             if point1.links.count == point2.links.count {
                 let hrefs1 = Set(point1.links.compactMap { $0.href })
                 let hrefs2 = Set(point2.links.compactMap { $0.href })
@@ -254,24 +248,19 @@ class GPXUtils {
             }
         }
         
-        // Compare extensions
         if point1.extensions != nil || point2.extensions != nil {
             totalFields += 1
             
             if let ext1 = point1.extensions, let ext2 = point2.extensions {
-                // Compare root contents
                 if let contents1 = ext1.get(from: nil), let contents2 = ext2.get(from: nil),
                    contents1 == contents2 {
                     matchingFields += 1
                 } else {
-                    // Compare by checking child elements
                     let children1 = Set(ext1.children.map { $0.name })
                     let children2 = Set(ext2.children.map { $0.name })
                     
                     if children1 == children2 {
-                        // If the same child elements exist, check if their contents match
                         var childrenMatch = true
-                        
                         for childName in children1 {
                             if let childContent1 = ext1.get(from: childName),
                                let childContent2 = ext2.get(from: childName),
@@ -289,7 +278,6 @@ class GPXUtils {
             }
         }
         
-        // Calculate minimum required match percentage based on confidence level
         let requiredPercentage: Double
         switch confidenceLevel {
         case 1: requiredPercentage = 0.2
@@ -297,10 +285,9 @@ class GPXUtils {
         case 3: requiredPercentage = 0.6
         case 4: requiredPercentage = 0.8
         case 5: requiredPercentage = 1.0
-        default: requiredPercentage = 0.6 // Should never reach here due to guard
+        default: requiredPercentage = 0.6
         }
         
-        // Check if there are fields to compare, if not return false
         guard totalFields > 0 else { return false }
         
         let matchPercentage = Double(matchingFields) / Double(totalFields)
@@ -312,12 +299,10 @@ class GPXUtils {
     static func areTracksTheSame(_ track1: GPXTrack, _ track2: GPXTrack, confidenceLevel: Int) -> Bool {
         FileManagerUtil.logData(context: "GPXUtils", content: "areTracksTheSame called with confidence level \(confidenceLevel). Track1 segments: \(track1.segments.count), Track2 segments: \(track2.segments.count).", verbosity: 5)
         guard confidenceLevel >= 1 && confidenceLevel <= 5 else {
-            // Default to medium confidence if invalid level provided
             FileManagerUtil.logData(context: "GPXUtils", content: "areTracksTheSame: Invalid confidence level \(confidenceLevel). Defaulting to 3.", verbosity: 2)
             return areTracksTheSame(track1, track2, confidenceLevel: 3)
         }
         
-        // If the number of segments differ, tracks are differentx
         if track1.segments.count != track2.segments.count {
             return false
         }
@@ -325,7 +310,6 @@ class GPXUtils {
         var totalFields = 0
         var matchingFields = 0
         
-        // Compare track attributes
         if track1.name != nil || track2.name != nil {
             totalFields += 1
             if track1.name == track2.name { matchingFields += 1 }
@@ -356,11 +340,9 @@ class GPXUtils {
             if track1.type == track2.type { matchingFields += 1 }
         }
         
-        // Compare links
         if !track1.links.isEmpty || !track2.links.isEmpty {
             totalFields += 1
             
-            // Simple check - if same number of links, check if all hrefs match
             if track1.links.count == track2.links.count {
                 let hrefs1 = Set(track1.links.compactMap { $0.href })
                 let hrefs2 = Set(track2.links.compactMap { $0.href })
@@ -371,22 +353,18 @@ class GPXUtils {
             }
         }
         
-        // Compare extensions
         if track1.extensions != nil || track2.extensions != nil {
             totalFields += 1
             
             if let ext1 = track1.extensions, let ext2 = track2.extensions {
-                // Compare root contents
                 if let contents1 = ext1.get(from: nil), let contents2 = ext2.get(from: nil),
                    contents1 == contents2 {
                     matchingFields += 1
                 } else {
-                    // Compare by checking child elements
                     let children1 = Set(ext1.children.map { $0.name })
                     let children2 = Set(ext2.children.map { $0.name })
                     
                     if children1 == children2 {
-                        // If the same child elements exist, check if their contents match
                         var childrenMatch = true
                         
                         for childName in children1 {
@@ -406,32 +384,26 @@ class GPXUtils {
             }
         }
         
-        // Compare segments
         for i in 0..<track1.segments.count {
             let segment1 = track1.segments[i]
             let segment2 = track2.segments[i]
             
-            // If segments have different number of points, tracks are different
             if segment1.points.count != segment2.points.count {
                 return false
             }
             
-            // Compare segment extensions
             if segment1.extensions != nil || segment2.extensions != nil {
                 totalFields += 1
                 
                 if let ext1 = segment1.extensions, let ext2 = segment2.extensions {
-                    // Compare root contents
                     if let contents1 = ext1.get(from: nil), let contents2 = ext2.get(from: nil),
                        contents1 == contents2 {
                         matchingFields += 1
                     } else {
-                        // Compare by checking child elements
                         let children1 = Set(ext1.children.map { $0.name })
                         let children2 = Set(ext2.children.map { $0.name })
                         
                         if children1 == children2 {
-                            // If the same child elements exist, check if their contents match
                             var childrenMatch = true
                             
                             for childName in children1 {
@@ -451,21 +423,17 @@ class GPXUtils {
                 }
             }
             
-            // Compare each point in the segment
             for j in 0..<segment1.points.count {
                 let point1 = segment1.points[j]
                 let point2 = segment2.points[j]
                 
                 totalFields += 1
-                // Use the existing point comparison method with the same confidence level
-                // But we only count it as a single field in the track comparison
                 if arePointsTheSame(point1, point2, confidenceLevel: confidenceLevel) {
                     matchingFields += 1
                 }
             }
         }
         
-        // Calculate minimum required match percentage based on confidence level
         let requiredPercentage: Double
         switch confidenceLevel {
         case 1: requiredPercentage = 0.2
@@ -473,10 +441,9 @@ class GPXUtils {
         case 3: requiredPercentage = 0.6
         case 4: requiredPercentage = 0.8
         case 5: requiredPercentage = 1.0
-        default: requiredPercentage = 0.6 // Should never reach here due to guard
+        default: requiredPercentage = 0.6
         }
         
-        // Check if there are fields to compare, if not return false
         guard totalFields > 0 else { return false }
         
         let matchPercentage = Double(matchingFields) / Double(totalFields)
@@ -485,7 +452,6 @@ class GPXUtils {
         return result
     }
 
-    // Helper function to update a waypoint with place data
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
         FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name ?? "Unnamed").", verbosity: 4)
         updatedWaypoint.name = place.name

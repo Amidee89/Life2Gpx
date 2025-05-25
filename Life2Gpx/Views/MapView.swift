@@ -23,7 +23,6 @@ struct MapView: View {
             {
                 UserAnnotation()
             }
-            // First loop for non-selected tracks
             ForEach(timelineObjects.filter { $0.type == .track && $0.id != selectedTimelineObjectID }, id: \.id) { trackObject in
                 ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
                     MapPolyline(coordinates: identifiableCoordinates.coordinates)
@@ -32,7 +31,6 @@ struct MapView: View {
                 }
             }
             if let selectedObject = timelineObjects.first(where: { $0.type == .track && $0.id == selectedTimelineObjectID }) {
-                // Generate new identifiable coordinates for the selected track, in order to make it appear on top.
                 let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
                     IdentifiableCoordinates(coordinates: coordinates.coordinates)
                 }

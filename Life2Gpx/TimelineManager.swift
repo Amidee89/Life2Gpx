@@ -12,7 +12,6 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
             return
         }
 
-        // Flatten and sort all waypoints and track points
         var allCoordinates = [GPXPointProtocol]()
         allCoordinates.append(contentsOf: gpxWaypoints)
         for track in gpxTracks {
@@ -25,8 +24,6 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
 
         let waypointObjects = gpxWaypoints.map { waypoint -> TimelineObject in
             let coordinate = CLLocationCoordinate2D(latitude: waypoint.latitude ?? 0, longitude: waypoint.longitude ?? 0)
-            
-            // Look up the place to get the custom icon
             let place = PlaceManager.shared.findPlace(for: coordinate)
             
             return TimelineObject(
@@ -48,14 +45,12 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
             var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
             let numberOfPoints = trackCoordinates.count
 
-            // Add the closest point to the beginning of the track
             if let firstTrackPoint = track.segments.first?.points.first {
                 if let closestPreviousPoint = findClosestPoint(to: firstTrackPoint, in: allCoordinates, before: true) {
                     trackCoordinates.insert(CLLocationCoordinate2D(latitude: closestPreviousPoint.latitude!, longitude: closestPreviousPoint.longitude!), at: 0)
                 }
             }
 
-            // Add the closest point to the end of the track
             if let lastTrackPoint = track.segments.last?.points.last {
                 if let closestNextPoint = findClosestPoint(to: lastTrackPoint, in: allCoordinates, before: false) {
                     trackCoordinates.append(CLLocationCoordinate2D(latitude: closestNextPoint.latitude!, longitude: closestNextPoint.longitude!))
@@ -124,7 +119,6 @@ func findClosestPoint(to point: GPXPointProtocol, in points: [GPXPointProtocol],
 func adjustDateToEndOfDayIfNeeded(date: Date, comparedToDate selectedDate: Date) -> Date {
     let calendar = Calendar.current
     if !calendar.isDate(date, inSameDayAs: selectedDate) {
-        // If the date is not in the same day as selectedDate, adjust to end of selectedDate
         var dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
         dateComponents.hour = 23
         dateComponents.minute = 59
@@ -136,8 +130,8 @@ func adjustDateToEndOfDayIfNeeded(date: Date, comparedToDate selectedDate: Date)
 
 func calculateDuration(from startDate: Date, to endDate: Date) -> String {
     let interval = endDate.timeIntervalSince(startDate)
-    let hours = Int(interval) / 3600 // Total seconds divided by number of seconds in an hour
-    let minutes = Int(interval) % 3600 / 60 // Remainder of the above division, divided by number of seconds in a minute
+    let hours = Int(interval) / 3600
+    let minutes = Int(interval) % 3600 / 60
     if (hours > 0) {
         return String(format: "%01dh %01dm", hours, minutes)
     } else {
@@ -148,5 +142,5 @@ func calculateDuration(from startDate: Date, to endDate: Date) -> String {
 func calculateDistance(from startCoordinate: GPXPointProtocol, to endCoordinate: GPXPointProtocol) -> Double {
     let startLocation = CLLocation(latitude: startCoordinate.latitude ?? 0, longitude: startCoordinate.longitude ?? 0)
     let endLocation = CLLocation(latitude: endCoordinate.latitude ?? 0, longitude: endCoordinate.longitude ?? 0)
-    return startLocation.distance(from: endLocation) // Returns distance in meters
+    return startLocation.distance(from: endLocation)
 }

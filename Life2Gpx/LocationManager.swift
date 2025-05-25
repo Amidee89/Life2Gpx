@@ -171,7 +171,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         var shouldProcessThisLocation: Bool
         locationHistoryLock.lock()
         if let lastEntryInHistory = locationHistory.last {
-            // Queue is not empty. Allow processing if current time is > 1s after the last entry's received time.
             if currentTime.timeIntervalSince(lastEntryInHistory.receivedAt) > 1.0 {
                 shouldProcessThisLocation = true
                 FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: currentTime \(currentTime) > 1s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
@@ -180,7 +179,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 FileManagerUtil.logData(context: "LocationManager", content: "Debouncing: currentTime \(currentTime) NOT > 1s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
             }
         } else {
-            // Queue is empty, "just add it" (allow processing for the first entry)
             shouldProcessThisLocation = true
             FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: History empty, allowing first entry at \(currentTime).", verbosity: 5)
         }
@@ -193,8 +191,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             locationHistoryLock.unlock()
             FileManagerUtil.logData(context: "LocationManager", content: "Location added to history. LocTS: \(newLocation.timestamp), RecTS: \(currentTime). History size: \(locationHistory.count).", verbosity: 5)
         } else {
-            // Debouncing based on time since last item was added to history.
-            // The user's log "Debouncing location update." is appropriate here.
             FileManagerUtil.logData(context: "LocationManager", content: "Debouncing location update.", verbosity: 5)
             locationHistoryLock.unlock()
             return
@@ -204,10 +200,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let newUpdateDate = Date()
         FileManagerUtil.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)
 
-        //forcing update if it's the new day and somehow midnight scheduler has screwed.
+        //forcing update if it's the new day and somehow midnight scheduler has screwed. TODO: add a grace period as this thing is making double updates now
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
-            FileManagerUtil.logData(context: "LocationManager", content: "New day detected, forcing midnight update.", verbosity: 2)
-            forceMidnightUpdate()
+            let calendar = Calendar.current
+            let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
+            if newUpdateDate.timeIntervalSince(startOfNewDay) >= 10 {
+                FileManagerUtil.logData(context: "LocationManager", content: "New day detected (after 10s grace period), forcing midnight update.", verbosity: 2)
+                forceMidnightUpdate()
+            } else {
+                FileManagerUtil.logData(context: "LocationManager", content: "New day detected, but within 10s grace period. Not forcing midnight update yet. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
+            }
         }
         // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval.
         let timeSinceLastUpdate = abs(lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1)
@@ -220,14 +222,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             GPXManager.shared.loadFile(forDate: Date()) { [weak self] loadedGpxWaypoints, loadedGpxTracks in
                 var allLocations: [(location: CLLocation, date: Date)] = []
 
-                // Add waypoints to the collection
                 for waypoint in loadedGpxWaypoints {
                     if let date = waypoint.time {
                         allLocations.append((CLLocation(latitude: waypoint.latitude ?? 0, longitude: waypoint.longitude ?? 0), date))
                     }
                 }
 
-                // Add trackpoints to the collection
                 for track in loadedGpxTracks {
                     for segment in track.segments {
                         for trackpoint in segment.points {
@@ -238,10 +238,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                 }
 
-                // Sort all locations by date
                 allLocations.sort { $0.date < $1.date }
 
-                // Update previousSavedLocation with the most recent location, if available
                 self?.previousSavedLocation = allLocations.last?.location
             }
         }
@@ -252,7 +250,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
             if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval
             {
-                // Movement significant enough to trigger updates and reset timer
                 FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m >= \(customDistanceFilter)m) and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) thresholds met.", verbosity: 4)
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
@@ -286,7 +283,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         currentDate = newUpdateDate
 
-        // End time measurement
         let endTime = Date()
         let executionTime = endTime.timeIntervalSince(functionStartTime)
         let executionTimeString = String(format: "%.10f", executionTime)
@@ -323,7 +319,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
         let appendAttemptTime = Date()
-        let appendId = UUID().uuidString.prefix(8) // Generate a unique ID for this append operation
+        let appendId = UUID().uuidString.prefix(8)
         FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
 
         if lastAppendCall != nil {
@@ -335,7 +331,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
         }
-        lastAppendCall = appendAttemptTime // Update lastAppendCall *after* successful debounce check
+        lastAppendCall = appendAttemptTime
         
         let dispatchGroup = DispatchGroup()
 
@@ -490,7 +486,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     newWaypoint.time = Date()
                     newWaypoint.elevation = location.altitude
                     
-                    // Check for matching place
                     if let matchingPlace = PlaceManager.shared.findPlace(for: location.coordinate) {
                         newWaypoint.name = matchingPlace.name
                         
@@ -542,7 +537,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     userDefaults.set(type, forKey: "lastUpdateType")
                     userDefaults.synchronize()
                     self.dataHasBeenUpdated = true
-                    self.lastUpdateTimestamp = Date.now // Update instance variable as well
+                    self.lastUpdateTimestamp = Date.now
                     FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
                 } else {
                     FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Failed to get UserDefaults.", verbosity: 2)
@@ -560,29 +555,24 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         if let waypointTime = lastWaypoint?.time, let trackpointTime = lastTrackPoint?.time {
             if waypointTime > trackpointTime {
-                //return (lastWaypoint)
                 mostRecentElement = lastWaypoint
                 mostRecentTime = waypointTime
                 elementType = "Waypoint"
             } else {
-                //return (lastTrackPoint)
                 mostRecentElement = lastTrackPoint
                 mostRecentTime = trackpointTime
                 elementType = "TrackPoint"
             }
         } else if let waypointTime = lastWaypoint?.time {
-            //return (lastWaypoint )
             mostRecentElement = lastWaypoint
             mostRecentTime = waypointTime
             elementType = "Waypoint"
         } else if let trackpointTime = lastTrackPoint?.time {
-            //return (lastTrackPoint as GPXWaypoint?)
             mostRecentElement = lastTrackPoint
             mostRecentTime = trackpointTime
             elementType = "TrackPoint"
         }
         FileManagerUtil.logData(context: "GPXUtil", content: "getMostRecentGPXElement found: Type: \(elementType), Time: \(String(describing: mostRecentTime)).", verbosity: 5)
-        //return (nil)
         return mostRecentElement
     }
 }

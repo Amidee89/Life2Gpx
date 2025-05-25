@@ -181,7 +181,6 @@ struct TimelineView: View {
             
             .alignmentGuide(.listRowSeparatorLeading)
             { viewDimensions in viewDimensions[.leading] }
-            //.background(item.id == selectedTimelineObjectID ? Color.blue.opacity(0.3) : Color.clear)
                 .onTapGesture {
                     withAnimation {
                         onSelectItem(item)
@@ -218,7 +217,7 @@ struct TimelineView: View {
             }
         })
         .onChange(of: showingEditSheet) { newValue in
-            if !newValue {  // Sheet is being dismissed
+            if !newValue {
                 editingTimelineObject = nil
             }
         }

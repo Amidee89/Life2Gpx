@@ -58,20 +58,17 @@ struct ManagePlacesView: View {
                 print("Loading \(nearbyPlaces.count) places within 10km of user location")
                 return nearbyPlaces
             } else {
-                // If no user location, return first 20 places or all if less than 20
                 let limitedPlaces = Array(filteredPlaces.prefix(20))
                 print("Loading \(limitedPlaces.count) places (limited to 20) due to no user location")
                 return limitedPlaces
             }
         }
         
-        // Calculate the visible region bounds with some padding
         let minLat = region.center.latitude - (region.span.latitudeDelta * 0.6)
         let maxLat = region.center.latitude + (region.span.latitudeDelta * 0.6)
         let minLon = region.center.longitude - (region.span.longitudeDelta * 0.6)
         let maxLon = region.center.longitude + (region.span.longitudeDelta * 0.6)
         
-        // Filter places to only those within the visible region
         let filterStartTime = CFAbsoluteTimeGetCurrent()
         let visiblePlaces = filteredPlaces.filter { place in
             let lat = place.coordinate.latitude
@@ -89,7 +86,6 @@ struct ManagePlacesView: View {
         NavigationView {
             VStack {
                 Map(position: $cameraPosition, interactionModes: .all) {
-                    // Only render annotations if map is loaded to prevent initial overload
                     if isMapLoaded {
                         ForEach(visiblePlaces) { place in
                             Annotation(place.name, coordinate: place.coordinate) {
@@ -106,7 +102,6 @@ struct ManagePlacesView: View {
 
                     }
                     
-                    // Add user location marker
                     if let userLocation = userLocation {
                         Marker("Current Location", coordinate: userLocation)
                             .tint(.blue)
@@ -145,15 +140,13 @@ struct ManagePlacesView: View {
                     viewModel.loadPlaces()
                     print("Places after loading: \(viewModel.places.count)")
                     
-                    // Get user's current location
                     if let location = CLLocationManager().location?.coordinate {
                         userLocation = location
                         print("User location found: \(location.latitude), \(location.longitude)")
                         
-                        // Set initial region to 3km around user (even smaller initial view)
                         let region = MKCoordinateRegion(
                             center: location,
-                            latitudinalMeters: 3000, // Reduced from 5km to 3km
+                            latitudinalMeters: 3000,
                             longitudinalMeters: 3000
                         )
                         cameraPosition = .region(region)
@@ -165,7 +158,6 @@ struct ManagePlacesView: View {
                 }
                 .mapStyle(.standard)
                 .onMapCameraChange { context in
-                    // Update visible region when map moves
                     visibleRegion = context.region
                     isMapLoaded = true
                 }
@@ -202,7 +194,7 @@ struct ManagePlacesView: View {
                                         .foregroundColor(.blue)
                                 }
                                 .padding(.trailing)
-                                .zIndex(10) // Ensure button is above other elements
+                                .zIndex(10)
                             }
                         }
                         .padding()
@@ -223,7 +215,6 @@ struct ManagePlacesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 Button(action: {
-                    // Use user location if available, otherwise default
                     let defaultCoordinate = userLocation ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
                     userLocation = defaultCoordinate
                     isCreatingPlace = true

@@ -141,7 +141,6 @@ struct ImportPlacesView: View {
         do {
             #if DEBUG
             if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-                // Mock data for previews
                 arcBackupCount = 3
                 life2GpxFileCount = (files: 2, places: 156)
                 isLoading = false
@@ -425,7 +424,6 @@ struct ImportProgressView: View {
             switch importType {
             case .arcBackup:
                 try await importArcPlaces(timer: timer)
-                // Clean up only if not canceled
                 if !shouldCancel {
                     let cleanupStart = Date()
                     await MainActor.run {
@@ -458,7 +456,6 @@ struct ImportProgressView: View {
         let existingPlaces = PlaceManager.shared.getAllPlaces()
         
         for existingPlace in existingPlaces {
-            // Check for ID match first (immediate duplicate)
             if !place.placeId.isEmpty && place.placeId == existingPlace.placeId {
                 duplicateIdCount += 1
                 print("Found places with same ID:")
@@ -466,12 +463,10 @@ struct ImportProgressView: View {
                 return existingPlace
             }
             
-            // Check for name similarity (case-insensitive, trimmed)
             let normalizedNewName = place.name.trim().lowercased()
             let normalizedExistingName = existingPlace.name.trim().lowercased()
             
             if normalizedNewName == normalizedExistingName {
-                // Check distance using the configurable threshold
                 let distance = place.centerCoordinate.distance(to: existingPlace.centerCoordinate)
                 if distance <= importOptions.duplicateDistanceThreshold {
                     duplicateNameLocationCount += 1
@@ -497,8 +492,7 @@ struct ImportProgressView: View {
         var updatedPlace = duplicate
         var needsUpdate = false
         
-        // Handle ID
-        if importOptions.addIdToExisting && !place.placeId.isEmpty && 
+        if importOptions.addIdToExisting && !place.placeId.isEmpty &&
            duplicate.placeId != place.placeId && 
            !(duplicate.previousIds?.contains(where: { $0 == place.placeId }) ?? false) {
             var previousIds = duplicate.previousIds ?? []
@@ -524,7 +518,6 @@ struct ImportProgressView: View {
             needsUpdate = true
         }
         
-        // Handle radius
         let newRadius: Double
         switch importOptions.radiusHandling {
         case .smaller:
@@ -559,7 +552,6 @@ struct ImportProgressView: View {
             needsUpdate = true
         }
         
-        // Handle metadata
         if importOptions.overwriteExistingMetadata {
             updatedPlace = Place(
                 placeId: updatedPlace.placeId,
@@ -637,8 +629,7 @@ struct ImportProgressView: View {
     private func importArcPlaces(timer: PerformanceTimer) async throws {
         let startImport = Date()  
         
-        // Add this line to create the main processing timer
-        timer.addTime("Main Processing", 0) // Initial duration will be updated later
+        timer.addTime("Main Processing", 0)
         
         let startCountFiles = Date()
         let fileManager = FileManager.default
@@ -666,8 +657,6 @@ struct ImportProgressView: View {
         duplicateIdCount = 0
         duplicateNameLocationCount = 0
         sameNameDifferentLocationCount = 0
-        
-        // Start with 10% progress after backup
         progressValue = 0.1
         
         guard let enumerator = fileManager.enumerator(at: arcFolderUrl,
@@ -678,12 +667,11 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
-        let startProcessing = Date()  // Add timer for main processing loop
-        let batchSize = 50 // Update UI every 50 files
+        let startProcessing = Date()
+        let batchSize = 50
         var batchCounter = 0
         
         while let fileUrl = enumerator.nextObject() as? URL {
-            // Check for cancellation at the start of each file
             guard !shouldCancel else {
                 return
             }
@@ -695,7 +683,7 @@ struct ImportProgressView: View {
             }
             
             do {
-                let startFileProcess = Date()  // Add timer for entire file processing
+                let startFileProcess = Date()
                 
                 let startReadFile = Date()
                 let data = try Data(contentsOf: fileUrl)
@@ -717,14 +705,12 @@ struct ImportProgressView: View {
                     placeDict["radius"] = mean
                 }
                 
-                // <-- Attempt to parse elevation if available in Arc JSON (adjust key if needed)
                 if let elevationValue = jsonObject["elevation"] as? Double {
                      placeDict["elevation"] = elevationValue
                  } else if let elevationString = jsonObject["elevation"] as? String,
                            let elevationDouble = Double(elevationString) {
                      placeDict["elevation"] = elevationDouble
                  }
-                // --> End elevation parsing
 
                 for field in ["streetAddress", "secondsFromGMT", "lastSaved", 
                              "facebookPlaceId", "mapboxPlaceId", 
@@ -770,7 +756,6 @@ struct ImportProgressView: View {
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
                 timer.addTime("Move File", Date().timeIntervalSince(startMoveFile), parent: "Process File")
                 
-                // Update UI less frequently
                 batchCounter += 1
                 if batchCounter >= batchSize {
                     let startUpdateUI = Date()
@@ -797,7 +782,6 @@ struct ImportProgressView: View {
             }
         }
         
-        // Final UI update for any remaining files
         if batchCounter > 0 {
             let startUpdateUI = Date()
             await MainActor.run {
@@ -808,21 +792,19 @@ struct ImportProgressView: View {
             timer.addTime("Update UI", Date().timeIntervalSince(startUpdateUI), parent: "Process File")
         }
         
-        // Set to 90% when file processing is done (leaving 10% for cleanup)
+        // leaving 10% for cleanup
         progressValue = 0.9
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
         
         let startFinalize = Date()
         try await PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
-        
-        // At the end of the function, update the main processing time
         timer.addTime("Main Processing", Date().timeIntervalSince(startImport))
     }
     
     private func importLife2GpxPlaces(timer: PerformanceTimer) async throws {
         let startImport = Date()
-        timer.addTime("Main Processing", 0) // Initial duration will be updated later
+        timer.addTime("Main Processing", 0)
         
         let startCountFiles = Date()
         let fileManager = FileManager.default
@@ -850,11 +832,10 @@ struct ImportProgressView: View {
         // Start with 10% progress after backup
         progressValue = 0.1
         
-        let batchSize = 50 // Update UI every 50 files
+        let batchSize = 50
         var batchCounter = 0
         
         for fileUrl in jsonFiles {
-            // Check for cancellation
             guard !shouldCancel else {
                 return
             }
@@ -906,7 +887,6 @@ struct ImportProgressView: View {
                 try FileManagerUtil.shared.moveFileToImportDone(fileUrl, sessionTimestamp: timestamp)
                 timer.addTime("Move File", Date().timeIntervalSince(startMoveFile), parent: "Process File")
                 
-                // Update UI less frequently
                 batchCounter += 1
                 if batchCounter >= batchSize {
                     let startUpdateUI = Date()
@@ -933,7 +913,6 @@ struct ImportProgressView: View {
             }
         }
         
-        // Final UI update for any remaining files
         if batchCounter > 0 {
             let startUpdateUI = Date()
             await MainActor.run {
@@ -952,7 +931,6 @@ struct ImportProgressView: View {
         try await PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
         
-        // At the end of the function, update the main processing time
         timer.addTime("Main Processing", Date().timeIntervalSince(startImport))
     }
 }
