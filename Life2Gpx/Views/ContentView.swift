@@ -9,8 +9,6 @@ import MapKit
 import CoreGPX
 
 struct ContentView: View {
-    @Environment(\.scenePhase) private var scenePhase
-
     @EnvironmentObject var locationManager: LocationManager
 
     @State private var selectedDate = Date()
@@ -24,6 +22,7 @@ struct ContentView: View {
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
+    let settingsManager = SettingsManager.shared
 
     var body: some View {
         GeometryReader { geometry in
@@ -121,6 +120,14 @@ struct ContentView: View {
                             locationManager.dataHasBeenUpdated = false
                         }
                     }
+                .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+                    let currentTime = Date()
+                    FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
+                    selectedDate = Date()
+                    refreshData()
+                    centerAllData()
+                    FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
+                }
                               }
                 .onAppear {
                     _ = FileManagerUtil.shared
@@ -131,9 +138,6 @@ struct ContentView: View {
                         ManagementView()
                     
                     
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    handleScenePhaseChange(newPhase)
-                }
         }
     }
 
@@ -183,29 +187,6 @@ struct ContentView: View {
         loadTimelineForDate(selectedDate) { timelineObjects in
             self.timelineObjects = timelineObjects
         }
-    }
-    
-    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
-        switch newPhase {
-        case .active:
-            checkAndLoadTodayIfNeeded()
-        case .background:
-            defaults.set(Date(), forKey: "LastActiveTime")
-        default:
-            break
-        }
-    }
-    
-    private func checkAndLoadTodayIfNeeded() {
-        let lastActiveDate = defaults.object(forKey: "LastActiveTime") as? Date
-        let currentDate = Date()
-        let elapsedTime = currentDate.timeIntervalSince(lastActiveDate ?? Date.distantPast)
-        
-        if elapsedTime > 3600 {
-            selectedDate = currentDate
-            refreshData()
-        }
-
     }
     
     private func handleVisitEdit(timelineObject: TimelineObject, place: Place?) {
