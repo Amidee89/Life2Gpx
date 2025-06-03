@@ -486,7 +486,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     newWaypoint.time = Date()
                     newWaypoint.elevation = location.altitude
                     
-                    if let matchingPlace = PlaceManager.shared.findPlace(for: location.coordinate) {
+                    if let matchingPlace = PlaceManager.shared.findPlaceAtCoordinates(for: location.coordinate) {
                         newWaypoint.name = matchingPlace.name
                         
                         var customExtensionData: [String: String] = [

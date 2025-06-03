@@ -93,7 +93,7 @@ class PlaceManager {
         return cells
     }
     
-    func findPlace(for coordinate: CLLocationCoordinate2D) -> Place? {
+    func findPlaceAtCoordinates(for coordinate: CLLocationCoordinate2D) -> Place? {
         let cell = gridCellFor(coordinate: coordinate)
         guard let candidates = gridIndex[cell] else {
             return nil

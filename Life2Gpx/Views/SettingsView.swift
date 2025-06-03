@@ -6,6 +6,8 @@ struct SettingsView: View {
     @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
     @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
 
+    @FocusState private var valueFieldIsFocused: Bool // Focus state for the TextField
+
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
 
     var body: some View {
@@ -49,6 +51,7 @@ struct SettingsView: View {
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .keyboardType(.numberPad)
                                 .frame(maxWidth: 80)
+                                .focused($valueFieldIsFocused) // Apply focus state
                             
                             Picker("", selection: $loadCurrentDayOnRestoreAfterUnit) {
                                 ForEach(timeUnits, id: \.self) { unit in
@@ -85,6 +88,14 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .toolbar { 
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    valueFieldIsFocused = false
+                }
+            }
+        }
     }
 }
 

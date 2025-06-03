@@ -22,9 +22,17 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
 
         allCoordinates.sort { $0.time ?? Date.distantPast < $1.time ?? Date.distantPast }
 
+        let allPlaces = PlaceManager.shared.getAllPlaces()
+
         let waypointObjects = gpxWaypoints.map { waypoint -> TimelineObject in
             let coordinate = CLLocationCoordinate2D(latitude: waypoint.latitude ?? 0, longitude: waypoint.longitude ?? 0)
-            let place = PlaceManager.shared.findPlace(for: coordinate)
+            
+            var icon: String? = nil
+            if let waypointPlaceId = waypoint.extensions?["PlaceId"].text {
+                if let matchingPlace = allPlaces.first(where: { $0.placeId == waypointPlaceId }) {
+                    icon = matchingPlace.customIcon
+                }
+            }
             
             return TimelineObject(
                 type: .waypoint,
@@ -34,7 +42,7 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
                 steps: Int(waypoint.extensions?["Steps"].text ?? "0") ?? 0,
                 coordinates: [IdentifiableCoordinates(coordinates: [coordinate])],
                 points: [waypoint as GPXWaypoint],
-                customIcon: place?.customIcon
+                customIcon: icon
             )
         }
         timelineObjects.append(contentsOf: waypointObjects)
