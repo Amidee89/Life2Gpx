@@ -429,8 +429,16 @@ struct EditVisitView: View {
                         isNewPlace: true,
                         isFromEditVisit: true,
                         onSave: { newPlace in
-                            onSave(newPlace)
-                            dismiss()
+                            // Set the new place as the currently selected place
+                            self.selectedPlace = newPlace
+                            
+                            // Refresh nearby places list
+                            if let coordinate = self.currentCoordinate {
+                                self.nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
+                            }
+                            
+                            // Dismiss the new place sheet
+                            self.showingNewPlaceSheet = false
                         }
                     )
                 }
