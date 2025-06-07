@@ -29,6 +29,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var lastLocationManagerCallTimestamp: Date?
     private var locationHistory: [(location: CLLocation, receivedAt: Date)] = []
     private let locationHistoryLock = NSLock()
+    private var filteredByPositionQueue: [CLLocation] = []
 
     override init() {
         super.init()
@@ -259,7 +260,18 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
                 UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
 
+                if !self.filteredByPositionQueue.isEmpty {
+                    self.filteredByPositionQueue.removeAll()
+                    FileManagerUtil.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added.", verbosity: 4)
+                }
             } else {
+                if distanceFromPrevious < customDistanceFilter {
+                    self.filteredByPositionQueue.append(newLocation)
+                    if self.filteredByPositionQueue.count > 10 {
+                        self.filteredByPositionQueue.removeFirst()
+                    }
+                    FileManagerUtil.logData(context: "LocationManager", content: "Added location to filteredByPositionQueue. Queue size: \(self.filteredByPositionQueue.count).", verbosity: 4)
+                }
                  FileManagerUtil.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m < \(customDistanceFilter)m) or Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
             }
         }
@@ -276,6 +288,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
                 UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
 
+                if !self.filteredByPositionQueue.isEmpty {
+                    self.filteredByPositionQueue.removeAll()
+                    FileManagerUtil.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added (no previous location).", verbosity: 4)
+                }
             } else {
                 FileManagerUtil.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
             }
@@ -313,11 +329,31 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func appendLocationToFile(type: String, debug: String = "") {
-        guard let location = currentFilteredLocation else {
+        guard var location = currentFilteredLocation else {
             print("No location to save")
             FileManagerUtil.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type), Debug: '\(debug)'.", verbosity: 2)
             return
         }
+
+        if type == "Stationary", !filteredByPositionQueue.isEmpty {
+            let queueSize = filteredByPositionQueue.count
+            FileManagerUtil.logData(context: "GPXAppend", content: "Averaging location for stationary point from a queue of \(queueSize) points.", verbosity: 4)
+            let count = Double(queueSize)
+            let avgLatitude = filteredByPositionQueue.reduce(0.0) { $0 + $1.coordinate.latitude } / count
+            let avgLongitude = filteredByPositionQueue.reduce(0.0) { $0 + $1.coordinate.longitude } / count
+            let avgAltitude = filteredByPositionQueue.reduce(0.0) { $0 + $1.altitude } / count
+            let avgHorizontalAccuracy = filteredByPositionQueue.reduce(0.0) { $0 + $1.horizontalAccuracy } / count
+            let avgVerticalAccuracy = filteredByPositionQueue.reduce(0.0) { $0 + $1.verticalAccuracy } / count
+
+            let avgCoordinate = CLLocationCoordinate2D(latitude: avgLatitude, longitude: avgLongitude)
+
+            location = CLLocation(coordinate: avgCoordinate,
+                                  altitude: avgAltitude,
+                                  horizontalAccuracy: avgHorizontalAccuracy,
+                                  verticalAccuracy: avgVerticalAccuracy,
+                                  timestamp: Date())
+        }
+        
         let appendAttemptTime = Date()
         let appendId = UUID().uuidString.prefix(8)
         FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
