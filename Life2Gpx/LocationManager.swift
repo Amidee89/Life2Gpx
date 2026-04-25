@@ -306,8 +306,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationUpdate", content: logContent, verbosity: 5)
     }
     private func adjustSettingsForMovement() {
+        locationManager.stopUpdatingLocation()
         FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.startUpdatingLocation()
         customDistanceFilter = 20
         resetLocationUpdateTimer()
     }
@@ -320,11 +322,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func adjustSettingsForStationary() {
-
         customDistanceFilter = 60 // Reset custom distance filter for movement
         FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
         appendLocationToFile(type: "Stationary")
         UserDefaults.standard.set("Stationary", forKey: "lastUpdateType")
+        locationManager.stopUpdatingLocation()
+        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.startUpdatingLocation()
 
     }
     
