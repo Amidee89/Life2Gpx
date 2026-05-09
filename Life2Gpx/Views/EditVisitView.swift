@@ -263,9 +263,7 @@ struct EditVisitView: View {
                         
                             if let place = selectedPlace {
                                 HStack {
-                                    Image(systemName: place.customIcon ?? "smallcircle.filled.circle")
-                                        .font(.title2)
-                                        .foregroundColor(.blue)
+                                    PlaceIconView(icon: place.customIcon, font: .title2, fallbackColor: .blue)
                                     
                                     VStack(alignment: .leading) {
                                         Text(place.name)
@@ -323,6 +321,8 @@ struct EditVisitView: View {
                                     selectedPlace = place
                                 }) {
                                     HStack {
+                                        PlaceIconView(icon: place.customIcon, font: .body, fallbackColor: .gray)
+                                            .frame(width: 24)
                                         VStack(alignment: .leading) {
                                             Text(place.name)
                                                 .foregroundColor(.primary)

@@ -223,4 +223,5 @@ extension Date {
 
 #Preview {
     ContentView()
+        .environmentObject(LocationManager())
 }

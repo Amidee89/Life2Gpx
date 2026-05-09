@@ -38,13 +38,7 @@ struct TimelineView: View {
                     VStack(alignment: .center)
                     {
                         if (item.type == .waypoint){
-                            if let customIcon = item.customIcon {
-                                Image(systemName: customIcon)
-                                    .foregroundColor(.gray)
-                            } else {
-                                Image(systemName: "smallcircle.filled.circle")
-                                    .foregroundColor(.gray)
-                            }
+                            PlaceIconView(icon: item.customIcon, fallbackColor: .gray)
                         }
                         else
                         {

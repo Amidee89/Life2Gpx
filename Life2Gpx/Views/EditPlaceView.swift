@@ -1,6 +1,5 @@
 import SwiftUI
 import MapKit
-import SymbolPicker
 
 struct EditPlaceView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -240,8 +239,7 @@ struct EditPlaceView: View {
                 
                 Section(header: Text("Icon")) {
                     HStack {
-                        Image(systemName: customIcon.isEmpty ? "smallcircle.filled.circle" : customIcon)
-                            .font(.title2)
+                        PlaceIconView(icon: customIcon.isEmpty ? nil : customIcon, font: .title2)
                         Spacer()
                         Button("Choose Icon") {
                             showingIconPicker = true
@@ -386,7 +384,7 @@ struct EditPlaceView: View {
                 Text("This action cannot be undone.")
             }
             .sheet(isPresented: $showingIconPicker) {
-                SymbolPicker(symbol: $customIcon)
+                IconPickerView(selectedIcon: $customIcon)
             }
         }
     }

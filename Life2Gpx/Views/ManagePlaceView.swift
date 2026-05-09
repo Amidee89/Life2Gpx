@@ -165,6 +165,8 @@ struct ManagePlacesView: View {
                 List {
                     ForEach(filteredPlaces) { place in
                         HStack {
+                            PlaceIconView(icon: place.customIcon, font: .title3, fallbackColor: .gray)
+                                .frame(width: 30)
                             VStack(alignment: .leading) {
                                 Text("\(place.name)")
                                 if let streetAddress = place.streetAddress {
