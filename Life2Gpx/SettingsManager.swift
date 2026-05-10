@@ -8,6 +8,7 @@ class SettingsManager {
     private let loadCurrentDayOnRestoreAfterValueKey = "loadCurrentDayOnRestoreAfterValue"
     private let loadCurrentDayOnRestoreAfterUnitKey = "loadCurrentDayOnRestoreAfterUnit"
     private let defaultNewPlaceRadiusKey = "defaultNewPlaceRadius"
+    private let placeProviderOrderKey = "placeProviderOrder"
 
     
     private init() {
@@ -16,12 +17,14 @@ class SettingsManager {
     }
     
     private func registerDefaults() {
+        let defaultOrder = PlaceProvider.allCases.map { $0.rawValue }
         defaults.register(defaults: [
             debugLogVerbosityKey: 1,
             loadCurrentDayOnRestoreAfterSecondsKey: 600,
             loadCurrentDayOnRestoreAfterValueKey: 10,
             loadCurrentDayOnRestoreAfterUnitKey: "minutes",
-            defaultNewPlaceRadiusKey: 100
+            defaultNewPlaceRadiusKey: 100,
+            placeProviderOrderKey: defaultOrder
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -108,5 +111,27 @@ class SettingsManager {
             defaults.set(clampedValue, forKey: defaultNewPlaceRadiusKey)
             print("UserDefaults: defaultNewPlaceRadius set to \(clampedValue)")
         }
+    }
+
+    var placeProviderOrder: [PlaceProvider] {
+        get {
+            let rawValues = defaults.stringArray(forKey: placeProviderOrderKey) ?? PlaceProvider.allCases.map { $0.rawValue }
+            var providers = rawValues.compactMap { PlaceProvider(rawValue: $0) }
+            for provider in PlaceProvider.allCases where !providers.contains(provider) {
+                providers.append(provider)
+            }
+            return providers
+        }
+        set {
+            defaults.set(newValue.map { $0.rawValue }, forKey: placeProviderOrderKey)
+        }
+    }
+
+    func apiKey(for provider: PlaceProvider) -> String {
+        return defaults.string(forKey: provider.settingsKey) ?? ""
+    }
+
+    func setApiKey(_ key: String, for provider: PlaceProvider) {
+        defaults.set(key, forKey: provider.settingsKey)
     }
 } 

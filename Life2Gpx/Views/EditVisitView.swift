@@ -22,6 +22,9 @@ struct EditVisitView: View {
     @State private var stepsString: String = ""
     @State private var showingDeleteConfirmation = false
     @State private var workingWaypoint: GPXWaypoint?
+    @State private var showingPlaceSearch = false
+    @State private var showingNewPlaceFromSearch = false
+    @State private var pendingSearchResult: PlaceSearchResult?
     
     private var originalLatitude: Double?
     private var originalLongitude: Double?
@@ -191,156 +194,9 @@ struct EditVisitView: View {
                             }
                         }
                         
-                        Section("Place Details") {
-                            ZStack(alignment: .bottomTrailing) {
-                                MapReader { reader in
-                                    Map(position: .constant(.region(region))) {
-                                        if let coordinate = currentCoordinate {
-                                            Annotation("Visit Location", coordinate: coordinate) {
-                                                ZStack {
-                                                    Circle()
-                                                        .fill(Color.white)
-                                                    Circle()
-                                                        .fill(Color.black)
-                                                        .padding(4)
-                                                }
-                                                .frame(width: 24, height: 24)
-                                            }
-                                        }
-                                        
-                                        if let place = selectedPlace {
-                                            Annotation(place.name, coordinate: place.centerCoordinate) {
-                                                ZStack {
-                                                    Circle()
-                                                        .fill(Color.white)
-                                                    Circle()
-                                                        .fill(Color.orange)
-                                                        .padding(4)
-                                                }
-                                                .frame(width: 24, height: 24)
-                                            }
-                                            
-                                            MapCircle(center: place.centerCoordinate, radius: place.radius)
-                                                .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                                                .foregroundStyle(Color.orange.opacity(0.5))
-                                        }
-                                    }
-                                    .onTapGesture { screenCoord in
-                                        if let coordinate = reader.convert(screenCoord, from: .local) {
-                                            if let waypoint = workingWaypoint {
-                                                waypoint.latitude = coordinate.latitude
-                                                waypoint.longitude = coordinate.longitude
-                                                latitudeString = String(format: "%.6f", coordinate.latitude)
-                                                longitudeString = String(format: "%.6f", coordinate.longitude)
-                                            }
-                                        }
-                                    }
-                                }
-                                .frame(height: 200)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                                Image(systemName: "location.viewfinder")
-                                    .font(.title)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .clipShape(Circle())
-                                    .shadow(radius: 3)
-                                    .scaleEffect(0.8)
-                                    .contentShape(Circle())
-                                    .onTapGesture {
-                                        withAnimation {
-                                            region = MKCoordinateRegion(
-                                                center: currentCoordinate ?? CLLocationCoordinate2D(),
-                                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                                            )
-                                        }
-                                    }
-                                    .padding(.trailing, 16)
-                                    .padding(.bottom, 16)
-                            }
-
+                        placeDetailsSection
                         
-                            if let place = selectedPlace {
-                                HStack {
-                                    PlaceIconView(icon: place.customIcon, font: .title2, fallbackColor: .blue)
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text(place.name)
-                                            .font(.headline)
-                                        if let address = place.streetAddress {
-                                            Text(address)
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Text("Radius: \(Int(place.radius))m")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        showingEditPlaceSheet = true
-                                    }) {
-                                        Image(systemName: "square.and.pencil")
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                        
-                        Section("Change Place") {
-                            HStack {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("Add New Place")
-                                }
-                                .foregroundColor(.blue)
-                                .onTapGesture {
-                                    showingNewPlaceSheet = true
-                                }
-                                
-                                Spacer()
-                                
-                                if selectedPlace != nil {
-                                    Text("Clear Place")
-                                        .foregroundColor(.red)
-                                        .onTapGesture {
-                                            selectedPlace = nil
-                                        }
-                                }
-                            }
-
-                            TextField("Search places", text: $searchText)
-                            
-                            ForEach(filteredPlaces) { place in
-                                Button(action: {
-                                    selectedPlace = place
-                                }) {
-                                    HStack {
-                                        PlaceIconView(icon: place.customIcon, font: .body, fallbackColor: .gray)
-                                            .frame(width: 24)
-                                        VStack(alignment: .leading) {
-                                            Text(place.name)
-                                                .foregroundColor(.primary)
-                                            if let address = place.streetAddress {
-                                                Text(address)
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        }
-                                        Spacer()
-                                        Text(formattedDistance(to: place))
-                                            .foregroundColor(.secondary)
-                                            .font(.caption)
-                                    }
-                                }
-                                .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
-                            }
-                        }
+                        changePlaceSection(coordinate: coordinate)
                     }
 
                     // Add this new section at the end of the List
@@ -454,6 +310,43 @@ struct EditVisitView: View {
                     )
                 }
             }
+            .sheet(isPresented: $showingNewPlaceFromSearch) {
+                if let result = pendingSearchResult, currentCoordinate != nil {
+                    let initialElevation = timelineObject.points.first?.elevation
+                    EditPlaceView(
+                        place: Place(
+                            placeId: UUID().uuidString,
+                            name: result.name,
+                            center: Center(latitude: result.latitude, longitude: result.longitude),
+                            radius: 40,
+                            streetAddress: result.address,
+                            secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                            lastSaved: ISO8601DateFormatter().string(from: Date()),
+                            facebookPlaceId: nil,
+                            mapboxPlaceId: result.provider == .mapbox ? result.id : nil,
+                            foursquareVenueId: result.provider == .foursquare ? result.id : nil,
+                            foursquareCategoryId: result.foursquareCategoryId,
+                            googlePlacesId: result.provider == .google ? result.id : nil,
+                            yelpId: result.provider == .yelp ? result.id : nil,
+                            applePlaceId: result.provider == .apple ? result.id : nil,
+                            previousIds: nil,
+                            lastVisited: nil,
+                            isFavorite: nil,
+                            customIcon: nil,
+                            elevation: initialElevation
+                        ),
+                        isNewPlace: true,
+                        isFromEditVisit: true,
+                        onSave: { newPlace in
+                            self.selectedPlace = newPlace
+                            if let coord = self.currentCoordinate {
+                                self.nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coord)
+                            }
+                            self.showingNewPlaceFromSearch = false
+                        }
+                    )
+                }
+            }
         }
         .confirmationDialog(
             "Are you sure you want to delete this visit?",
@@ -528,6 +421,207 @@ struct EditVisitView: View {
                 )
             }
         }
+    }
+
+    // MARK: - Extracted Subviews
+
+    private var placeDetailsSection: some View {
+        Section("Place Details") {
+            ZStack(alignment: .bottomTrailing) {
+                MapReader { reader in
+                    Map(position: .constant(.region(region))) {
+                        if let coordinate = currentCoordinate {
+                            Annotation("Visit Location", coordinate: coordinate) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.black)
+                                        .padding(4)
+                                }
+                                .frame(width: 24, height: 24)
+                            }
+                        }
+
+                        if let place = selectedPlace {
+                            Annotation(place.name, coordinate: place.centerCoordinate) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .padding(4)
+                                }
+                                .frame(width: 24, height: 24)
+                            }
+
+                            MapCircle(center: place.centerCoordinate, radius: place.radius)
+                                .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                                .foregroundStyle(Color.orange.opacity(0.5))
+                        }
+                    }
+                    .onTapGesture { screenCoord in
+                        if let coordinate = reader.convert(screenCoord, from: .local) {
+                            if let waypoint = workingWaypoint {
+                                waypoint.latitude = coordinate.latitude
+                                waypoint.longitude = coordinate.longitude
+                                latitudeString = String(format: "%.6f", coordinate.latitude)
+                                longitudeString = String(format: "%.6f", coordinate.longitude)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Image(systemName: "location.viewfinder")
+                    .font(.title)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .clipShape(Circle())
+                    .shadow(radius: 3)
+                    .scaleEffect(0.8)
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        withAnimation {
+                            region = MKCoordinateRegion(
+                                center: currentCoordinate ?? CLLocationCoordinate2D(),
+                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                            )
+                        }
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 16)
+            }
+
+            if let place = selectedPlace {
+                selectedPlaceRow(place: place)
+            }
+        }
+    }
+
+    private func selectedPlaceRow(place: Place) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                PlaceIconView(icon: place.customIcon, font: .title2, fallbackColor: .blue)
+
+                VStack(alignment: .leading) {
+                    Text(place.name)
+                        .font(.headline)
+                    if let address = place.streetAddress {
+                        Text(address)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Text("Radius: \(Int(place.radius))m")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: {
+                    showingEditPlaceSheet = true
+                }) {
+                    Image(systemName: "square.and.pencil")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.borderless)
+            }
+
+            Button(action: { selectedPlace = nil }) {
+                Text("Clear Place")
+                    .font(.subheadline)
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 8)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func changePlaceSection(coordinate: CLLocationCoordinate2D) -> some View {
+        Section("Change Place") {
+            changePlaceButtons
+
+            if showingPlaceSearch {
+                PlaceSearchView(
+                    coordinate: coordinate,
+                    onSelect: { result in
+                        if let existingPlace = PlaceSearchService.shared.findExistingPlace(for: result) {
+                            selectedPlace = existingPlace
+                            showingPlaceSearch = false
+                        } else {
+                            pendingSearchResult = result
+                            showingPlaceSearch = false
+                            showingNewPlaceFromSearch = true
+                        }
+                    },
+                    onCancel: {
+                        showingPlaceSearch = false
+                    }
+                )
+                .frame(minHeight: 300)
+            } else {
+                TextField("Search places", text: $searchText)
+
+                ForEach(filteredPlaces) { place in
+                    placeRow(place: place)
+                }
+            }
+        }
+    }
+
+    private var changePlaceButtons: some View {
+        HStack {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                Text("Add New Place")
+            }
+            .foregroundColor(.blue)
+            .onTapGesture {
+                showingPlaceSearch = false
+                showingNewPlaceSheet = true
+            }
+
+            Spacer()
+
+            HStack {
+                Image(systemName: "magnifyingglass.circle.fill")
+                Text("Find Place")
+            }
+            .foregroundColor(.purple)
+            .onTapGesture {
+                showingPlaceSearch.toggle()
+            }
+        }
+    }
+
+    private func placeRow(place: Place) -> some View {
+        Button(action: {
+            selectedPlace = place
+        }) {
+            HStack {
+                PlaceIconView(icon: place.customIcon, font: .body, fallbackColor: .gray)
+                    .frame(width: 24)
+                VStack(alignment: .leading) {
+                    Text(place.name)
+                        .foregroundColor(.primary)
+                    if let address = place.streetAddress {
+                        Text(address)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                Text(formattedDistance(to: place))
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+            }
+        }
+        .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
     }
 }
 

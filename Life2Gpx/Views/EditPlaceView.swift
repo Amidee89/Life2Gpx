@@ -20,6 +20,9 @@ struct EditPlaceView: View {
     @State private var mapboxPlaceId: String
     @State private var foursquareVenueId: String
     @State private var foursquareCategoryId: String
+    @State private var googlePlacesId: String
+    @State private var yelpId: String
+    @State private var applePlaceId: String
     @State private var latitudeString: String
     @State private var longitudeString: String
     @State private var newPreviousId: String = ""
@@ -35,6 +38,7 @@ struct EditPlaceView: View {
     @State private var isIdentifiersSectionExpanded = false
 
     @State private var showingIconPicker = false
+    @State private var showingPlaceSearch = false
 
     @State private var isOneTimeVisit: Bool = false
     let isFromEditVisit: Bool
@@ -71,6 +75,9 @@ struct EditPlaceView: View {
         _mapboxPlaceId = State(initialValue: place.mapboxPlaceId ?? "")
         _foursquareVenueId = State(initialValue: place.foursquareVenueId ?? "")
         _foursquareCategoryId = State(initialValue: place.foursquareCategoryId ?? "")
+        _googlePlacesId = State(initialValue: place.googlePlacesId ?? "")
+        _yelpId = State(initialValue: place.yelpId ?? "")
+        _applePlaceId = State(initialValue: place.applePlaceId ?? "")
         
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
@@ -256,20 +263,22 @@ struct EditPlaceView: View {
                 }
                 
                 Section(header: Text("External IDs")) {
+                    HStack {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                        Text("Find Place IDs")
+                    }
+                    .foregroundColor(.purple)
+                    .onTapGesture {
+                        showingPlaceSearch = true
+                    }
+
                     VStack(alignment: .leading) {
-                        Text("Facebook Place ID")
+                        Text("Google Places ID")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        TextField("Enter Facebook Place ID", text: $facebookPlaceId)
+                        TextField("Enter Google Places ID", text: $googlePlacesId)
                     }
-                    
-                    VStack(alignment: .leading) {
-                        Text("Mapbox Place ID")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        TextField("Enter Mapbox Place ID", text: $mapboxPlaceId)
-                    }
-                    
+
                     VStack(alignment: .leading) {
                         Text("Foursquare Venue ID")
                             .font(.caption)
@@ -282,6 +291,27 @@ struct EditPlaceView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         TextField("Enter Foursquare Category ID", text: $foursquareCategoryId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Yelp ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Yelp ID", text: $yelpId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Mapbox Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Mapbox Place ID", text: $mapboxPlaceId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Apple Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Apple Place ID", text: $applePlaceId)
                     }
                 }
                 
@@ -386,6 +416,42 @@ struct EditPlaceView: View {
             .sheet(isPresented: $showingIconPicker) {
                 IconPickerView(selectedIcon: $customIcon)
             }
+            .sheet(isPresented: $showingPlaceSearch) {
+                NavigationView {
+                    PlaceSearchView(
+                        coordinate: center,
+                        onSelect: { result in
+                            switch result.provider {
+                            case .google:
+                                googlePlacesId = result.id
+                            case .foursquare:
+                                foursquareVenueId = result.id
+                                if let catId = result.foursquareCategoryId {
+                                    foursquareCategoryId = catId
+                                }
+                            case .yelp:
+                                yelpId = result.id
+                            case .mapbox:
+                                mapboxPlaceId = result.id
+                            case .apple:
+                                applePlaceId = result.id
+                            }
+                            if name.isEmpty {
+                                name = result.name
+                            }
+                            if streetAddress.isEmpty, let addr = result.address {
+                                streetAddress = addr
+                            }
+                            showingPlaceSearch = false
+                        },
+                        onCancel: {
+                            showingPlaceSearch = false
+                        }
+                    )
+                    .navigationTitle("Find Place IDs")
+                    .navigationBarTitleDisplayMode(.inline)
+                }
+            }
         }
     }
 
@@ -403,6 +469,9 @@ struct EditPlaceView: View {
             mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId.trim(),
             foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId.trim(),
             foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId.trim(),
+            googlePlacesId: googlePlacesId.isEmpty ? nil : googlePlacesId.trim(),
+            yelpId: yelpId.isEmpty ? nil : yelpId.trim(),
+            applePlaceId: applePlaceId.isEmpty ? nil : applePlaceId.trim(),
             previousIds: editablePlace.previousIds,
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,

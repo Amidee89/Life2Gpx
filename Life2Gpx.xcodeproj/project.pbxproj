@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -48,6 +48,8 @@
 		A9D55E2F2BDED8CC006B6316 /* splash.png in Resources */ = {isa = PBXBuildFile; fileRef = A9D55E2E2BDED8CC006B6316 /* splash.png */; };
 		A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F47B8D2BAB735D001355A9 /* Preview.swift */; };
 		D2F87813CE5EBEE6D58BE91B /* IconPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */; };
+		E1A2B3C401D5E6F7A8B9C0D1 /* PlaceSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */; };
+		E1A2B3C403D5E6F7A8B9C0D3 /* PlaceSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +92,8 @@
 
 /* Begin PBXFileReference section */
 		2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
+		E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchService.swift; sourceTree = "<group>"; };
+		E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchView.swift; sourceTree = "<group>"; };
 		7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditVisitView.swift; sourceTree = "<group>"; };
 		8BD242B4DF275680F15CC17F /* PlaceIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIconView.swift; sourceTree = "<group>"; };
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
@@ -137,6 +141,10 @@
 		A9D55E2E2BDED8CC006B6316 /* splash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = splash.png; sourceTree = "<group>"; };
 		A9F47B8D2BAB735D001355A9 /* Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		A9BC2D602FAFBB6200B8A78E /* External Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "External Models"; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A9B62F9F2B66E692004A010E /* Frameworks */ = {
@@ -192,6 +200,7 @@
 				A937C4B12D870738009BC131 /* TimingReportView.swift */,
 				A9A3E9012DA5763400F8E32E /* EditTrackView.swift */,
 				A96B27A32DC7DD45002B2D2B /* SettingsView.swift */,
+				E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -223,6 +232,7 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A9BC2D602FAFBB6200B8A78E /* External Models */,
 				A93842392CEBCC8900004536 /* Views */,
 				A98A65422CC2DCE800061903 /* PlaceManager.swift */,
 				A9C5E5892BED3EDB00110A3A /* Life2GpxDebug.entitlements */,
@@ -242,6 +252,7 @@
 				A96B279D2DC65660002B2D2B /* SignificantLocationChangeManager.swift */,
 				A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */,
 				A96B27A12DC7C811002B2D2B /* SettingsManager.swift */,
+				E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */,
 			);
 			path = Life2Gpx;
 			sourceTree = "<group>";
@@ -307,6 +318,9 @@
 			);
 			dependencies = (
 				A9C5E5832BEBDDB500110A3A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A9BC2D602FAFBB6200B8A78E /* External Models */,
 			);
 			name = Life2Gpx;
 			packageProductDependencies = (
@@ -488,6 +502,8 @@
 				A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */,
 				A9A3E9042DAE871400F8E32E /* FileManagerUtil.swift in Sources */,
 				A96B27A42DC7DD45002B2D2B /* SettingsView.swift in Sources */,
+				E1A2B3C401D5E6F7A8B9C0D1 /* PlaceSearchService.swift in Sources */,
+				E1A2B3C403D5E6F7A8B9C0D3 /* PlaceSearchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

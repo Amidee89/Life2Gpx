@@ -509,6 +509,9 @@ struct ImportProgressView: View {
                 mapboxPlaceId: duplicate.mapboxPlaceId,
                 foursquareVenueId: duplicate.foursquareVenueId,
                 foursquareCategoryId: duplicate.foursquareCategoryId,
+                googlePlacesId: duplicate.googlePlacesId,
+                yelpId: duplicate.yelpId,
+                applePlaceId: duplicate.applePlaceId,
                 previousIds: previousIds,
                 lastVisited: duplicate.lastVisited,
                 isFavorite: duplicate.isFavorite,
@@ -543,6 +546,9 @@ struct ImportProgressView: View {
                 mapboxPlaceId: updatedPlace.mapboxPlaceId,
                 foursquareVenueId: updatedPlace.foursquareVenueId,
                 foursquareCategoryId: updatedPlace.foursquareCategoryId,
+                googlePlacesId: updatedPlace.googlePlacesId,
+                yelpId: updatedPlace.yelpId,
+                applePlaceId: updatedPlace.applePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: updatedPlace.lastVisited,
                 isFavorite: updatedPlace.isFavorite,
@@ -565,6 +571,9 @@ struct ImportProgressView: View {
                 mapboxPlaceId: place.mapboxPlaceId,
                 foursquareVenueId: place.foursquareVenueId,
                 foursquareCategoryId: place.foursquareCategoryId,
+                googlePlacesId: place.googlePlacesId,
+                yelpId: place.yelpId,
+                applePlaceId: place.applePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: place.lastVisited,
                 isFavorite: place.isFavorite,
@@ -579,6 +588,9 @@ struct ImportProgressView: View {
             let mergedMapboxId = updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId
             let mergedFoursquareId = updatedPlace.foursquareVenueId ?? place.foursquareVenueId
             let mergedFoursquareCatId = updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId
+            let mergedGoogleId = updatedPlace.googlePlacesId ?? place.googlePlacesId
+            let mergedYelpId = updatedPlace.yelpId ?? place.yelpId
+            let mergedAppleId = updatedPlace.applePlaceId ?? place.applePlaceId
             let mergedLastVisited = updatedPlace.lastVisited ?? place.lastVisited
             let mergedIsFavorite = updatedPlace.isFavorite ?? place.isFavorite
             let mergedCustomIcon = updatedPlace.customIcon ?? place.customIcon
@@ -590,6 +602,9 @@ struct ImportProgressView: View {
                mergedMapboxId != updatedPlace.mapboxPlaceId ||
                mergedFoursquareId != updatedPlace.foursquareVenueId ||
                mergedFoursquareCatId != updatedPlace.foursquareCategoryId ||
+               mergedGoogleId != updatedPlace.googlePlacesId ||
+               mergedYelpId != updatedPlace.yelpId ||
+               mergedAppleId != updatedPlace.applePlaceId ||
                mergedLastVisited != updatedPlace.lastVisited ||
                mergedIsFavorite != updatedPlace.isFavorite ||
                mergedCustomIcon != updatedPlace.customIcon ||
@@ -607,6 +622,9 @@ struct ImportProgressView: View {
                     mapboxPlaceId: mergedMapboxId,
                     foursquareVenueId: mergedFoursquareId,
                     foursquareCategoryId: mergedFoursquareCatId,
+                    googlePlacesId: mergedGoogleId,
+                    yelpId: mergedYelpId,
+                    applePlaceId: mergedAppleId,
                     previousIds: updatedPlace.previousIds,
                     lastVisited: mergedLastVisited,
                     isFavorite: mergedIsFavorite,

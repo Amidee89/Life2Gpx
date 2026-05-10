@@ -6,7 +6,7 @@ struct SettingsView: View {
     @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
     @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
 
-    @FocusState private var valueFieldIsFocused: Bool // Focus state for the TextField
+    @FocusState private var valueFieldIsFocused: Bool
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
 

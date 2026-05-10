@@ -475,6 +475,15 @@ class GPXUtils {
         if let categoryId = place.foursquareCategoryId {
             extensionData["FoursquareCategoryId"] = categoryId
         }
+        if let googleId = place.googlePlacesId {
+            extensionData["GooglePlacesId"] = googleId
+        }
+        if let yelpId = place.yelpId {
+            extensionData["YelpId"] = yelpId
+        }
+        if let appleId = place.applePlaceId {
+            extensionData["ApplePlaceId"] = appleId
+        }
         
         if updatedWaypoint.extensions == nil {
             updatedWaypoint.extensions = GPXExtensions()

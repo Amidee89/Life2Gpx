@@ -172,6 +172,9 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let mapboxPlaceId: String?
     let foursquareVenueId: String?
     let foursquareCategoryId: String?
+    var googlePlacesId: String? = nil
+    var yelpId: String? = nil
+    var applePlaceId: String? = nil
     let previousIds: [String?]?
     let lastVisited: Date?
     let isFavorite: Bool?
@@ -194,6 +197,9 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var mapboxPlaceId: String?
         var foursquareVenueId: String?
         var foursquareCategoryId: String?
+        var googlePlacesId: String?
+        var yelpId: String?
+        var applePlaceId: String?
         var previousIds: [String?]?
         var lastVisited: Date?
         var isFavorite: Bool?
@@ -212,6 +218,9 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.mapboxPlaceId = place.mapboxPlaceId
             self.foursquareVenueId = place.foursquareVenueId
             self.foursquareCategoryId = place.foursquareCategoryId
+            self.googlePlacesId = place.googlePlacesId
+            self.yelpId = place.yelpId
+            self.applePlaceId = place.applePlaceId
             self.previousIds = place.previousIds
             self.lastVisited = place.lastVisited
             self.isFavorite = place.isFavorite
@@ -232,6 +241,9 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 mapboxPlaceId: mapboxPlaceId,
                 foursquareVenueId: foursquareVenueId,
                 foursquareCategoryId: foursquareCategoryId,
+                googlePlacesId: googlePlacesId,
+                yelpId: yelpId,
+                applePlaceId: applePlaceId,
                 previousIds: previousIds,
                 lastVisited: lastVisited,
                 isFavorite: isFavorite,
