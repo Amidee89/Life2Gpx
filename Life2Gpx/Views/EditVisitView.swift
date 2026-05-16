@@ -329,6 +329,8 @@ struct EditVisitView: View {
                             googlePlacesId: result.provider == .google ? result.id : nil,
                             yelpId: result.provider == .yelp ? result.id : nil,
                             applePlaceId: result.provider == .apple ? result.id : nil,
+                            osmNodeId: result.provider == .openStreetMap ? result.id : nil,
+                            herePlaceId: result.provider == .here ? result.id : nil,
                             previousIds: nil,
                             lastVisited: nil,
                             isFavorite: nil,

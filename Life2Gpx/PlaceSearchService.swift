@@ -9,6 +9,8 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
     case yelp
     case mapbox
     case apple
+    case openStreetMap
+    case here
 
     var id: String { rawValue }
 
@@ -19,6 +21,8 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .yelp: return "Yelp"
         case .mapbox: return "Mapbox"
         case .apple: return "Apple Maps"
+        case .openStreetMap: return "OpenStreetMap"
+        case .here: return "HERE"
         }
     }
 
@@ -29,6 +33,8 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .yelp: return "Y"
         case .mapbox: return "M"
         case .apple: return "A"
+        case .openStreetMap: return "O"
+        case .here: return "H"
         }
     }
 
@@ -39,6 +45,8 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .yelp: return Color(red: 0.83, green: 0.14, blue: 0.14)
         case .mapbox: return Color(red: 0.26, green: 0.39, blue: 0.98)
         case .apple: return Color(red: 0.0, green: 0.0, blue: 0.0)
+        case .openStreetMap: return Color(red: 0.49, green: 0.73, blue: 0.25)
+        case .here: return Color(red: 0.28, green: 0.82, blue: 0.6)
         }
     }
 
@@ -49,11 +57,16 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .yelp: return URL(string: "https://www.yelp.com/developers/v3/manage_app")!
         case .mapbox: return URL(string: "https://account.mapbox.com/access-tokens/")!
         case .apple: return nil
+        case .openStreetMap: return nil
+        case .here: return URL(string: "https://platform.here.com/admin/apps")!
         }
     }
 
     var requiresApiKey: Bool {
-        self != .apple
+        switch self {
+        case .apple, .openStreetMap: return false
+        default: return true
+        }
     }
 
     var settingsKey: String {
@@ -67,6 +80,8 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .yelp: return place.yelpId
         case .mapbox: return place.mapboxPlaceId
         case .apple: return place.applePlaceId
+        case .openStreetMap: return place.osmNodeId
+        case .here: return place.herePlaceId
         }
     }
 }
@@ -93,6 +108,9 @@ class PlaceSearchService {
         if provider == .apple {
             return try await searchApple(coordinate: coordinate, limit: limit)
         }
+        if provider == .openStreetMap {
+            return try await searchOpenStreetMap(coordinate: coordinate, limit: limit)
+        }
 
         guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
             throw PlaceSearchError.noApiKey
@@ -103,7 +121,8 @@ class PlaceSearchService {
         case .foursquare: return try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, limit: limit)
         case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, limit: limit)
         case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, limit: limit)
-        case .apple: return [] // handled above
+        case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, limit: limit)
+        case .apple, .openStreetMap: return []
         }
     }
 
@@ -116,6 +135,8 @@ class PlaceSearchService {
             case .yelp: return place.yelpId == result.id
             case .mapbox: return place.mapboxPlaceId == result.id
             case .apple: return place.applePlaceId == result.id
+            case .openStreetMap: return place.osmNodeId == result.id
+            case .here: return place.herePlaceId == result.id
             }
         }
     }
@@ -323,6 +344,117 @@ class PlaceSearchService {
             return PlaceSearchResult(id: mapboxId, name: name, address: address,
                                      latitude: lat, longitude: lng,
                                      provider: .mapbox, foursquareCategoryId: nil)
+        }
+    }
+
+    // MARK: - OpenStreetMap (Overpass API)
+
+    private func searchOpenStreetMap(coordinate: CLLocationCoordinate2D, limit: Int) async throws -> [PlaceSearchResult] {
+        let query = """
+        [out:json][timeout:10];
+        (
+          node(around:200,\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."]["name"];
+          way(around:200,\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."]["name"];
+        );
+        out center body \(limit);
+        """
+
+        var components = URLComponents(string: "https://overpass-api.de/api/interpreter")!
+        components.queryItems = [
+            URLQueryItem(name: "data", value: query)
+        ]
+
+        print("[PlaceSearch][OSM] Request URL: \(components.url!.absoluteString.prefix(120))...")
+
+        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        let httpResponse = response as? HTTPURLResponse
+        print("[PlaceSearch][OSM] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let elements = json["elements"] as? [[String: Any]] else {
+            print("[PlaceSearch][OSM] No 'elements' array in response")
+            return []
+        }
+        print("[PlaceSearch][OSM] Got \(elements.count) results")
+
+        return elements.prefix(limit).compactMap { element -> PlaceSearchResult? in
+            guard let tags = element["tags"] as? [String: String],
+                  let name = tags["name"] else { return nil }
+
+            let osmId = element["id"] as? Int ?? 0
+            let osmType = element["type"] as? String ?? "node"
+
+            var lat: Double
+            var lon: Double
+            if osmType == "way", let center = element["center"] as? [String: Any] {
+                lat = center["lat"] as? Double ?? coordinate.latitude
+                lon = center["lon"] as? Double ?? coordinate.longitude
+            } else {
+                lat = element["lat"] as? Double ?? coordinate.latitude
+                lon = element["lon"] as? Double ?? coordinate.longitude
+            }
+
+            let address = [tags["addr:street"], tags["addr:housenumber"], tags["addr:city"]]
+                .compactMap { $0 }
+                .joined(separator: " ")
+
+            return PlaceSearchResult(
+                id: "\(osmType)/\(osmId)",
+                name: name,
+                address: address.isEmpty ? nil : address,
+                latitude: lat,
+                longitude: lon,
+                provider: .openStreetMap,
+                foursquareCategoryId: nil
+            )
+        }
+    }
+
+    // MARK: - HERE Places
+
+    private func searchHERE(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
+        var components = URLComponents(string: "https://browse.search.hereapi.com/v1/browse")!
+        components.queryItems = [
+            URLQueryItem(name: "at", value: "\(coordinate.latitude),\(coordinate.longitude)"),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            URLQueryItem(name: "apiKey", value: apiKey)
+        ]
+
+        print("[PlaceSearch][HERE] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
+
+        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        let httpResponse = response as? HTTPURLResponse
+        print("[PlaceSearch][HERE] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = json["items"] as? [[String: Any]] else {
+            print("[PlaceSearch][HERE] No 'items' array in response")
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let message = json["title"] as? String ?? json["error_description"] as? String {
+                throw PlaceSearchError.apiError("HERE: \(message)")
+            }
+            return []
+        }
+        print("[PlaceSearch][HERE] Got \(items.count) results")
+
+        return items.prefix(limit).compactMap { item -> PlaceSearchResult? in
+            guard let title = item["title"] as? String,
+                  let position = item["position"] as? [String: Any],
+                  let lat = position["lat"] as? Double,
+                  let lng = position["lng"] as? Double else { return nil }
+
+            let hereId = item["id"] as? String ?? "here_\(String(format: "%.6f", lat))_\(String(format: "%.6f", lng))"
+            let address = (item["address"] as? [String: Any])?["label"] as? String
+
+            return PlaceSearchResult(
+                id: hereId,
+                name: title,
+                address: address,
+                latitude: lat,
+                longitude: lng,
+                provider: .here,
+                foursquareCategoryId: nil
+            )
         }
     }
 

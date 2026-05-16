@@ -512,6 +512,8 @@ struct ImportProgressView: View {
                 googlePlacesId: duplicate.googlePlacesId,
                 yelpId: duplicate.yelpId,
                 applePlaceId: duplicate.applePlaceId,
+                osmNodeId: duplicate.osmNodeId,
+                herePlaceId: duplicate.herePlaceId,
                 previousIds: previousIds,
                 lastVisited: duplicate.lastVisited,
                 isFavorite: duplicate.isFavorite,
@@ -549,6 +551,8 @@ struct ImportProgressView: View {
                 googlePlacesId: updatedPlace.googlePlacesId,
                 yelpId: updatedPlace.yelpId,
                 applePlaceId: updatedPlace.applePlaceId,
+                osmNodeId: updatedPlace.osmNodeId,
+                herePlaceId: updatedPlace.herePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: updatedPlace.lastVisited,
                 isFavorite: updatedPlace.isFavorite,
@@ -574,6 +578,8 @@ struct ImportProgressView: View {
                 googlePlacesId: place.googlePlacesId,
                 yelpId: place.yelpId,
                 applePlaceId: place.applePlaceId,
+                osmNodeId: place.osmNodeId,
+                herePlaceId: place.herePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: place.lastVisited,
                 isFavorite: place.isFavorite,
@@ -591,6 +597,8 @@ struct ImportProgressView: View {
             let mergedGoogleId = updatedPlace.googlePlacesId ?? place.googlePlacesId
             let mergedYelpId = updatedPlace.yelpId ?? place.yelpId
             let mergedAppleId = updatedPlace.applePlaceId ?? place.applePlaceId
+            let mergedOsmId = updatedPlace.osmNodeId ?? place.osmNodeId
+            let mergedHereId = updatedPlace.herePlaceId ?? place.herePlaceId
             let mergedLastVisited = updatedPlace.lastVisited ?? place.lastVisited
             let mergedIsFavorite = updatedPlace.isFavorite ?? place.isFavorite
             let mergedCustomIcon = updatedPlace.customIcon ?? place.customIcon
@@ -605,6 +613,8 @@ struct ImportProgressView: View {
                mergedGoogleId != updatedPlace.googlePlacesId ||
                mergedYelpId != updatedPlace.yelpId ||
                mergedAppleId != updatedPlace.applePlaceId ||
+               mergedOsmId != updatedPlace.osmNodeId ||
+               mergedHereId != updatedPlace.herePlaceId ||
                mergedLastVisited != updatedPlace.lastVisited ||
                mergedIsFavorite != updatedPlace.isFavorite ||
                mergedCustomIcon != updatedPlace.customIcon ||
@@ -625,6 +635,8 @@ struct ImportProgressView: View {
                     googlePlacesId: mergedGoogleId,
                     yelpId: mergedYelpId,
                     applePlaceId: mergedAppleId,
+                    osmNodeId: mergedOsmId,
+                    herePlaceId: mergedHereId,
                     previousIds: updatedPlace.previousIds,
                     lastVisited: mergedLastVisited,
                     isFavorite: mergedIsFavorite,

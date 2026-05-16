@@ -23,6 +23,8 @@ struct EditPlaceView: View {
     @State private var googlePlacesId: String
     @State private var yelpId: String
     @State private var applePlaceId: String
+    @State private var osmNodeId: String
+    @State private var herePlaceId: String
     @State private var latitudeString: String
     @State private var longitudeString: String
     @State private var newPreviousId: String = ""
@@ -78,6 +80,8 @@ struct EditPlaceView: View {
         _googlePlacesId = State(initialValue: place.googlePlacesId ?? "")
         _yelpId = State(initialValue: place.yelpId ?? "")
         _applePlaceId = State(initialValue: place.applePlaceId ?? "")
+        _osmNodeId = State(initialValue: place.osmNodeId ?? "")
+        _herePlaceId = State(initialValue: place.herePlaceId ?? "")
         
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
@@ -313,6 +317,20 @@ struct EditPlaceView: View {
                             .foregroundColor(.secondary)
                         TextField("Enter Apple Place ID", text: $applePlaceId)
                     }
+
+                    VStack(alignment: .leading) {
+                        Text("OpenStreetMap ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter OSM ID (e.g. node/12345)", text: $osmNodeId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("HERE Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter HERE Place ID", text: $herePlaceId)
+                    }
                 }
                 
                 DisclosureGroup(
@@ -435,6 +453,10 @@ struct EditPlaceView: View {
                                 mapboxPlaceId = result.id
                             case .apple:
                                 applePlaceId = result.id
+                            case .openStreetMap:
+                                osmNodeId = result.id
+                            case .here:
+                                herePlaceId = result.id
                             }
                             if name.isEmpty {
                                 name = result.name
@@ -472,6 +494,8 @@ struct EditPlaceView: View {
             googlePlacesId: googlePlacesId.isEmpty ? nil : googlePlacesId.trim(),
             yelpId: yelpId.isEmpty ? nil : yelpId.trim(),
             applePlaceId: applePlaceId.isEmpty ? nil : applePlaceId.trim(),
+            osmNodeId: osmNodeId.isEmpty ? nil : osmNodeId.trim(),
+            herePlaceId: herePlaceId.isEmpty ? nil : herePlaceId.trim(),
             previousIds: editablePlace.previousIds,
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,

@@ -484,6 +484,12 @@ class GPXUtils {
         if let appleId = place.applePlaceId {
             extensionData["ApplePlaceId"] = appleId
         }
+        if let osmId = place.osmNodeId {
+            extensionData["OsmNodeId"] = osmId
+        }
+        if let hereId = place.herePlaceId {
+            extensionData["HerePlaceId"] = hereId
+        }
         
         if updatedWaypoint.extensions == nil {
             updatedWaypoint.extensions = GPXExtensions()
