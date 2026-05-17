@@ -5,6 +5,9 @@ struct SettingsView: View {
     @AppStorage("loadCurrentDayOnRestoreAfterValue") private var loadCurrentDayOnRestoreAfterValue: Int = SettingsManager.shared.loadCurrentDayOnRestoreAfterValue
     @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
     @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
+    @AppStorage("filterSmallRoundTrips") private var filterSmallRoundTrips: Bool = SettingsManager.shared.filterSmallRoundTrips
+    @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
+    @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
 
     @FocusState private var valueFieldIsFocused: Bool
 
@@ -82,6 +85,53 @@ struct SettingsView: View {
                             get: { Double(defaultNewPlaceRadius) },
                             set: { defaultNewPlaceRadius = Int($0) }
                         ), in: 10...1000, step: 10)
+                    }
+                }
+                .padding(.vertical)
+            }
+            
+            Section(header: Text("Filter Small Round Trip Tracks")) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Toggle("Filter small round trip tracks", isOn: $filterSmallRoundTrips)
+                    
+                    Text("Do not save small tracks that end up in the same place as the starting point (often caused by GPS location errors).")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    
+                    if filterSmallRoundTrips {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Max points in filtered track")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(roundTripMaxPoints)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(roundTripMaxPoints) },
+                                set: { roundTripMaxPoints = Int($0) }
+                            ), in: 1...10, step: 1)
+                            
+                            Text("Round trip tracks above this number of points will be saved.")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Unknown location round trip radius (meters)")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(roundTripUnknownRadius)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(roundTripUnknownRadius) },
+                                set: { roundTripUnknownRadius = Int($0) }
+                            ), in: 10...1000, step: 10)
+                            
+                            Text("Radius from a starting unknown location to consider track as a round trip.")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
                     }
                 }
                 .padding(.vertical)

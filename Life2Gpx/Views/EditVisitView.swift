@@ -268,7 +268,7 @@ struct EditVisitView: View {
                                 latitude: coordinate.latitude,
                                 longitude: coordinate.longitude
                             ),
-                            radius: 40,
+                            radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
                             streetAddress: nil,
                             secondsFromGMT: TimeZone.current.secondsFromGMT(),
                             lastSaved: ISO8601DateFormatter().string(from: Date()),
@@ -318,7 +318,7 @@ struct EditVisitView: View {
                             placeId: UUID().uuidString,
                             name: result.name,
                             center: Center(latitude: result.latitude, longitude: result.longitude),
-                            radius: 40,
+                            radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
                             streetAddress: result.address,
                             secondsFromGMT: TimeZone.current.secondsFromGMT(),
                             lastSaved: ISO8601DateFormatter().string(from: Date()),

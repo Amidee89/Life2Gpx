@@ -519,6 +519,23 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                 }
                 else if type == "Stationary" {
+                    if self.shouldFilterAsRoundTrip(
+                        newLocation: location,
+                        gpxWaypoints: &gpxWaypoints,
+                        gpxTracks: &gpxTracks,
+                        appendId: String(appendId)
+                    ) {
+                        GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
+                        if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
+                            userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
+                            userDefaults.set(type, forKey: "lastUpdateType")
+                            userDefaults.synchronize()
+                            self.dataHasBeenUpdated = true
+                            self.lastUpdateTimestamp = Date.now
+                        }
+                        return
+                    }
+
                     let newWaypoint = GPXWaypoint(
                         latitude: location.coordinate.latitude,
                         longitude: location.coordinate.longitude
@@ -585,6 +602,80 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
     }
+    private func shouldFilterAsRoundTrip(
+        newLocation: CLLocation,
+        gpxWaypoints: inout [GPXWaypoint],
+        gpxTracks: inout [GPXTrack],
+        appendId: String
+    ) -> Bool {
+        let settings = SettingsManager.shared
+        guard settings.filterSmallRoundTrips else { return false }
+
+        guard let lastTrack = gpxTracks.last,
+              let firstSegment = lastTrack.segments.first,
+              let firstPointTime = firstSegment.points.first?.time,
+              lastTrack.segments.last?.points.last?.time ?? Date.distantPast > gpxWaypoints.last?.time ?? Date.distantFuture
+        else {
+            return false
+        }
+
+        let totalTrackPoints = lastTrack.segments.reduce(0) { $0 + $1.points.count }
+        guard totalTrackPoints <= settings.roundTripMaxPoints else {
+            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] Track has \(totalTrackPoints) points, exceeds max \(settings.roundTripMaxPoints). Not filtering.", verbosity: 4)
+            return false
+        }
+
+        guard let previousWaypoint = gpxWaypoints.last,
+              let previousWaypointTime = previousWaypoint.time,
+              previousWaypointTime < firstPointTime
+        else {
+            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] No preceding waypoint found before the track. Not filtering.", verbosity: 4)
+            return false
+        }
+
+        let previousPlaceId = previousWaypoint.extensions?["PlaceId"].text
+        let radius: Double
+        if let placeId = previousPlaceId,
+           let place = PlaceManager.shared.getAllPlaces().first(where: { $0.placeId == placeId }) {
+            radius = place.radius
+        } else {
+            radius = Double(settings.roundTripUnknownRadius)
+        }
+
+        guard let prevLat = previousWaypoint.latitude, let prevLon = previousWaypoint.longitude else {
+            return false
+        }
+        let previousLocation = CLLocation(latitude: prevLat, longitude: prevLon)
+        let distance = newLocation.distance(from: previousLocation)
+
+        guard distance <= radius else {
+            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] New point is \(String(format: "%.1f", distance))m from previous waypoint, exceeds radius \(String(format: "%.1f", radius))m. Not filtering.", verbosity: 4)
+            return false
+        }
+
+        var trackSteps = 0
+        for segment in lastTrack.segments {
+            for point in segment.points {
+                trackSteps += Int(point.extensions?["Steps"].text ?? "0") ?? 0
+            }
+        }
+
+        let existingSteps = Int(previousWaypoint.extensions?["Steps"].text ?? "0") ?? 0
+        let combinedSteps = existingSteps + trackSteps
+        if combinedSteps > 0 {
+            if previousWaypoint.extensions == nil {
+                previousWaypoint.extensions = GPXExtensions()
+            }
+            previousWaypoint.extensions?.append(at: nil, contents: ["Steps": String(combinedSteps)])
+        }
+
+        gpxTracks.removeLast()
+
+        FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] Round trip track filtered: \(totalTrackPoints) points, \(String(format: "%.1f", distance))m from previous waypoint (radius: \(String(format: "%.1f", radius))m). Transferred \(trackSteps) steps to previous waypoint (total: \(combinedSteps)). Track removed, new point not saved.", verbosity: 3)
+
+        return true
+    }
+
     func getMostRecentGPXElement(waypoints: [GPXWaypoint], tracks: [GPXTrack]) -> (GPXWaypoint?) {
         let lastWaypoint = waypoints.last
         let lastTrackPoint = tracks.last?.segments.last?.points.last

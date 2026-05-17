@@ -9,6 +9,9 @@ class SettingsManager {
     private let loadCurrentDayOnRestoreAfterUnitKey = "loadCurrentDayOnRestoreAfterUnit"
     private let defaultNewPlaceRadiusKey = "defaultNewPlaceRadius"
     private let placeProviderOrderKey = "placeProviderOrder"
+    private let filterSmallRoundTripsKey = "filterSmallRoundTrips"
+    private let roundTripMaxPointsKey = "roundTripMaxPoints"
+    private let roundTripUnknownRadiusKey = "roundTripUnknownRadius"
 
     
     private init() {
@@ -24,7 +27,10 @@ class SettingsManager {
             loadCurrentDayOnRestoreAfterValueKey: 10,
             loadCurrentDayOnRestoreAfterUnitKey: "minutes",
             defaultNewPlaceRadiusKey: 100,
-            placeProviderOrderKey: defaultOrder
+            placeProviderOrderKey: defaultOrder,
+            filterSmallRoundTripsKey: true,
+            roundTripMaxPointsKey: 3,
+            roundTripUnknownRadiusKey: 100
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -110,6 +116,35 @@ class SettingsManager {
             let clampedValue = max(10, min(newValue, 1000)) // 10m to 1000m range
             defaults.set(clampedValue, forKey: defaultNewPlaceRadiusKey)
             print("UserDefaults: defaultNewPlaceRadius set to \(clampedValue)")
+        }
+    }
+
+    var filterSmallRoundTrips: Bool {
+        get {
+            return defaults.bool(forKey: filterSmallRoundTripsKey)
+        }
+        set {
+            defaults.set(newValue, forKey: filterSmallRoundTripsKey)
+        }
+    }
+
+    var roundTripMaxPoints: Int {
+        get {
+            return defaults.integer(forKey: roundTripMaxPointsKey)
+        }
+        set {
+            let clampedValue = max(1, min(newValue, 10))
+            defaults.set(clampedValue, forKey: roundTripMaxPointsKey)
+        }
+    }
+
+    var roundTripUnknownRadius: Int {
+        get {
+            return defaults.integer(forKey: roundTripUnknownRadiusKey)
+        }
+        set {
+            let clampedValue = max(10, min(newValue, 1000))
+            defaults.set(clampedValue, forKey: roundTripUnknownRadiusKey)
         }
     }
 
