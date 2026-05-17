@@ -85,6 +85,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
         }
+        currentDate = Date()
         let updateType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? "Stationary"
         FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType).", verbosity: 3)
         appendLocationToFile(type: updateType, debug: "Midnight Update")
@@ -201,7 +202,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let newUpdateDate = Date()
         FileManagerUtil.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)
 
-        //forcing update if it's the new day and somehow midnight scheduler has screwed. TODO: add a grace period as this thing is making double updates now
+        //forcing update if it's the new day and somehow midnight scheduler has screwed.
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             let calendar = Calendar.current
             let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
