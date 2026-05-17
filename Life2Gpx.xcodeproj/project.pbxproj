@@ -92,8 +92,6 @@
 
 /* Begin PBXFileReference section */
 		2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
-		E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchService.swift; sourceTree = "<group>"; };
-		E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchView.swift; sourceTree = "<group>"; };
 		7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditVisitView.swift; sourceTree = "<group>"; };
 		8BD242B4DF275680F15CC17F /* PlaceIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIconView.swift; sourceTree = "<group>"; };
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
@@ -140,10 +138,13 @@
 		A9D55E2B2BDED12D006B6316 /* Life2Gpx.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Life2Gpx.entitlements; sourceTree = "<group>"; };
 		A9D55E2E2BDED8CC006B6316 /* splash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = splash.png; sourceTree = "<group>"; };
 		A9F47B8D2BAB735D001355A9 /* Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preview.swift; sourceTree = "<group>"; };
+		E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchService.swift; sourceTree = "<group>"; };
+		E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A9BC2D602FAFBB6200B8A78E /* External Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "External Models"; sourceTree = "<group>"; };
+		A9BC2D792FBA3B7B00B8A78E /* Place Provider Icons */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Place Provider Icons"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -232,6 +233,7 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A9BC2D792FBA3B7B00B8A78E /* Place Provider Icons */,
 				A9BC2D602FAFBB6200B8A78E /* External Models */,
 				A93842392CEBCC8900004536 /* Views */,
 				A98A65422CC2DCE800061903 /* PlaceManager.swift */,
@@ -321,6 +323,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				A9BC2D602FAFBB6200B8A78E /* External Models */,
+				A9BC2D792FBA3B7B00B8A78E /* Place Provider Icons */,
 			);
 			name = Life2Gpx;
 			packageProductDependencies = (

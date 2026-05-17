@@ -3,9 +3,11 @@ import CoreLocation
 
 struct PlaceSearchView: View {
     let coordinate: CLLocationCoordinate2D
+    let selectedIds: [PlaceProvider: String]
     let onSelect: (PlaceSearchResult) -> Void
-    let onCancel: () -> Void
+    let onDone: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedProvider: PlaceProvider?
     @State private var searchResults: [PlaceSearchResult] = []
     @State private var isSearching = false
@@ -27,13 +29,12 @@ struct PlaceSearchView: View {
                     Text("Add API keys in Options → API Keys")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Button("Cancel") { onCancel() }
+                    Button("Done") { onDone() }
                         .padding(.top, 8)
                 }
                 .padding()
             } else {
                 providerSelector
-                    .padding(.horizontal)
                     .padding(.top, 8)
 
                 Divider()
@@ -42,9 +43,9 @@ struct PlaceSearchView: View {
                 resultsArea
                     .frame(maxHeight: .infinity)
 
-                Button("Cancel") { onCancel() }
+                Button("Done") { onDone() }
                     .buttonStyle(.borderless)
-                    .foregroundColor(.red)
+                    .foregroundColor(.blue)
                     .padding(.bottom, 8)
             }
         }
@@ -88,29 +89,36 @@ struct PlaceSearchView: View {
     }
 
     private var providerSelector: some View {
-        HStack(spacing: 12) {
-            ForEach(configuredProviders) { provider in
-                Button {
-                    selectedProvider = provider
-                } label: {
-                    VStack(spacing: 4) {
-                        ZStack {
-                            Circle()
-                                .fill(selectedProvider == provider ? provider.color : provider.color.opacity(0.3))
-                            Text(provider.initial)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .frame(width: 40, height: 40)
-
-                        Text(provider.displayName)
-                            .font(.system(size: 9))
-                            .foregroundColor(selectedProvider == provider ? .primary : .secondary)
-                            .lineLimit(1)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(configuredProviders) { provider in
+                    Button {
+                        selectedProvider = provider
+                    } label: {
+                        Image(provider.iconAssetName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 26, height: 26)
+                            .offset(x: provider == .openStreetMap ? 0.85 : 0, y: provider == .openStreetMap ? 1 : 0)
+                            .frame(width: 26, height: 26, alignment: .center)
+                            .clipped()
+                            .padding(7)
+                            .background(
+                                Circle()
+                                    .fill(colorScheme == .dark
+                                          ? Color(white: 0.88)
+                                          : (selectedProvider == provider ? provider.color.opacity(0.15) : Color.white))
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(selectedProvider == provider ? provider.color : Color.gray.opacity(0.3), lineWidth: selectedProvider == provider ? 2.5 : 1)
+                            )
+                            .clipShape(Circle())
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.horizontal)
         }
         .onAppear {
             if selectedProvider == nil {
@@ -123,31 +131,55 @@ struct PlaceSearchView: View {
     }
 
     private var resultsList: some View {
-        List(searchResults) { result in
-            Button {
-                onSelect(result)
-            } label: {
+        VStack(spacing: 0) {
+            if let provider = selectedProvider {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(result.name)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundColor(.primary)
-                        if let address = result.address {
-                            Text(address)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .lineLimit(2)
-                        }
-                    }
-                    Spacer()
-                    let distance = coordinate.distance(to: result.coordinate)
-                    Text(distance < 1000 ? String(format: "%.0f m", distance) : String(format: "%.1f km", distance / 1000))
-                        .font(.caption)
+                    Text(provider.displayName)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+
+            List(searchResults) { result in
+                Button {
+                    onSelect(result)
+                } label: {
+                    HStack(spacing: 10) {
+                        if isResultSelected(result) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.title3)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(result.name)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(.primary)
+                            if let address = result.address {
+                                Text(address)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        Spacer()
+                        let distance = coordinate.distance(to: result.coordinate)
+                        Text(distance < 1000 ? String(format: "%.0f m", distance) : String(format: "%.1f km", distance / 1000))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
+            .listStyle(.plain)
         }
-        .listStyle(.plain)
+    }
+
+    private func isResultSelected(_ result: PlaceSearchResult) -> Bool {
+        guard let selectedId = selectedIds[result.provider] else { return false }
+        return selectedId == result.id
     }
 
     private func performSearch() {
@@ -171,4 +203,13 @@ struct PlaceSearchView: View {
             }
         }
     }
+}
+
+#Preview {
+    PlaceSearchView(
+        coordinate: CLLocationCoordinate2D(latitude: 41.9028, longitude: 12.4964),
+        selectedIds: [:],
+        onSelect: { _ in },
+        onDone: { }
+    )
 }

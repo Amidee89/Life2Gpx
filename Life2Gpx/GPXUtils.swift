@@ -490,6 +490,9 @@ class GPXUtils {
         if let hereId = place.herePlaceId {
             extensionData["HerePlaceId"] = hereId
         }
+        if let gaodeId = place.gaodePlaceId {
+            extensionData["GaodePlaceId"] = gaodeId
+        }
         
         if updatedWaypoint.extensions == nil {
             updatedWaypoint.extensions = GPXExtensions()

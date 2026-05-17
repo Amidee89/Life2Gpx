@@ -331,6 +331,7 @@ struct EditVisitView: View {
                             applePlaceId: result.provider == .apple ? result.id : nil,
                             osmNodeId: result.provider == .openStreetMap ? result.id : nil,
                             herePlaceId: result.provider == .here ? result.id : nil,
+                            gaodePlaceId: result.provider == .gaode ? result.id : nil,
                             previousIds: nil,
                             lastVisited: nil,
                             isFavorite: nil,
@@ -551,6 +552,7 @@ struct EditVisitView: View {
             if showingPlaceSearch {
                 PlaceSearchView(
                     coordinate: coordinate,
+                    selectedIds: [:],
                     onSelect: { result in
                         if let existingPlace = PlaceSearchService.shared.findExistingPlace(for: result) {
                             selectedPlace = existingPlace
@@ -561,7 +563,7 @@ struct EditVisitView: View {
                             showingNewPlaceFromSearch = true
                         }
                     },
-                    onCancel: {
+                    onDone: {
                         showingPlaceSearch = false
                     }
                 )

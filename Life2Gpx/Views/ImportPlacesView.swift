@@ -514,6 +514,7 @@ struct ImportProgressView: View {
                 applePlaceId: duplicate.applePlaceId,
                 osmNodeId: duplicate.osmNodeId,
                 herePlaceId: duplicate.herePlaceId,
+                gaodePlaceId: duplicate.gaodePlaceId,
                 previousIds: previousIds,
                 lastVisited: duplicate.lastVisited,
                 isFavorite: duplicate.isFavorite,
@@ -553,6 +554,7 @@ struct ImportProgressView: View {
                 applePlaceId: updatedPlace.applePlaceId,
                 osmNodeId: updatedPlace.osmNodeId,
                 herePlaceId: updatedPlace.herePlaceId,
+                gaodePlaceId: updatedPlace.gaodePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: updatedPlace.lastVisited,
                 isFavorite: updatedPlace.isFavorite,
@@ -580,6 +582,7 @@ struct ImportProgressView: View {
                 applePlaceId: place.applePlaceId,
                 osmNodeId: place.osmNodeId,
                 herePlaceId: place.herePlaceId,
+                gaodePlaceId: place.gaodePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: place.lastVisited,
                 isFavorite: place.isFavorite,
@@ -599,6 +602,7 @@ struct ImportProgressView: View {
             let mergedAppleId = updatedPlace.applePlaceId ?? place.applePlaceId
             let mergedOsmId = updatedPlace.osmNodeId ?? place.osmNodeId
             let mergedHereId = updatedPlace.herePlaceId ?? place.herePlaceId
+            let mergedGaodeId = updatedPlace.gaodePlaceId ?? place.gaodePlaceId
             let mergedLastVisited = updatedPlace.lastVisited ?? place.lastVisited
             let mergedIsFavorite = updatedPlace.isFavorite ?? place.isFavorite
             let mergedCustomIcon = updatedPlace.customIcon ?? place.customIcon
@@ -615,6 +619,7 @@ struct ImportProgressView: View {
                mergedAppleId != updatedPlace.applePlaceId ||
                mergedOsmId != updatedPlace.osmNodeId ||
                mergedHereId != updatedPlace.herePlaceId ||
+               mergedGaodeId != updatedPlace.gaodePlaceId ||
                mergedLastVisited != updatedPlace.lastVisited ||
                mergedIsFavorite != updatedPlace.isFavorite ||
                mergedCustomIcon != updatedPlace.customIcon ||
@@ -637,6 +642,7 @@ struct ImportProgressView: View {
                     applePlaceId: mergedAppleId,
                     osmNodeId: mergedOsmId,
                     herePlaceId: mergedHereId,
+                    gaodePlaceId: mergedGaodeId,
                     previousIds: updatedPlace.previousIds,
                     lastVisited: mergedLastVisited,
                     isFavorite: mergedIsFavorite,

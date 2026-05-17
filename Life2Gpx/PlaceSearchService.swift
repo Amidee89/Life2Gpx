@@ -11,6 +11,7 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
     case apple
     case openStreetMap
     case here
+    case gaode
 
     var id: String { rawValue }
 
@@ -23,6 +24,20 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .apple: return "Apple Maps"
         case .openStreetMap: return "OpenStreetMap"
         case .here: return "HERE"
+        case .gaode: return "Gaode (China)"
+        }
+    }
+
+    var iconAssetName: String {
+        switch self {
+        case .google: return "ProviderGoogle"
+        case .foursquare: return "ProviderFoursquare"
+        case .yelp: return "ProviderYelp"
+        case .mapbox: return "ProviderMapbox"
+        case .apple: return "ProviderApple"
+        case .openStreetMap: return "ProviderOpenstreetmap"
+        case .here: return "ProviderHERE"
+        case .gaode: return "ProviderGaode"
         }
     }
 
@@ -35,6 +50,7 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .apple: return "A"
         case .openStreetMap: return "O"
         case .here: return "H"
+        case .gaode: return "高"
         }
     }
 
@@ -47,6 +63,7 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .apple: return Color(red: 0.0, green: 0.0, blue: 0.0)
         case .openStreetMap: return Color(red: 0.49, green: 0.73, blue: 0.25)
         case .here: return Color(red: 0.28, green: 0.82, blue: 0.6)
+        case .gaode: return Color(red: 0.13, green: 0.47, blue: 0.96)
         }
     }
 
@@ -59,6 +76,15 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .apple: return nil
         case .openStreetMap: return nil
         case .here: return URL(string: "https://platform.here.com/admin/apps")!
+        case .gaode: return URL(string: "https://console.amap.com/dev/key/app")!
+        }
+    }
+
+    var apiKeyLabel: String {
+        switch self {
+        case .gaode: return "Web服务"
+        case .foursquare: return "Service Key"
+        default: return "API Key"
         }
     }
 
@@ -82,6 +108,7 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         case .apple: return place.applePlaceId
         case .openStreetMap: return place.osmNodeId
         case .here: return place.herePlaceId
+        case .gaode: return place.gaodePlaceId
         }
     }
 }
@@ -122,6 +149,7 @@ class PlaceSearchService {
         case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, limit: limit)
         case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, limit: limit)
         case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, limit: limit)
+        case .gaode: return try await searchGaode(coordinate: coordinate, apiKey: apiKey, limit: limit)
         case .apple, .openStreetMap: return []
         }
     }
@@ -137,6 +165,7 @@ class PlaceSearchService {
             case .apple: return place.applePlaceId == result.id
             case .openStreetMap: return place.osmNodeId == result.id
             case .here: return place.herePlaceId == result.id
+            case .gaode: return place.gaodePlaceId == result.id
             }
         }
     }
@@ -494,6 +523,65 @@ class PlaceSearchService {
         }
     }
 }
+
+    // MARK: - Gaode (Amap)
+
+    private func searchGaode(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
+        var components = URLComponents(string: "https://restapi.amap.com/v3/place/around")!
+        components.queryItems = [
+            URLQueryItem(name: "key", value: apiKey),
+            URLQueryItem(name: "location", value: "\(coordinate.longitude),\(coordinate.latitude)"),
+            URLQueryItem(name: "radius", value: "200"),
+            URLQueryItem(name: "offset", value: "\(limit)"),
+            URLQueryItem(name: "extensions", value: "all")
+        ]
+
+        print("[PlaceSearch][Gaode] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
+
+        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        let httpResponse = response as? HTTPURLResponse
+        print("[PlaceSearch][Gaode] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            print("[PlaceSearch][Gaode] Failed to parse response")
+            return []
+        }
+
+        if let status = json["status"] as? String, status != "1" {
+            let info = json["info"] as? String ?? "unknown error"
+            print("[PlaceSearch][Gaode] API error: \(info)")
+            throw PlaceSearchError.apiError("Gaode: \(info)")
+        }
+
+        guard let pois = json["pois"] as? [[String: Any]] else {
+            print("[PlaceSearch][Gaode] No 'pois' array in response. Keys: \(json.keys.joined(separator: ", "))")
+            return []
+        }
+        print("[PlaceSearch][Gaode] Got \(pois.count) results")
+
+        return pois.prefix(limit).compactMap { poi -> PlaceSearchResult? in
+            guard let poiId = poi["id"] as? String,
+                  let name = poi["name"] as? String,
+                  let locationStr = poi["location"] as? String else { return nil }
+
+            let coords = locationStr.split(separator: ",")
+            guard coords.count == 2,
+                  let lng = Double(coords[0]),
+                  let lat = Double(coords[1]) else { return nil }
+
+            let address = poi["address"] as? String
+
+            return PlaceSearchResult(
+                id: poiId,
+                name: name,
+                address: address,
+                latitude: lat,
+                longitude: lng,
+                provider: .gaode,
+                foursquareCategoryId: nil
+            )
+        }
+    }
 
 enum PlaceSearchError: LocalizedError {
     case noApiKey

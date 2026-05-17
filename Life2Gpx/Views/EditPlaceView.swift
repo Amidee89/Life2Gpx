@@ -25,6 +25,7 @@ struct EditPlaceView: View {
     @State private var applePlaceId: String
     @State private var osmNodeId: String
     @State private var herePlaceId: String
+    @State private var gaodePlaceId: String
     @State private var latitudeString: String
     @State private var longitudeString: String
     @State private var newPreviousId: String = ""
@@ -82,6 +83,7 @@ struct EditPlaceView: View {
         _applePlaceId = State(initialValue: place.applePlaceId ?? "")
         _osmNodeId = State(initialValue: place.osmNodeId ?? "")
         _herePlaceId = State(initialValue: place.herePlaceId ?? "")
+        _gaodePlaceId = State(initialValue: place.gaodePlaceId ?? "")
         
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
@@ -95,6 +97,19 @@ struct EditPlaceView: View {
         _isFavorite = State(initialValue: place.isFavorite ?? false)
         _customIcon = State(initialValue: place.customIcon ?? "")
         _lastVisited = State(initialValue: place.lastVisited ?? Date())
+    }
+
+    private var selectedPlaceSearchIds: [PlaceProvider: String] {
+        var ids = [PlaceProvider: String]()
+        if !googlePlacesId.isEmpty { ids[.google] = googlePlacesId }
+        if !foursquareVenueId.isEmpty { ids[.foursquare] = foursquareVenueId }
+        if !yelpId.isEmpty { ids[.yelp] = yelpId }
+        if !mapboxPlaceId.isEmpty { ids[.mapbox] = mapboxPlaceId }
+        if !applePlaceId.isEmpty { ids[.apple] = applePlaceId }
+        if !osmNodeId.isEmpty { ids[.openStreetMap] = osmNodeId }
+        if !herePlaceId.isEmpty { ids[.here] = herePlaceId }
+        if !gaodePlaceId.isEmpty { ids[.gaode] = gaodePlaceId }
+        return ids
     }
 
     private func logSliderValue(from radius: Int) -> Double {
@@ -331,6 +346,13 @@ struct EditPlaceView: View {
                             .foregroundColor(.secondary)
                         TextField("Enter HERE Place ID", text: $herePlaceId)
                     }
+
+                    VStack(alignment: .leading) {
+                        Text("Gaode Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Gaode Place ID", text: $gaodePlaceId)
+                    }
                 }
                 
                 DisclosureGroup(
@@ -438,6 +460,7 @@ struct EditPlaceView: View {
                 NavigationView {
                     PlaceSearchView(
                         coordinate: center,
+                        selectedIds: selectedPlaceSearchIds,
                         onSelect: { result in
                             switch result.provider {
                             case .google:
@@ -457,6 +480,8 @@ struct EditPlaceView: View {
                                 osmNodeId = result.id
                             case .here:
                                 herePlaceId = result.id
+                            case .gaode:
+                                gaodePlaceId = result.id
                             }
                             if name.isEmpty {
                                 name = result.name
@@ -464,9 +489,8 @@ struct EditPlaceView: View {
                             if streetAddress.isEmpty, let addr = result.address {
                                 streetAddress = addr
                             }
-                            showingPlaceSearch = false
                         },
-                        onCancel: {
+                        onDone: {
                             showingPlaceSearch = false
                         }
                     )
@@ -496,6 +520,7 @@ struct EditPlaceView: View {
             applePlaceId: applePlaceId.isEmpty ? nil : applePlaceId.trim(),
             osmNodeId: osmNodeId.isEmpty ? nil : osmNodeId.trim(),
             herePlaceId: herePlaceId.isEmpty ? nil : herePlaceId.trim(),
+            gaodePlaceId: gaodePlaceId.isEmpty ? nil : gaodePlaceId.trim(),
             previousIds: editablePlace.previousIds,
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,

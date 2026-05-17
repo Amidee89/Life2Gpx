@@ -44,6 +44,7 @@ struct ManagementView: View {
 }
 
 struct APIKeysView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var providerOrder: [PlaceProvider] = SettingsManager.shared.placeProviderOrder
     @State private var apiKeys: [PlaceProvider: String] = {
         var keys = [PlaceProvider: String]()
@@ -63,13 +64,17 @@ struct APIKeysView: View {
 
                 ForEach(providerOrder) { provider in
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle().fill(provider.color)
-                            Text(provider.initial)
-                                .font(.caption.bold())
-                                .foregroundColor(.white)
-                        }
-                        .frame(width: 30, height: 30)
+                        Image(provider.iconAssetName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                            .offset(x: provider == .openStreetMap ? 2 : 0, y: provider == .openStreetMap ? 2 : 0)
+                            .frame(width: 24, height: 24, alignment: .center)
+                            .clipped()
+                            .padding(3)
+                            .background(Circle().fill(colorScheme == .dark ? Color(white: 0.88) : Color.white))
+                            .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                            .clipShape(Circle())
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(provider.displayName)
@@ -84,7 +89,7 @@ struct APIKeysView: View {
                                             SettingsManager.shared.setApiKey(newValue, for: provider)
                                         }
                                     )
-                                    SecureField("API Key", text: binding)
+                                    SecureField(provider.apiKeyLabel, text: binding)
                                         .textFieldStyle(RoundedBorderTextFieldStyle())
                                         .font(.caption)
                                         .focused($fieldIsFocused)

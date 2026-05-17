@@ -177,6 +177,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     var applePlaceId: String? = nil
     var osmNodeId: String? = nil
     var herePlaceId: String? = nil
+    var gaodePlaceId: String? = nil
     let previousIds: [String?]?
     let lastVisited: Date?
     let isFavorite: Bool?
@@ -204,6 +205,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var applePlaceId: String?
         var osmNodeId: String?
         var herePlaceId: String?
+        var gaodePlaceId: String?
         var previousIds: [String?]?
         var lastVisited: Date?
         var isFavorite: Bool?
@@ -227,6 +229,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.applePlaceId = place.applePlaceId
             self.osmNodeId = place.osmNodeId
             self.herePlaceId = place.herePlaceId
+            self.gaodePlaceId = place.gaodePlaceId
             self.previousIds = place.previousIds
             self.lastVisited = place.lastVisited
             self.isFavorite = place.isFavorite
@@ -252,6 +255,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 applePlaceId: applePlaceId,
                 osmNodeId: osmNodeId,
                 herePlaceId: herePlaceId,
+                gaodePlaceId: gaodePlaceId,
                 previousIds: previousIds,
                 lastVisited: lastVisited,
                 isFavorite: isFavorite,
