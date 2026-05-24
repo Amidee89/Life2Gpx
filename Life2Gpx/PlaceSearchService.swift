@@ -88,6 +88,17 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var maxResultsLimit: Int {
+        switch self {
+        case .mapbox: return 10
+        case .google: return 20
+        case .gaode: return 25
+        case .foursquare, .yelp: return 50
+        case .here: return 100
+        case .apple, .openStreetMap: return 50
+        }
+    }
+
     var requiresApiKey: Bool {
         switch self {
         case .apple, .openStreetMap: return false
@@ -139,12 +150,13 @@ class PlaceSearchService {
     func search(near coordinate: CLLocationCoordinate2D, provider: PlaceProvider, query: String? = nil, limit: Int = 10) async throws -> [PlaceSearchResult] {
         let trimmedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines)
         let effectiveQuery = (trimmedQuery?.isEmpty ?? true) ? nil : trimmedQuery
+        let effectiveLimit = min(limit, provider.maxResultsLimit)
 
         if provider == .apple {
-            return try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: limit)
+            return try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
         }
         if provider == .openStreetMap {
-            return try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: limit)
+            return try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
         }
 
         guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
@@ -152,12 +164,12 @@ class PlaceSearchService {
         }
 
         switch provider {
-        case .google: return try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
-        case .foursquare: return try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
-        case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
-        case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
-        case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
-        case .gaode: return try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
+        case .google: return try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+        case .foursquare: return try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+        case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+        case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+        case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+        case .gaode: return try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
         case .apple, .openStreetMap: return []
         }
     }

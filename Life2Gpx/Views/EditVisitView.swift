@@ -567,7 +567,7 @@ struct EditVisitView: View {
                         showingPlaceSearch = false
                     }
                 )
-                .frame(minHeight: 300)
+                .frame(height: UIScreen.main.bounds.height * 0.5)
             } else {
                 TextField("Search places", text: $searchText)
 

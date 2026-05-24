@@ -51,10 +51,12 @@ struct PlaceSearchView: View {
                 resultsArea
                     .frame(maxHeight: .infinity)
 
+                Divider()
+
                 Button("Done") { onDone() }
                     .buttonStyle(.borderless)
                     .foregroundColor(.blue)
-                    .padding(.bottom, 8)
+                    .padding(.vertical, 12)
             }
         }
     }
@@ -201,64 +203,88 @@ struct PlaceSearchView: View {
                 .padding(.vertical, 8)
             }
 
-            List {
-                ForEach(searchResults) { result in
-                    Button {
-                        onSelect(result)
-                    } label: {
-                        HStack(spacing: 10) {
-                            if isResultSelected(result) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.title3)
-                            }
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(result.name)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundColor(.primary)
-                                if let address = result.address {
-                                    Text(address)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(searchResults) { result in
+                        Button {
+                            onSelect(result)
+                        } label: {
+                            HStack(spacing: 10) {
+                                if isResultSelected(result) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                        .font(.title3)
                                 }
-                            }
-                            Spacer()
-                            let distance = coordinate.distance(to: result.coordinate)
-                            Text(distance < 1000 ? String(format: "%.0f m", distance) : String(format: "%.1f km", distance / 1000))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
 
-                if !searchResults.isEmpty {
-                    Button {
-                        loadMore()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isLoadingMore {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .padding(.trailing, 4)
-                                Text("Loading...")
-                                    .font(.subheadline)
-                            } else {
-                                Image(systemName: "arrow.down.circle")
-                                Text("Search More")
-                                    .font(.subheadline)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(result.name)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundColor(.primary)
+                                    if let address = result.address {
+                                        Text(address)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                }
+                                Spacer()
+                                let distance = coordinate.distance(to: result.coordinate)
+                                Text(distance < 1000 ? String(format: "%.0f m", distance) : String(format: "%.1f km", distance / 1000))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            Spacer()
+                            .padding(.horizontal)
+                            .padding(.vertical, 10)
                         }
-                        .foregroundColor(.blue)
-                        .padding(.vertical, 4)
+                        Divider().padding(.leading)
                     }
-                    .disabled(isLoadingMore)
+
+                    if !searchResults.isEmpty {
+                        if let provider = selectedProvider, currentLimit >= provider.maxResultsLimit {
+                            HStack {
+                                Spacer()
+                                Text("Provider limit reached (\(provider.maxResultsLimit))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                        } else if searchResults.count < currentLimit {
+                            HStack {
+                                Spacer()
+                                Text("No more results")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                        } else {
+                            Button {
+                                loadMore()
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    if isLoadingMore {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                            .padding(.trailing, 4)
+                                        Text("Loading...")
+                                            .font(.subheadline)
+                                    } else {
+                                        Image(systemName: "arrow.down.circle")
+                                        Text("Search More")
+                                            .font(.subheadline)
+                                    }
+                                    Spacer()
+                                }
+                                .foregroundColor(.blue)
+                                .padding(.vertical, 8)
+                            }
+                            .disabled(isLoadingMore)
+                        }
+                    }
                 }
             }
-            .listStyle(.plain)
         }
     }
 
@@ -294,9 +320,10 @@ struct PlaceSearchView: View {
 
     private func loadMore() {
         guard let provider = selectedProvider, !isLoadingMore else { return }
-        isLoadingMore = true
-        let newLimit = currentLimit + 10
+        let newLimit = min(currentLimit + 10, provider.maxResultsLimit)
+        guard newLimit > currentLimit else { return }
 
+        isLoadingMore = true
         let query = searchQuery.isEmpty ? nil : searchQuery
 
         Task {
