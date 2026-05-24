@@ -50,6 +50,8 @@
 		D2F87813CE5EBEE6D58BE91B /* IconPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */; };
 		E1A2B3C401D5E6F7A8B9C0D1 /* PlaceSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */; };
 		E1A2B3C403D5E6F7A8B9C0D3 /* PlaceSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */; };
+		E1A2B3C405D5E6F7A8B9C0D5 /* CategorySymbolMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C406D5E6F7A8B9C0D6 /* CategorySymbolMapper.swift */; };
+		E1A2B3C407D5E6F7A8B9C0D7 /* CategoryIconsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C408D5E6F7A8B9C0D8 /* CategoryIconsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -139,7 +141,9 @@
 		A9D55E2E2BDED8CC006B6316 /* splash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = splash.png; sourceTree = "<group>"; };
 		A9F47B8D2BAB735D001355A9 /* Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preview.swift; sourceTree = "<group>"; };
 		E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchService.swift; sourceTree = "<group>"; };
+		E1A2B3C406D5E6F7A8B9C0D6 /* CategorySymbolMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorySymbolMapper.swift; sourceTree = "<group>"; };
 		E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchView.swift; sourceTree = "<group>"; };
+		E1A2B3C408D5E6F7A8B9C0D8 /* CategoryIconsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryIconsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -202,6 +206,7 @@
 				A9A3E9012DA5763400F8E32E /* EditTrackView.swift */,
 				A96B27A32DC7DD45002B2D2B /* SettingsView.swift */,
 				E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */,
+				E1A2B3C408D5E6F7A8B9C0D8 /* CategoryIconsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -255,6 +260,7 @@
 				A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */,
 				A96B27A12DC7C811002B2D2B /* SettingsManager.swift */,
 				E1A2B3C402D5E6F7A8B9C0D2 /* PlaceSearchService.swift */,
+				E1A2B3C406D5E6F7A8B9C0D6 /* CategorySymbolMapper.swift */,
 			);
 			path = Life2Gpx;
 			sourceTree = "<group>";
@@ -506,6 +512,8 @@
 				A9A3E9042DAE871400F8E32E /* FileManagerUtil.swift in Sources */,
 				A96B27A42DC7DD45002B2D2B /* SettingsView.swift in Sources */,
 				E1A2B3C401D5E6F7A8B9C0D1 /* PlaceSearchService.swift in Sources */,
+				E1A2B3C405D5E6F7A8B9C0D5 /* CategorySymbolMapper.swift in Sources */,
+				E1A2B3C407D5E6F7A8B9C0D7 /* CategoryIconsView.swift in Sources */,
 				E1A2B3C403D5E6F7A8B9C0D3 /* PlaceSearchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

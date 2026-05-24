@@ -28,6 +28,9 @@ struct ManagementView: View {
                 NavigationLink(destination: APIKeysView()) {
                     Text("API Keys")
                 }
+                NavigationLink(destination: CategoryIconsView()) {
+                    Text("Category Icons")
+                }
                 Text("Edit activity rules")
                 Text("GPX Tidy up")
                 NavigationLink(destination: SettingsView()) {

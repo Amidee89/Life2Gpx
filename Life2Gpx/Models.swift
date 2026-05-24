@@ -188,6 +188,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
     }
 
+
     struct EditableCopy {
         var placeId: String
         var name: String

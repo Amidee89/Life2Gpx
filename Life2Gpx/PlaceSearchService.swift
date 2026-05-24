@@ -121,9 +121,14 @@ struct PlaceSearchResult: Identifiable {
     let longitude: Double
     let provider: PlaceProvider
     let foursquareCategoryId: String?
+    let categoryIds: [String]
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+
+    var resolvedIcon: String? {
+        CategorySymbolMapper.shared.resolveIcon(provider: provider, categoryIds: categoryIds)
     }
 }
 
@@ -131,12 +136,15 @@ class PlaceSearchService {
     static let shared = PlaceSearchService()
     private init() {}
 
-    func search(near coordinate: CLLocationCoordinate2D, provider: PlaceProvider, limit: Int = 10) async throws -> [PlaceSearchResult] {
+    func search(near coordinate: CLLocationCoordinate2D, provider: PlaceProvider, query: String? = nil, limit: Int = 10) async throws -> [PlaceSearchResult] {
+        let trimmedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveQuery = (trimmedQuery?.isEmpty ?? true) ? nil : trimmedQuery
+
         if provider == .apple {
-            return try await searchApple(coordinate: coordinate, limit: limit)
+            return try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: limit)
         }
         if provider == .openStreetMap {
-            return try await searchOpenStreetMap(coordinate: coordinate, limit: limit)
+            return try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: limit)
         }
 
         guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
@@ -144,12 +152,12 @@ class PlaceSearchService {
         }
 
         switch provider {
-        case .google: return try await searchGoogle(coordinate: coordinate, apiKey: apiKey, limit: limit)
-        case .foursquare: return try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, limit: limit)
-        case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, limit: limit)
-        case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, limit: limit)
-        case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, limit: limit)
-        case .gaode: return try await searchGaode(coordinate: coordinate, apiKey: apiKey, limit: limit)
+        case .google: return try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
+        case .foursquare: return try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
+        case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
+        case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
+        case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
+        case .gaode: return try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: limit)
         case .apple, .openStreetMap: return []
         }
     }
@@ -185,13 +193,16 @@ class PlaceSearchService {
 
     // MARK: - Google Places
 
-    private func searchGoogle(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
+    private func searchGoogle(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         var components = URLComponents(string: "https://maps.googleapis.com/maps/api/place/nearbysearch/json")!
         components.queryItems = [
             URLQueryItem(name: "location", value: "\(coordinate.latitude),\(coordinate.longitude)"),
-            URLQueryItem(name: "radius", value: "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
             URLQueryItem(name: "key", value: apiKey)
         ]
+        if let query = query {
+            components.queryItems?.append(URLQueryItem(name: "keyword", value: query))
+        }
 
         let url = components.url!
         print("[PlaceSearch][Google] Request URL: \(url.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
@@ -226,21 +237,26 @@ class PlaceSearchService {
                   let lng = location["lng"] as? Double else { return nil }
 
             let vicinity = item["vicinity"] as? String
+            let types = item["types"] as? [String] ?? []
             return PlaceSearchResult(id: placeId, name: name, address: vicinity,
                                      latitude: lat, longitude: lng,
-                                     provider: .google, foursquareCategoryId: nil)
+                                     provider: .google, foursquareCategoryId: nil,
+                                     categoryIds: types)
         }
     }
 
     // MARK: - Foursquare
 
-    private func searchFoursquare(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
+    private func searchFoursquare(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         var components = URLComponents(string: "https://places-api.foursquare.com/places/search")!
         components.queryItems = [
             URLQueryItem(name: "ll", value: "\(coordinate.latitude),\(coordinate.longitude)"),
-            URLQueryItem(name: "radius", value: "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
+        if let query = query {
+            components.queryItems?.append(URLQueryItem(name: "query", value: query))
+        }
 
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -278,28 +294,36 @@ class PlaceSearchService {
             let address = location?["formatted_address"] as? String
 
             var categoryId: String? = nil
-            if let categories = item["categories"] as? [[String: Any]],
-               let firstCat = categories.first,
-               let catId = firstCat["fsq_category_id"] as? String {
-                categoryId = catId
+            var allCategoryIds: [String] = []
+            if let categories = item["categories"] as? [[String: Any]] {
+                for cat in categories {
+                    if let catId = cat["fsq_category_id"] as? String {
+                        if categoryId == nil { categoryId = catId }
+                        allCategoryIds.append(catId)
+                    }
+                }
             }
 
             return PlaceSearchResult(id: fsqId, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .foursquare, foursquareCategoryId: categoryId)
+                                     provider: .foursquare, foursquareCategoryId: categoryId,
+                                     categoryIds: allCategoryIds)
         }
     }
 
     // MARK: - Yelp
 
-    private func searchYelp(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
+    private func searchYelp(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         var components = URLComponents(string: "https://api.yelp.com/v3/businesses/search")!
         components.queryItems = [
             URLQueryItem(name: "latitude", value: "\(coordinate.latitude)"),
             URLQueryItem(name: "longitude", value: "\(coordinate.longitude)"),
-            URLQueryItem(name: "radius", value: "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
+        if let query = query {
+            components.queryItems?.append(URLQueryItem(name: "term", value: query))
+        }
 
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -328,23 +352,45 @@ class PlaceSearchService {
             let displayAddress = location?["display_address"] as? [String]
             let address = displayAddress?.joined(separator: ", ")
 
+            var categoryAliases: [String] = []
+            if let categories = item["categories"] as? [[String: Any]] {
+                for cat in categories {
+                    if let alias = cat["alias"] as? String {
+                        categoryAliases.append(alias)
+                    }
+                }
+            }
+
             return PlaceSearchResult(id: yelpId, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .yelp, foursquareCategoryId: nil)
+                                     provider: .yelp, foursquareCategoryId: nil,
+                                     categoryIds: categoryAliases)
         }
     }
 
     // MARK: - Mapbox
 
-    private func searchMapbox(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
-        var components = URLComponents(string: "https://api.mapbox.com/search/searchbox/v1/reverse")!
-        components.queryItems = [
-            URLQueryItem(name: "longitude", value: "\(coordinate.longitude)"),
-            URLQueryItem(name: "latitude", value: "\(coordinate.latitude)"),
-            URLQueryItem(name: "access_token", value: apiKey),
-            URLQueryItem(name: "types", value: "poi"),
-            URLQueryItem(name: "limit", value: "\(limit)")
-        ]
+    private func searchMapbox(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
+        var components: URLComponents
+        if let query = query {
+            components = URLComponents(string: "https://api.mapbox.com/search/searchbox/v1/forward")!
+            components.queryItems = [
+                URLQueryItem(name: "q", value: query),
+                URLQueryItem(name: "proximity", value: "\(coordinate.longitude),\(coordinate.latitude)"),
+                URLQueryItem(name: "access_token", value: apiKey),
+                URLQueryItem(name: "types", value: "poi"),
+                URLQueryItem(name: "limit", value: "\(limit)")
+            ]
+        } else {
+            components = URLComponents(string: "https://api.mapbox.com/search/searchbox/v1/reverse")!
+            components.queryItems = [
+                URLQueryItem(name: "longitude", value: "\(coordinate.longitude)"),
+                URLQueryItem(name: "latitude", value: "\(coordinate.latitude)"),
+                URLQueryItem(name: "access_token", value: apiKey),
+                URLQueryItem(name: "types", value: "poi"),
+                URLQueryItem(name: "limit", value: "\(limit)")
+            ]
+        }
 
         print("[PlaceSearch][Mapbox] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
 
@@ -370,20 +416,24 @@ class PlaceSearchService {
             let lat = coordinates?.last ?? coordinate.latitude
 
             let address = properties["full_address"] as? String ?? properties["address"] as? String
+            let poiCategoryIds = properties["poi_category_ids"] as? [String] ?? []
             return PlaceSearchResult(id: mapboxId, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .mapbox, foursquareCategoryId: nil)
+                                     provider: .mapbox, foursquareCategoryId: nil,
+                                     categoryIds: poiCategoryIds)
         }
     }
 
     // MARK: - OpenStreetMap (Overpass API)
 
-    private func searchOpenStreetMap(coordinate: CLLocationCoordinate2D, limit: Int) async throws -> [PlaceSearchResult] {
+    private func searchOpenStreetMap(coordinate: CLLocationCoordinate2D, query searchQuery: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
+        let radius = searchQuery != nil ? 5000 : 200
+        let nameFilter = searchQuery.map { "\"name\"~\"\($0)\",i" } ?? "\"name\""
         let query = """
         [out:json][timeout:10];
         (
-          node(around:200,\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."]["name"];
-          way(around:200,\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."]["name"];
+          node(around:\(radius),\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."][\(nameFilter)];
+          way(around:\(radius),\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."][\(nameFilter)];
         );
         out center body \(limit);
         """
@@ -427,6 +477,14 @@ class PlaceSearchService {
                 .compactMap { $0 }
                 .joined(separator: " ")
 
+            var osmCategoryTags: [String] = []
+            let categoryKeys = ["amenity", "shop", "tourism", "leisure", "office", "craft"]
+            for key in categoryKeys {
+                if let value = tags[key] {
+                    osmCategoryTags.append("\(key)=\(value)")
+                }
+            }
+
             return PlaceSearchResult(
                 id: "\(osmType)/\(osmId)",
                 name: name,
@@ -434,20 +492,27 @@ class PlaceSearchService {
                 latitude: lat,
                 longitude: lon,
                 provider: .openStreetMap,
-                foursquareCategoryId: nil
+                foursquareCategoryId: nil,
+                categoryIds: osmCategoryTags
             )
         }
     }
 
     // MARK: - HERE Places
 
-    private func searchHERE(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
-        var components = URLComponents(string: "https://browse.search.hereapi.com/v1/browse")!
+    private func searchHERE(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
+        let baseURL = query != nil
+            ? "https://discover.search.hereapi.com/v1/discover"
+            : "https://browse.search.hereapi.com/v1/browse"
+        var components = URLComponents(string: baseURL)!
         components.queryItems = [
             URLQueryItem(name: "at", value: "\(coordinate.latitude),\(coordinate.longitude)"),
             URLQueryItem(name: "limit", value: "\(limit)"),
             URLQueryItem(name: "apiKey", value: apiKey)
         ]
+        if let query = query {
+            components.queryItems?.append(URLQueryItem(name: "q", value: query))
+        }
 
         print("[PlaceSearch][HERE] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
 
@@ -475,6 +540,15 @@ class PlaceSearchService {
             let hereId = item["id"] as? String ?? "here_\(String(format: "%.6f", lat))_\(String(format: "%.6f", lng))"
             let address = (item["address"] as? [String: Any])?["label"] as? String
 
+            var hereCategoryIds: [String] = []
+            if let categories = item["categories"] as? [[String: Any]] {
+                for cat in categories {
+                    if let catId = cat["id"] as? String {
+                        hereCategoryIds.append(catId)
+                    }
+                }
+            }
+
             return PlaceSearchResult(
                 id: hereId,
                 name: title,
@@ -482,20 +556,29 @@ class PlaceSearchService {
                 latitude: lat,
                 longitude: lng,
                 provider: .here,
-                foursquareCategoryId: nil
+                foursquareCategoryId: nil,
+                categoryIds: hereCategoryIds
             )
         }
     }
 
     // MARK: - Apple Maps
 
-    private func searchApple(coordinate: CLLocationCoordinate2D, limit: Int) async throws -> [PlaceSearchResult] {
-        print("[PlaceSearch][Apple] Searching near \(coordinate.latitude), \(coordinate.longitude)")
+    private func searchApple(coordinate: CLLocationCoordinate2D, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
+        print("[PlaceSearch][Apple] Searching near \(coordinate.latitude), \(coordinate.longitude), query: \(query ?? "nil")")
 
-        let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: 200)
-        request.pointOfInterestFilter = .includingAll
-
-        let search = MKLocalSearch(request: request)
+        let search: MKLocalSearch
+        if let query = query {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 10000, longitudinalMeters: 10000)
+            request.pointOfInterestFilter = .includingAll
+            search = MKLocalSearch(request: request)
+        } else {
+            let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: 200)
+            request.pointOfInterestFilter = .includingAll
+            search = MKLocalSearch(request: request)
+        }
         let response = try await search.start()
 
         print("[PlaceSearch][Apple] Got \(response.mapItems.count) results")
@@ -517,24 +600,33 @@ class PlaceSearchService {
             }
             print("[PlaceSearch][Apple] Item: \(name) -> id: \(identifier)")
 
+            var appleCategoryIds: [String] = []
+            if let category = item.pointOfInterestCategory {
+                appleCategoryIds.append(category.rawValue)
+            }
+
             return PlaceSearchResult(id: identifier, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .apple, foursquareCategoryId: nil)
+                                     provider: .apple, foursquareCategoryId: nil,
+                                     categoryIds: appleCategoryIds)
         }
     }
 }
 
     // MARK: - Gaode (Amap)
 
-    private func searchGaode(coordinate: CLLocationCoordinate2D, apiKey: String, limit: Int) async throws -> [PlaceSearchResult] {
+    private func searchGaode(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         var components = URLComponents(string: "https://restapi.amap.com/v3/place/around")!
         components.queryItems = [
             URLQueryItem(name: "key", value: apiKey),
             URLQueryItem(name: "location", value: "\(coordinate.longitude),\(coordinate.latitude)"),
-            URLQueryItem(name: "radius", value: "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
             URLQueryItem(name: "offset", value: "\(limit)"),
             URLQueryItem(name: "extensions", value: "all")
         ]
+        if let query = query {
+            components.queryItems?.append(URLQueryItem(name: "keywords", value: query))
+        }
 
         print("[PlaceSearch][Gaode] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
 
@@ -571,6 +663,11 @@ class PlaceSearchService {
 
             let address = poi["address"] as? String
 
+            var gaodeCategoryIds: [String] = []
+            if let typecode = poi["typecode"] as? String {
+                gaodeCategoryIds.append(typecode)
+            }
+
             return PlaceSearchResult(
                 id: poiId,
                 name: name,
@@ -578,7 +675,8 @@ class PlaceSearchService {
                 latitude: lat,
                 longitude: lng,
                 provider: .gaode,
-                foursquareCategoryId: nil
+                foursquareCategoryId: nil,
+                categoryIds: gaodeCategoryIds
             )
         }
     }

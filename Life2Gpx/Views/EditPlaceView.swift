@@ -489,6 +489,9 @@ struct EditPlaceView: View {
                             if streetAddress.isEmpty, let addr = result.address {
                                 streetAddress = addr
                             }
+                            if customIcon.isEmpty, let icon = result.resolvedIcon {
+                                customIcon = icon
+                            }
                         },
                         onDone: {
                             showingPlaceSearch = false

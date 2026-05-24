@@ -11,7 +11,11 @@ struct PlaceSearchView: View {
     @State private var selectedProvider: PlaceProvider?
     @State private var searchResults: [PlaceSearchResult] = []
     @State private var isSearching = false
+    @State private var isLoadingMore = false
     @State private var errorMessage: String?
+    @State private var searchQuery: String = ""
+    @State private var currentLimit: Int = 10
+    @FocusState private var isSearchFocused: Bool
 
     private var configuredProviders: [PlaceProvider] {
         PlaceSearchService.configuredProviders()
@@ -37,6 +41,10 @@ struct PlaceSearchView: View {
                 providerSelector
                     .padding(.top, 8)
 
+                searchBar
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
                 Divider()
                     .padding(.top, 8)
 
@@ -51,11 +59,52 @@ struct PlaceSearchView: View {
         }
     }
 
+    private var searchBar: some View {
+        HStack {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                TextField("Search by name...", text: $searchQuery)
+                    .font(.subheadline)
+                    .textFieldStyle(.plain)
+                    .focused($isSearchFocused)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        currentLimit = 10
+                        performSearch()
+                    }
+                if !searchQuery.isEmpty {
+                    Button {
+                        searchQuery = ""
+                        currentLimit = 10
+                        performSearch()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+        }
+    }
+
     @ViewBuilder
     private var resultsArea: some View {
-        if isSearching {
-            ProgressView("Searching \(selectedProvider?.displayName ?? "")...")
-                .padding()
+        if isSearching && !isLoadingMore {
+            VStack(spacing: 4) {
+                ProgressView("Searching \(selectedProvider?.displayName ?? "")...")
+                if !searchQuery.isEmpty {
+                    Text("for \"\(searchQuery)\"")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
         } else if let error = errorMessage {
             VStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
@@ -126,6 +175,7 @@ struct PlaceSearchView: View {
             }
         }
         .onChange(of: selectedProvider) { _ in
+            currentLimit = 10
             performSearch()
         }
     }
@@ -137,40 +187,75 @@ struct PlaceSearchView: View {
                     Text(provider.displayName)
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.secondary)
+                    if !searchQuery.isEmpty {
+                        Text("· \"\(searchQuery)\"")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
+                    Text("\(searchResults.count) results")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
             }
 
-            List(searchResults) { result in
-                Button {
-                    onSelect(result)
-                } label: {
-                    HStack(spacing: 10) {
-                        if isResultSelected(result) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                                .font(.title3)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(result.name)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundColor(.primary)
-                            if let address = result.address {
-                                Text(address)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
+            List {
+                ForEach(searchResults) { result in
+                    Button {
+                        onSelect(result)
+                    } label: {
+                        HStack(spacing: 10) {
+                            if isResultSelected(result) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.title3)
                             }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(result.name)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundColor(.primary)
+                                if let address = result.address {
+                                    Text(address)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                }
+                            }
+                            Spacer()
+                            let distance = coordinate.distance(to: result.coordinate)
+                            Text(distance < 1000 ? String(format: "%.0f m", distance) : String(format: "%.1f km", distance / 1000))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        let distance = coordinate.distance(to: result.coordinate)
-                        Text(distance < 1000 ? String(format: "%.0f m", distance) : String(format: "%.1f km", distance / 1000))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
+                }
+
+                if !searchResults.isEmpty {
+                    Button {
+                        loadMore()
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isLoadingMore {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .padding(.trailing, 4)
+                                Text("Loading...")
+                                    .font(.subheadline)
+                            } else {
+                                Image(systemName: "arrow.down.circle")
+                                Text("Search More")
+                                    .font(.subheadline)
+                            }
+                            Spacer()
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.vertical, 4)
+                    }
+                    .disabled(isLoadingMore)
                 }
             }
             .listStyle(.plain)
@@ -188,9 +273,12 @@ struct PlaceSearchView: View {
         errorMessage = nil
         searchResults = []
 
+        let query = searchQuery.isEmpty ? nil : searchQuery
+        let limit = currentLimit
+
         Task {
             do {
-                let results = try await PlaceSearchService.shared.search(near: coordinate, provider: provider)
+                let results = try await PlaceSearchService.shared.search(near: coordinate, provider: provider, query: query, limit: limit)
                 await MainActor.run {
                     searchResults = results
                     isSearching = false
@@ -199,6 +287,29 @@ struct PlaceSearchView: View {
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     isSearching = false
+                }
+            }
+        }
+    }
+
+    private func loadMore() {
+        guard let provider = selectedProvider, !isLoadingMore else { return }
+        isLoadingMore = true
+        let newLimit = currentLimit + 10
+
+        let query = searchQuery.isEmpty ? nil : searchQuery
+
+        Task {
+            do {
+                let results = try await PlaceSearchService.shared.search(near: coordinate, provider: provider, query: query, limit: newLimit)
+                await MainActor.run {
+                    currentLimit = newLimit
+                    searchResults = results
+                    isLoadingMore = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoadingMore = false
                 }
             }
         }

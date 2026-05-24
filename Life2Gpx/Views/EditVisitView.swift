@@ -335,7 +335,7 @@ struct EditVisitView: View {
                             previousIds: nil,
                             lastVisited: nil,
                             isFavorite: nil,
-                            customIcon: nil,
+                            customIcon: result.resolvedIcon,
                             elevation: initialElevation
                         ),
                         isNewPlace: true,
