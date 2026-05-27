@@ -19,6 +19,8 @@ struct ContentView: View {
     @State private var timelineObjects: [TimelineObject] = []
     @State private var selectedTimelineObjectID: UUID?
     @State private var showSettings = false
+    @State private var showOrganizePrompt = false
+    @State private var rootGpxCount = 0
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
@@ -133,12 +135,31 @@ struct ContentView: View {
                     _ = FileManagerUtil.shared
                     refreshData()
                     centerAllData()
+                    checkForRootGpxFiles()
                 }
                 .fullScreenCover(isPresented: $showSettings) {
-                        ManagementView()
-                    
-                    
-        }
+                    ManagementView()
+                }
+                .sheet(isPresented: $showOrganizePrompt) {
+                    GpxOrganizePromptView(
+                        fileCount: rootGpxCount,
+                        onOrganize: { rememberChoice in
+                            _ = FileManagerUtil.shared.organizeGpxFiles(
+                                conflictResolution: SettingsManager.shared.effectiveGpxConflictResolution
+                            )
+                            if rememberChoice {
+                                SettingsManager.shared.askToOrganizeGpxFiles = false
+                            }
+                            refreshData()
+                        },
+                        onDismiss: { rememberChoice in
+                            if rememberChoice {
+                                SettingsManager.shared.askToOrganizeGpxFiles = false
+                            }
+                        }
+                    )
+                    .presentationDetents([.height(280)])
+                }
     }
 
     private func centerAllData() {
@@ -193,6 +214,15 @@ struct ContentView: View {
         refreshData()
         centerAllData()
     }
+    
+    private func checkForRootGpxFiles() {
+        guard SettingsManager.shared.askToOrganizeGpxFiles else { return }
+        let files = FileManagerUtil.shared.gpxFilesInRoot()
+        if !files.isEmpty {
+            rootGpxCount = files.count
+            showOrganizePrompt = true
+        }
+    }
 }
 
 public func formatDateToHoursMinutes(_ date: Date) -> String {
@@ -218,6 +248,50 @@ public func calculateSpan(for coordinates: [CLLocationCoordinate2D]) -> MKCoordi
 extension Date {
     func startOfDay() -> Date {
         return Calendar.current.startOfDay(for: self)
+    }
+}
+
+struct GpxOrganizePromptView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var rememberChoice = false
+    
+    let fileCount: Int
+    let onOrganize: (Bool) -> Void
+    let onDismiss: (Bool) -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "folder.badge.gearshape")
+                .font(.system(size: 40))
+                .foregroundColor(.blue)
+            
+            Text("Organize GPX Files")
+                .font(.headline)
+            
+            Text("\(fileCount) GPX file\(fileCount == 1 ? "" : "s") found in the main folder. Would you like to organize them into year folders?")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Toggle("Remember my choice", isOn: $rememberChoice)
+                .padding(.horizontal, 30)
+            
+            HStack(spacing: 16) {
+                Button("Not Now") {
+                    onDismiss(rememberChoice)
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                
+                Button("Organize") {
+                    onOrganize(rememberChoice)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
     }
 }
 

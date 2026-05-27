@@ -33,6 +33,9 @@ struct ManagementView: View {
                 }
                 Text("Edit activity rules")
                 Text("GPX Tidy up")
+                NavigationLink(destination: FileManagementView()) {
+                    Text("File management")
+                }
                 NavigationLink(destination: SettingsView()) {
                     Text("Settings")
                 }
@@ -42,6 +45,80 @@ struct ManagementView: View {
             .navigationBarItems(trailing: Button("Done") {
                 presentationMode.wrappedValue.dismiss()
             })
+        }
+    }
+}
+
+struct FileManagementView: View {
+    @State private var showOrganizeResult = false
+    @State private var organizeResultMessage = ""
+    @State private var askToOrganize = SettingsManager.shared.askToOrganizeGpxFiles
+    @State private var overwriteExisting = SettingsManager.shared.gpxOverwriteExisting
+    @State private var conflictChoice = SettingsManager.shared.gpxConflictResolution
+
+    var body: some View {
+        Form {
+            Section {
+                Button(action: {
+                    let result = FileManagerUtil.shared.organizeGpxFiles(
+                        conflictResolution: SettingsManager.shared.effectiveGpxConflictResolution
+                    )
+                    if result.moved == 0 && result.duplicates == 0 && result.failed == 0 {
+                        organizeResultMessage = "No GPX files found in the main folder to organize."
+                    } else {
+                        var parts: [String] = []
+                        if result.moved > 0 {
+                            parts.append("Moved \(result.moved) file\(result.moved == 1 ? "" : "s") into year folders.")
+                        }
+                        if result.duplicates > 0 {
+                            parts.append("\(result.duplicates) duplicate\(result.duplicates == 1 ? "" : "s") moved to Duplicates folder.")
+                        }
+                        if result.failed > 0 {
+                            parts.append("\(result.failed) file\(result.failed == 1 ? "" : "s") failed.")
+                        }
+                        organizeResultMessage = parts.joined(separator: " ")
+                    }
+                    showOrganizeResult = true
+                }) {
+                    Text("Sort GPX files in main folder")
+                }
+            }
+
+            Section("Conflict Resolution") {
+                Toggle("Overwrite existing files", isOn: $overwriteExisting)
+                    .onChange(of: overwriteExisting) { _, newValue in
+                        SettingsManager.shared.gpxOverwriteExisting = newValue
+                    }
+                
+                if !overwriteExisting {
+                    Picker("When a file already exists", selection: $conflictChoice) {
+                        Text("Replace existing").tag(FileManagerUtil.ConflictResolution.replaceExisting)
+                    }
+                    .pickerStyle(.inline)
+                    .onChange(of: conflictChoice) { _, newValue in
+                        SettingsManager.shared.gpxConflictResolution = newValue
+                    }
+                    
+                    Text(conflictChoice == .keepExisting
+                         ? "The incoming file will be moved to the Duplicates folder."
+                         : "The file already in the year folder will be moved to the Duplicates folder.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Section {
+                Toggle("Ask to organize GPX files on startup", isOn: $askToOrganize)
+                    .onChange(of: askToOrganize) { _, newValue in
+                        SettingsManager.shared.askToOrganizeGpxFiles = newValue
+                    }
+            }
+        }
+        .navigationTitle("File Management")
+        .alert("Organize GPX Files", isPresented: $showOrganizeResult) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(organizeResultMessage)
         }
     }
 }

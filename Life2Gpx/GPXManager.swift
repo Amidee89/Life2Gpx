@@ -16,7 +16,7 @@ class GPXManager {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
-        let fileURL = self.fileURL(forName: fileName)
+        let fileURL = self.fileURL(forDate: date)
 
         FileManagerUtil.logData(context: "GPXManager", content: "Saving GPX data to \(fileName). Waypoints: \(waypoints.count), Tracks: \(tracks.count)", verbosity: 4)
 
@@ -25,6 +25,11 @@ class GPXManager {
         tracks.forEach { gpx.add(track: $0) }
 
         do {
+            let fileManager = FileManager.default
+            let parentDir = fileURL.deletingLastPathComponent()
+            if !fileManager.fileExists(atPath: parentDir.path) {
+                try fileManager.createDirectory(at: parentDir, withIntermediateDirectories: true)
+            }
             let gpxString = gpx.gpx()
             try gpxString.write(to: fileURL, atomically: true, encoding: .utf8)
             FileManagerUtil.logData(context: "GPXManager", content: "GPX data saved successfully to \(fileName).", verbosity: 3)
@@ -38,7 +43,7 @@ class GPXManager {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
-        let fileURL = self.fileURL(forName: fileName)
+        let fileURL = self.resolvedFileURL(forDate: date)
         print(fileURL.path)
         FileManagerUtil.logData(context: "GPXManager", content: "Loading GPX file: \(fileName)", verbosity: 4)
 
@@ -51,38 +56,84 @@ class GPXManager {
         completion(gpx.waypoints, gpx.tracks)
     }
 
-    private func fileURL(forName fileName: String) -> URL {
+    /// Canonical path for new writes: Gpx/year/yyyy-MM-dd.gpx
+    private func fileURL(forDate date: Date) -> URL {
         let fileManager = FileManager.default
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsURL.appendingPathComponent(fileName)
-    }
-    
-    func fileExists(forDate date: Date) -> Bool {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
-        let fileURL = self.fileURL(forName: fileName)
-        let exists = FileManager.default.fileExists(atPath: fileURL.path)
-        FileManagerUtil.logData(context: "GPXManager", content: "Checking existence for file: \(fileName). Exists: \(exists)", verbosity: 5)
+        let year = String(Calendar.current.component(.year, from: date))
+        return documentsURL.appendingPathComponent("Gpx/\(year)/\(fileName)")
+    }
+    
+    /// Resolves actual file location: checks new path first, falls back to root for unmigrated files
+    func resolvedFileURL(forDate date: Date) -> URL {
+        let newPath = fileURL(forDate: date)
+        if FileManager.default.fileExists(atPath: newPath.path) {
+            return newPath
+        }
+        let fileManager = FileManager.default
+        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let fileName = "\(dateFormatter.string(from: date)).gpx"
+        let legacyPath = documentsURL.appendingPathComponent(fileName)
+        if fileManager.fileExists(atPath: legacyPath.path) {
+            return legacyPath
+        }
+        return newPath
+    }
+    
+    func fileExists(forDate date: Date) -> Bool {
+        let resolved = self.resolvedFileURL(forDate: date)
+        let exists = FileManager.default.fileExists(atPath: resolved.path)
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        FileManagerUtil.logData(context: "GPXManager", content: "Checking existence for file: \(dateFormatter.string(from: date)).gpx. Exists: \(exists)", verbosity: 5)
         return exists
     }
     func getDateRange(completion: @escaping (Date?, Date?) -> Void) {
-        FileManagerUtil.logData(context: "GPXManager", content: "Getting date range from documents directory.", verbosity: 4)
+        FileManagerUtil.logData(context: "GPXManager", content: "Getting date range from Gpx directory.", verbosity: 4)
         let fileManager = FileManager.default
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let files = try? fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
-
-        let dates = files?.compactMap { fileURL -> Date? in
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            let dateString = fileURL.deletingPathExtension().lastPathComponent
-            return dateFormatter.date(from: dateString)
+        let gpxBaseURL = documentsURL.appendingPathComponent("Gpx")
+        
+        var allDates: [Date] = []
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        if let yearFolders = try? fileManager.contentsOfDirectory(at: gpxBaseURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
+            for yearFolder in yearFolders {
+                var isDir: ObjCBool = false
+                fileManager.fileExists(atPath: yearFolder.path, isDirectory: &isDir)
+                guard isDir.boolValue else { continue }
+                
+                if let files = try? fileManager.contentsOfDirectory(at: yearFolder, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
+                    for file in files where file.pathExtension.lowercased() == "gpx" {
+                        let dateString = file.deletingPathExtension().lastPathComponent
+                        if let date = dateFormatter.date(from: dateString) {
+                            allDates.append(date)
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also check root for legacy files that haven't been organized yet
+        if let rootFiles = try? fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
+            for file in rootFiles where file.pathExtension.lowercased() == "gpx" {
+                let dateString = file.deletingPathExtension().lastPathComponent
+                if let date = dateFormatter.date(from: dateString) {
+                    allDates.append(date)
+                }
+            }
         }
 
-        FileManagerUtil.logData(context: "GPXManager", content: "Found \(dates?.count ?? 0) potential date files.", verbosity: 4)
-        let sortedDates = dates?.sorted()
-        let earliestDate = sortedDates?.first
-        let latestDate = sortedDates?.last
+        FileManagerUtil.logData(context: "GPXManager", content: "Found \(allDates.count) potential date files.", verbosity: 4)
+        let sortedDates = allDates.sorted()
+        let earliestDate = sortedDates.first
+        let latestDate = sortedDates.last
 
         DispatchQueue.main.async {
             completion(earliestDate, latestDate)

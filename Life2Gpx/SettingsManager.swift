@@ -12,6 +12,9 @@ class SettingsManager {
     private let filterSmallRoundTripsKey = "filterSmallRoundTrips"
     private let roundTripMaxPointsKey = "roundTripMaxPoints"
     private let roundTripUnknownRadiusKey = "roundTripUnknownRadius"
+    private let askToOrganizeGpxFilesKey = "askToOrganizeGpxFiles"
+    private let gpxOverwriteExistingKey = "gpxOverwriteExisting"
+    private let gpxConflictResolutionKey = "gpxConflictResolution"
 
     
     private init() {
@@ -30,7 +33,10 @@ class SettingsManager {
             placeProviderOrderKey: defaultOrder,
             filterSmallRoundTripsKey: true,
             roundTripMaxPointsKey: 3,
-            roundTripUnknownRadiusKey: 100
+            roundTripUnknownRadiusKey: 100,
+            askToOrganizeGpxFilesKey: true,
+            gpxOverwriteExistingKey: false,
+            gpxConflictResolutionKey: "keepExisting"
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -160,6 +166,44 @@ class SettingsManager {
         set {
             defaults.set(newValue.map { $0.rawValue }, forKey: placeProviderOrderKey)
         }
+    }
+
+    var askToOrganizeGpxFiles: Bool {
+        get {
+            return defaults.bool(forKey: askToOrganizeGpxFilesKey)
+        }
+        set {
+            defaults.set(newValue, forKey: askToOrganizeGpxFilesKey)
+        }
+    }
+
+    var gpxOverwriteExisting: Bool {
+        get {
+            return defaults.bool(forKey: gpxOverwriteExistingKey)
+        }
+        set {
+            defaults.set(newValue, forKey: gpxOverwriteExistingKey)
+        }
+    }
+
+    var gpxConflictResolution: FileManagerUtil.ConflictResolution {
+        get {
+            let raw = defaults.string(forKey: gpxConflictResolutionKey) ?? "keepExisting"
+            return raw == "replaceExisting" ? .replaceExisting : .keepExisting
+        }
+        set {
+            let raw: String
+            switch newValue {
+            case .replaceExisting: raw = "replaceExisting"
+            default: raw = "keepExisting"
+            }
+            defaults.set(raw, forKey: gpxConflictResolutionKey)
+        }
+    }
+
+    /// Returns the effective conflict resolution based on the overwrite toggle and the choice picker
+    var effectiveGpxConflictResolution: FileManagerUtil.ConflictResolution {
+        return gpxOverwriteExisting ? .overwrite : gpxConflictResolution
     }
 
     func apiKey(for provider: PlaceProvider) -> String {
