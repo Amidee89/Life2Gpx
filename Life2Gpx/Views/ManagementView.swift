@@ -92,6 +92,7 @@ struct FileManagementView: View {
                 
                 if !overwriteExisting {
                     Picker("When a file already exists", selection: $conflictChoice) {
+                        Text("Keep existing").tag(FileManagerUtil.ConflictResolution.keepExisting)
                         Text("Replace existing").tag(FileManagerUtil.ConflictResolution.replaceExisting)
                     }
                     .pickerStyle(.inline)
