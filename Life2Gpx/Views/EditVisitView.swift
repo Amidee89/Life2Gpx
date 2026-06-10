@@ -351,12 +351,11 @@ struct EditVisitView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             "Are you sure you want to delete this visit?",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showingDeleteConfirmation
         ) {
-            Button("Delete", role: .destructive) {
+            Button("Delete Visit", role: .destructive) {
                 // First, backup the current GPX file
                 do {
                     try FileManagerUtil.shared.backupFile(forDate: fileDate)
