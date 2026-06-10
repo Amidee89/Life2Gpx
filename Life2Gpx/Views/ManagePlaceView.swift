@@ -88,14 +88,14 @@ struct ManagePlacesView: View {
                 Map(position: $cameraPosition, interactionModes: .all) {
                     if isMapLoaded {
                         ForEach(visiblePlaces) { place in
-                            Annotation(place.name, coordinate: place.coordinate) {
+                            Annotation(place.name, coordinate: CoordinateConverter.forMapDisplay(place.coordinate)) {
                                 ZStack {
                                     Circle()
                                         .fill(selectedPlace == place ? Color.purple : Color.red)
                                         .frame(width: 10, height: 10)
                                 }
                             }
-                            MapCircle(center: place.coordinate, radius: place.radius)
+                            MapCircle(center: CoordinateConverter.forMapDisplay(place.coordinate), radius: place.radius)
                                 .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
                                 .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
                         }
@@ -182,7 +182,7 @@ struct ManagePlacesView: View {
                                 let span = max(radiusInDegrees, minimumSpan)
                                 
                                 cameraPosition = .region(MKCoordinateRegion(
-                                    center: place.coordinate,
+                                    center: CoordinateConverter.forMapDisplay(place.coordinate),
                                     span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                                 ))
                             }
@@ -266,7 +266,7 @@ struct ManagePlacesView: View {
 
     private func setRegion(_ coordinate: CLLocationCoordinate2D) {
         let region = MKCoordinateRegion(
-            center: coordinate,
+            center: CoordinateConverter.forMapDisplay(coordinate),
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
         cameraPosition = .region(region)

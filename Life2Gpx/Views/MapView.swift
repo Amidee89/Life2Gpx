@@ -12,8 +12,14 @@ import MapKit
 struct MapView: View {
     @Binding var timelineObjects: [TimelineObject]
     @Binding var selectedTimelineObjectID: UUID?
+    @Binding var selectedGroupIDs: Set<UUID>
     @Binding var cameraPosition: MapCameraPosition 
     @Binding var selectedDate: Date
+
+    private func isSelected(_ id: UUID) -> Bool {
+        id == selectedTimelineObjectID || selectedGroupIDs.contains(id)
+    }
+
     var body: some View {
         Map(
             position: $cameraPosition,
@@ -23,16 +29,16 @@ struct MapView: View {
             {
                 UserAnnotation()
             }
-            ForEach(timelineObjects.filter { $0.type == .track && $0.id != selectedTimelineObjectID }, id: \.id) { trackObject in
+            ForEach(timelineObjects.filter { $0.type == .track && !isSelected($0.id) }, id: \.id) { trackObject in
                 ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
-                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                    MapPolyline(coordinates: CoordinateConverter.forMapDisplay(identifiableCoordinates.coordinates))
                         .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
                                 style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                 }
             }
-            if let selectedObject = timelineObjects.first(where: { $0.type == .track && $0.id == selectedTimelineObjectID }) {
+            ForEach(timelineObjects.filter { $0.type == .track && isSelected($0.id) }, id: \.id) { selectedObject in
                 let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
-                    IdentifiableCoordinates(coordinates: coordinates.coordinates)
+                    IdentifiableCoordinates(coordinates: CoordinateConverter.forMapDisplay(coordinates.coordinates))
                 }
 
                 ForEach(selectedIdentifiableCoordinates, id: \.id) { identifiableCoordinates in
@@ -51,8 +57,9 @@ struct MapView: View {
             ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
                 if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
                 {
-                    if (waypointObject.id == selectedTimelineObjectID){
-                        Annotation(waypointObject.name ?? "", coordinate: coordinate)
+                    let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
+                    if isSelected(waypointObject.id) {
+                        Annotation(waypointObject.name ?? "", coordinate: displayCoord)
                         {
                             ZStack {
                                 Circle()
@@ -65,7 +72,7 @@ struct MapView: View {
                     }
                     else
                     {
-                        Annotation(waypointObject.name ?? "", coordinate: coordinate)
+                        Annotation(waypointObject.name ?? "", coordinate: displayCoord)
                         {
                             ZStack {
                                 Circle()

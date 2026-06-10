@@ -54,6 +54,13 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var usesGcj02InChina: Bool {
+        switch self {
+        case .gaode, .apple, .google: return true
+        case .foursquare, .yelp, .mapbox, .openStreetMap, .here: return false
+        }
+    }
+
     var color: Color {
         switch self {
         case .google: return Color(red: 0.86, green: 0.27, blue: 0.22)
@@ -152,26 +159,45 @@ class PlaceSearchService {
         let effectiveQuery = (trimmedQuery?.isEmpty ?? true) ? nil : trimmedQuery
         let effectiveLimit = min(limit, provider.maxResultsLimit)
 
+        let results: [PlaceSearchResult]
+
         if provider == .apple {
-            return try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
-        }
-        if provider == .openStreetMap {
-            return try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+            results = try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+        } else if provider == .openStreetMap {
+            results = try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+        } else {
+            guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
+                throw PlaceSearchError.noApiKey
+            }
+
+            switch provider {
+            case .google: results = try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+            case .foursquare: results = try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+            case .yelp: results = try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+            case .mapbox: results = try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+            case .here: results = try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+            case .gaode: results = try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+            case .apple, .openStreetMap: results = []
+            }
         }
 
-        guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
-            throw PlaceSearchError.noApiKey
+        // Convert GCJ-02 coordinates to WGS-84 for providers that use GCJ-02 in China
+        if provider.usesGcj02InChina {
+            return results.map { result in
+                let converted = CoordinateConverter.gcj02ToWgs84(result.coordinate)
+                return PlaceSearchResult(
+                    id: result.id,
+                    name: result.name,
+                    address: result.address,
+                    latitude: converted.latitude,
+                    longitude: converted.longitude,
+                    provider: result.provider,
+                    foursquareCategoryId: result.foursquareCategoryId,
+                    categoryIds: result.categoryIds
+                )
+            }
         }
-
-        switch provider {
-        case .google: return try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-        case .foursquare: return try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-        case .yelp: return try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-        case .mapbox: return try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-        case .here: return try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-        case .gaode: return try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-        case .apple, .openStreetMap: return []
-        }
+        return results
     }
 
     func findExistingPlace(for result: PlaceSearchResult) -> Place? {
@@ -628,10 +654,11 @@ class PlaceSearchService {
     // MARK: - Gaode (Amap)
 
     private func searchGaode(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
+        let gcj02Coord = CoordinateConverter.wgs84ToGcj02(coordinate)
         var components = URLComponents(string: "https://restapi.amap.com/v3/place/around")!
         components.queryItems = [
             URLQueryItem(name: "key", value: apiKey),
-            URLQueryItem(name: "location", value: "\(coordinate.longitude),\(coordinate.latitude)"),
+            URLQueryItem(name: "location", value: "\(gcj02Coord.longitude),\(gcj02Coord.latitude)"),
             URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
             URLQueryItem(name: "offset", value: "\(limit)"),
             URLQueryItem(name: "extensions", value: "all")

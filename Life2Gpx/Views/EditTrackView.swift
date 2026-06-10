@@ -432,7 +432,7 @@ struct EditTrackView: View {
                 }
             )
             .onAppear {
-                let coordinates = workingCopy.identifiableCoordinates.flatMap { $0.coordinates }
+                let coordinates = CoordinateConverter.forMapDisplay(workingCopy.identifiableCoordinates.flatMap { $0.coordinates })
                 if !coordinates.isEmpty {
                     let span = calculateSpan(for: coordinates)
                     let center = coordinates[coordinates.count / 2]
@@ -470,8 +470,9 @@ struct EditTrackView: View {
                     }
                     
                     if !coordinates.isEmpty {
-                        let span = calculateSpan(for: coordinates, withPadding: 1.5)
-                        let center = coordinates[0] 
+                        let displayCoords = CoordinateConverter.forMapDisplay(coordinates)
+                        let span = calculateSpan(for: displayCoords, withPadding: 1.5)
+                        let center = displayCoords[0] 
                         
                         withAnimation {
                             cameraPosition = .region(MKCoordinateRegion(
@@ -485,10 +486,9 @@ struct EditTrackView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             "Are you sure you want to delete this track?",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showingDeleteConfirmation
         ) {
             Button("Delete Track", role: .destructive) {
                 guard let originalTrack = timelineObject.track else {
@@ -537,10 +537,10 @@ struct EditTrackView: View {
             Map(position: $cameraPosition) {
                 if let track = workingCopy.track {
                     ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
-                        let coordinates = segment.points.compactMap { point in
+                        let coordinates = CoordinateConverter.forMapDisplay(segment.points.compactMap { point in
                             point.latitude != nil && point.longitude != nil ?
                                 CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
-                        }
+                        })
                         MapPolyline(coordinates: coordinates)
                             .stroke(.white,
                                    style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
@@ -565,7 +565,7 @@ struct EditTrackView: View {
                                     )
                                 
                                 if !shouldSkip {
-                                    let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                    let coordinate = CoordinateConverter.forMapDisplay(CLLocationCoordinate2D(latitude: lat, longitude: lon))
                                     let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                                     
                                     Annotation(timeLabel, coordinate: coordinate) {
@@ -590,7 +590,7 @@ struct EditTrackView: View {
                         
                         let point = track.segments[selectedSegmentIndex].points[selectedPointIndex]
                         if let lat = point.latitude, let lon = point.longitude {
-                            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                            let coordinate = CoordinateConverter.forMapDisplay(CLLocationCoordinate2D(latitude: lat, longitude: lon))
                             let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                             
                             Annotation(timeLabel, coordinate: coordinate) {
@@ -614,8 +614,9 @@ struct EditTrackView: View {
                    let track = workingCopy.track,
                    track.segments.indices.contains(selectedSegmentIndex),
                    track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex),
-                   let coordinate = reader.convert(screenCoord, from: .local) {
+                   let mapCoordinate = reader.convert(screenCoord, from: .local) {
                     
+                    let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
                     track.segments[selectedSegmentIndex].points[selectedPointIndex].latitude = coordinate.latitude
                     track.segments[selectedSegmentIndex].points[selectedPointIndex].longitude = coordinate.longitude
                     

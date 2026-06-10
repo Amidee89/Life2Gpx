@@ -182,7 +182,7 @@ struct EditVisitView: View {
                                     // Update the map region to center on the place
                                     withAnimation {
                                         region = MKCoordinateRegion(
-                                            center: place.centerCoordinate,
+                                            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
                                             span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
                                         )
                                     }
@@ -383,7 +383,7 @@ struct EditVisitView: View {
             
             if let coordinate = currentCoordinate {
                 region = MKCoordinateRegion(
-                    center: coordinate,
+                    center: CoordinateConverter.forMapDisplay(coordinate),
                     span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                 )
                 
@@ -396,23 +396,25 @@ struct EditVisitView: View {
         }
         .onChange(of: selectedPlace) { newPlace in
             if let place = newPlace, let coordinate = currentCoordinate {
+                let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
+                let displayPlace = CoordinateConverter.forMapDisplay(place.centerCoordinate)
                 let radiusInDegrees = (place.radius * 2.2) / 111000.0
                 let minimumSpan = 0.005 
                 
                 let latDelta = max(
-                    abs(coordinate.latitude - place.centerCoordinate.latitude) * 2.2,
+                    abs(displayCoord.latitude - displayPlace.latitude) * 2.2,
                     radiusInDegrees,
                     minimumSpan
                 )
                 let lonDelta = max(
-                    abs(coordinate.longitude - place.centerCoordinate.longitude) * 2.2,
+                    abs(displayCoord.longitude - displayPlace.longitude) * 2.2,
                     radiusInDegrees,
                     minimumSpan
                 )
                 
                 let center = CLLocationCoordinate2D(
-                    latitude: (coordinate.latitude + place.centerCoordinate.latitude) / 2,
-                    longitude: (coordinate.longitude + place.centerCoordinate.longitude) / 2
+                    latitude: (displayCoord.latitude + displayPlace.latitude) / 2,
+                    longitude: (displayCoord.longitude + displayPlace.longitude) / 2
                 )
                 
                 region = MKCoordinateRegion(
@@ -434,7 +436,7 @@ struct EditVisitView: View {
                 MapReader { reader in
                     Map(position: .constant(.region(region))) {
                         if let coordinate = currentCoordinate {
-                            Annotation("Visit Location", coordinate: coordinate) {
+                            Annotation("Visit Location", coordinate: CoordinateConverter.forMapDisplay(coordinate)) {
                                 ZStack {
                                     Circle()
                                         .fill(Color.white)
@@ -447,7 +449,8 @@ struct EditVisitView: View {
                         }
 
                         if let place = selectedPlace {
-                            Annotation(place.name, coordinate: place.centerCoordinate) {
+                            let placeDisplayCoord = CoordinateConverter.forMapDisplay(place.centerCoordinate)
+                            Annotation(place.name, coordinate: placeDisplayCoord) {
                                 ZStack {
                                     Circle()
                                         .fill(Color.white)
@@ -458,13 +461,14 @@ struct EditVisitView: View {
                                 .frame(width: 24, height: 24)
                             }
 
-                            MapCircle(center: place.centerCoordinate, radius: place.radius)
+                            MapCircle(center: placeDisplayCoord, radius: place.radius)
                                 .stroke(Color.blue.opacity(0.5), lineWidth: 2)
                                 .foregroundStyle(Color.orange.opacity(0.5))
                         }
                     }
                     .onTapGesture { screenCoord in
-                        if let coordinate = reader.convert(screenCoord, from: .local) {
+                        if let mapCoordinate = reader.convert(screenCoord, from: .local) {
+                            let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
                             if let waypoint = workingWaypoint {
                                 waypoint.latitude = coordinate.latitude
                                 waypoint.longitude = coordinate.longitude
@@ -489,7 +493,7 @@ struct EditVisitView: View {
                     .onTapGesture {
                         withAnimation {
                             region = MKCoordinateRegion(
-                                center: currentCoordinate ?? CLLocationCoordinate2D(),
+                                center: CoordinateConverter.forMapDisplay(currentCoordinate ?? CLLocationCoordinate2D()),
                                 span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
                             )
                         }

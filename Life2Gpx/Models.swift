@@ -38,6 +38,11 @@ class TimelineObject: Identifiable, ObservableObject {
     var customIcon: String?
     var track: GPXTrack?
     
+    var durationInMinutes: Double {
+        guard let start = startDate, let end = endDate else { return 0 }
+        return max(0, end.timeIntervalSince(start) / 60.0)
+    }
+    
     init(type: TimelineObjectType, 
          startDate: Date?, 
          endDate: Date?, 

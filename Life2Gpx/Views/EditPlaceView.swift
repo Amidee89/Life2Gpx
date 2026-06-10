@@ -66,11 +66,11 @@ struct EditPlaceView: View {
         let span = max(radiusInDegrees, minimumSpan)
         
         _currentRegion = State(initialValue: MKCoordinateRegion(
-            center: place.centerCoordinate,
+            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
         ))
         _cameraPosition = State(initialValue: .region(MKCoordinateRegion(
-            center: place.centerCoordinate,
+            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
         )))
         
@@ -138,18 +138,19 @@ struct EditPlaceView: View {
                     ZStack(alignment: .bottomTrailing) {
                         MapReader { reader in
                             Map(position: $cameraPosition, interactionModes: .all) {
-                                Annotation(editablePlace.name, coordinate: center) {
+                                Annotation(editablePlace.name, coordinate: CoordinateConverter.forMapDisplay(center)) {
                                     Circle()
                                         .fill(Color.red)
                                         .frame(width: 10, height: 10)
                                 }
-                                MapCircle(center: center, radius: Double(radius))
+                                MapCircle(center: CoordinateConverter.forMapDisplay(center), radius: Double(radius))
                                     .stroke(Color.blue.opacity(0.5), lineWidth: 2)
                                     .foregroundStyle(Color.orange.opacity(0.5))
                             }
                             .frame(height: 300)
                             .onTapGesture { screenCoord in
-                                if let coordinate = reader.convert(screenCoord, from: .local) {
+                                if let mapCoordinate = reader.convert(screenCoord, from: .local) {
+                                    let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
                                     center = coordinate
                                     latitudeString = String(format: "%.6f", coordinate.latitude)
                                     longitudeString = String(format: "%.6f", coordinate.longitude)
@@ -175,7 +176,7 @@ struct EditPlaceView: View {
                                         let span = max(radiusInDegrees, minimumSpan)
                                         
                                         currentRegion = MKCoordinateRegion(
-                                            center: center,
+                                            center: CoordinateConverter.forMapDisplay(center),
                                             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                                         )
                                         cameraPosition = .region(currentRegion)

@@ -18,9 +18,12 @@ struct ContentView: View {
     @State private var lastBackgroundTime: Date? = nil
     @State private var timelineObjects: [TimelineObject] = []
     @State private var selectedTimelineObjectID: UUID?
+    @State private var selectedGroupIDs: Set<UUID> = []
     @State private var showSettings = false
     @State private var showOrganizePrompt = false
     @State private var rootGpxCount = 0
+    @State private var groupingMinutes: Double = 0
+    @State private var showGroupingSlider = false
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
@@ -31,6 +34,7 @@ struct ContentView: View {
                 VStack
                 {
                     MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
+                            selectedGroupIDs: $selectedGroupIDs,
                             cameraPosition: $cameraPosition,
                             selectedDate: $selectedDate
                     )
@@ -45,7 +49,17 @@ struct ContentView: View {
                     )
                     HStack {
                         Spacer()
-                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showGroupingSlider.toggle()
+                            }
+                        }) {
+                            Image(systemName: "line.3.horizontal.decrease")
+                                .padding(8)
+                                .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
+                        }
+
                         Spacer()
 
                         Button(action: {
@@ -104,13 +118,38 @@ struct ContentView: View {
                          }
                         Spacer()
                     }
+                    if showGroupingSlider {
+                        HStack(spacing: 8) {
+                            Image(systemName: "line.3.horizontal")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                            Slider(value: $groupingMinutes, in: 0...60, step: 1)
+                            Image(systemName: "line.3.horizontal.decrease")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                            Text("\(Int(groupingMinutes))m")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 30)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 4)
+                        .transition(.asymmetric(
+                            insertion: .push(from: .top),
+                            removal: .push(from: .bottom)
+                        ))
+                    }
                     TimelineView(
                         timelineObjects: $timelineObjects,
                         selectedTimelineObjectID: $selectedTimelineObjectID,
+                        groupingMinutes: groupingMinutes,
                         onRefresh: refreshData,
                         onSelectItem: { item in
                             selectedTimelineObjectID = item.id
                             selectAndCenter(item)
+                        },
+                        onSelectGroup: { items in
+                            selectAndCenterGroup(items)
                         },
                         onEditVisit: handleVisitEdit,
                         onRecenter: centerAllData
@@ -169,6 +208,7 @@ struct ContentView: View {
                 recenterOn(coordinates: allCoordinates)
             }
             self.selectedTimelineObjectID = nil
+            self.selectedGroupIDs = []
         }
     }
     
@@ -179,18 +219,35 @@ struct ContentView: View {
          if let index = timelineObjects.firstIndex(where: { $0.id == item.id }) {
              timelineObjects[index].selected = true
              selectedTimelineObjectID = item.id
+             selectedGroupIDs = []
              withAnimation (.easeInOut(duration: 0.5)){
                  recenterOn(coordinates: timelineObjects[index].identifiableCoordinates.flatMap { $0.coordinates })
              }
          }
      }
     
+    private func selectAndCenterGroup(_ items: [TimelineObject]) {
+        let groupIDs = Set(items.map { $0.id })
+        for index in timelineObjects.indices {
+            timelineObjects[index].selected = groupIDs.contains(timelineObjects[index].id)
+        }
+        selectedTimelineObjectID = nil
+        selectedGroupIDs = groupIDs
+        let allCoordinates = items.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
+        if !allCoordinates.isEmpty {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                recenterOn(coordinates: allCoordinates)
+            }
+        }
+    }
+    
     private func recenterOn(coordinates: [CLLocationCoordinate2D]) {
         guard !coordinates.isEmpty else { return }
-        let centerLat = (coordinates.map { $0.latitude }.max()! + coordinates.map { $0.latitude }.min()!) / 2
-        let centerLon = (coordinates.map { $0.longitude }.max()! + coordinates.map { $0.longitude }.min()!) / 2
+        let displayCoords = CoordinateConverter.forMapDisplay(coordinates)
+        let centerLat = (displayCoords.map { $0.latitude }.max()! + displayCoords.map { $0.latitude }.min()!) / 2
+        let centerLon = (displayCoords.map { $0.longitude }.max()! + displayCoords.map { $0.longitude }.min()!) / 2
         let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
-        let span = calculateSpan(for: coordinates)
+        let span = calculateSpan(for: displayCoords)
         
         cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
         
