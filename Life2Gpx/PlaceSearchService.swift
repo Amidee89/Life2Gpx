@@ -154,36 +154,142 @@ class PlaceSearchService {
     static let shared = PlaceSearchService()
     private init() {}
 
+    private func log(_ provider: PlaceProvider, _ message: String, verbosity: Int) {
+        FileManagerUtil.logData(context: "PlaceSearch-\(provider.rawValue)", content: message, verbosity: verbosity)
+    }
+
+    private func formatCoordinate(_ coordinate: CLLocationCoordinate2D) -> String {
+        String(format: "%.6f,%.6f", coordinate.latitude, coordinate.longitude)
+    }
+
+    private func formatQuery(_ query: String?) -> String {
+        guard let query, !query.isEmpty else { return "<nearby>" }
+        return "\"\(query)\""
+    }
+
+    private func truncateForLog(_ value: String, maxLength: Int = 200) -> String {
+        guard value.count > maxLength else { return value }
+        return String(value.prefix(maxLength)) + "..."
+    }
+
+    private func formatRadius(_ radiusMeters: Double) -> String {
+        if radiusMeters >= 1000 {
+            return String(format: "%.0f km", radiusMeters / 1000)
+        }
+        return String(format: "%.0f m", radiusMeters)
+    }
+
+    private func summarizeUserInfo(_ userInfo: [String: Any]) -> String {
+        guard !userInfo.isEmpty else { return "none" }
+
+        return userInfo.keys.sorted().compactMap { key in
+            guard let value = userInfo[key] else { return nil }
+            let summary = truncateForLog(String(describing: value), maxLength: 160)
+            return "\(key)=\(summary)"
+        }
+        .joined(separator: ", ")
+    }
+
+    private func mapKitErrorHint(for error: NSError) -> String? {
+        guard error.domain == MKErrorDomain else { return nil }
+
+        switch error.code {
+        case 1:
+            return "MapKit unknown error"
+        case 2:
+            return "MapKit server failure"
+        case 3:
+            return "MapKit loading throttled"
+        case 4:
+            return "MapKit placemarkNotFound; Apple Maps could not resolve a place or placemark for the request area/query"
+        case 5:
+            return "MapKit directionsNotFound"
+        case 6:
+            return "MapKit decodingFailed"
+        default:
+            return "MapKit error code \(error.code)"
+        }
+    }
+
+    private func summarize(error: Error) -> String {
+        let nsError = error as NSError
+        var parts = [
+            "domain=\(nsError.domain)",
+            "code=\(nsError.code)",
+            "description=\(nsError.localizedDescription)"
+        ]
+
+        if let failureReason = nsError.localizedFailureReason, !failureReason.isEmpty {
+            parts.append("reason=\(failureReason)")
+        }
+        if let recoverySuggestion = nsError.localizedRecoverySuggestion, !recoverySuggestion.isEmpty {
+            parts.append("recovery=\(recoverySuggestion)")
+        }
+        if let hint = mapKitErrorHint(for: nsError) {
+            parts.append("hint=\(hint)")
+        }
+        if !nsError.userInfo.isEmpty {
+            parts.append("userInfo=\(summarizeUserInfo(nsError.userInfo))")
+        }
+
+        return parts.joined(separator: ", ")
+    }
+
+    private func appleNoResultsMessage(query: String?, radiusMeters: Double) -> String {
+        let radiusText = formatRadius(radiusMeters)
+
+        if let query, !query.isEmpty {
+            return "No Apple Maps matches found for \"\(query)\" within \(radiusText) of this point."
+        }
+
+        return "No Apple Maps places found within \(radiusText) of this point."
+    }
+
     func search(near coordinate: CLLocationCoordinate2D, provider: PlaceProvider, query: String? = nil, limit: Int = 10) async throws -> [PlaceSearchResult] {
         let trimmedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines)
         let effectiveQuery = (trimmedQuery?.isEmpty ?? true) ? nil : trimmedQuery
         let effectiveLimit = min(limit, provider.maxResultsLimit)
 
+        log(
+            provider,
+            "Starting search. coordinate=\(formatCoordinate(coordinate)), query=\(formatQuery(effectiveQuery)), requestedLimit=\(limit), effectiveLimit=\(effectiveLimit)",
+            verbosity: 4
+        )
+
         let results: [PlaceSearchResult]
 
-        if provider == .apple {
-            results = try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
-        } else if provider == .openStreetMap {
-            results = try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
-        } else {
-            guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
-                throw PlaceSearchError.noApiKey
-            }
+        do {
+            if provider == .apple {
+                results = try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+            } else if provider == .openStreetMap {
+                results = try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+            } else {
+                guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
+                    throw PlaceSearchError.noApiKey
+                }
 
-            switch provider {
-            case .google: results = try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-            case .foursquare: results = try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-            case .yelp: results = try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-            case .mapbox: results = try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-            case .here: results = try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-            case .gaode: results = try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-            case .apple, .openStreetMap: results = []
+                switch provider {
+                case .google: results = try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .foursquare: results = try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .yelp: results = try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .mapbox: results = try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .here: results = try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .gaode: results = try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .apple, .openStreetMap: results = []
+                }
             }
+        } catch {
+            log(
+                provider,
+                "Search failed. coordinate=\(formatCoordinate(coordinate)), query=\(formatQuery(effectiveQuery)), effectiveLimit=\(effectiveLimit), \(summarize(error: error))",
+                verbosity: 1
+            )
+            throw error
         }
 
         // Convert GCJ-02 coordinates to WGS-84 for providers that use GCJ-02 in China
         if provider.usesGcj02InChina {
-            return results.map { result in
+            let convertedResults = results.map { result in
                 let converted = CoordinateConverter.gcj02ToWgs84(result.coordinate)
                 return PlaceSearchResult(
                     id: result.id,
@@ -196,7 +302,15 @@ class PlaceSearchService {
                     categoryIds: result.categoryIds
                 )
             }
+            log(
+                provider,
+                "Search completed with coordinate conversion. rawResults=\(results.count), returnedResults=\(convertedResults.count)",
+                verbosity: 4
+            )
+            return convertedResults
         }
+
+        log(provider, "Search completed. returnedResults=\(results.count)", verbosity: 4)
         return results
     }
 
@@ -243,17 +357,17 @@ class PlaceSearchService {
         }
 
         let url = components.url!
-        print("[PlaceSearch][Google] Request URL: \(url.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
+        log(.google, "Request URL: \(url.absoluteString.replacingOccurrences(of: apiKey, with: "***"))", verbosity: 4)
 
         let (data, response) = try await URLSession.shared.data(from: url)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][Google] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.google, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         if let status = json?["status"] as? String {
-            print("[PlaceSearch][Google] API status: \(status)")
+            log(.google, "API status: \(status)", verbosity: 4)
             if let errorMessage = json?["error_message"] as? String {
-                print("[PlaceSearch][Google] Error message: \(errorMessage)")
+                log(.google, "Error message: \(errorMessage)", verbosity: 2)
             }
             if status != "OK" && status != "ZERO_RESULTS" {
                 throw PlaceSearchError.apiError("Google Places: \(status) - \(json?["error_message"] as? String ?? "unknown error")")
@@ -261,10 +375,10 @@ class PlaceSearchService {
         }
 
         guard let results = json?["results"] as? [[String: Any]] else {
-            print("[PlaceSearch][Google] No 'results' array in response. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")")
+            log(.google, "No 'results' array in response. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")", verbosity: 2)
             return []
         }
-        print("[PlaceSearch][Google] Got \(results.count) results")
+        log(.google, "Got \(results.count) results", verbosity: 4)
 
         return results.prefix(limit).compactMap { item -> PlaceSearchResult? in
             guard let placeId = item["place_id"] as? String,
@@ -301,26 +415,26 @@ class PlaceSearchService {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("2025-06-17", forHTTPHeaderField: "X-Places-Api-Version")
 
-        print("[PlaceSearch][Foursquare] Request URL: \(components.url!.absoluteString)")
-        print("[PlaceSearch][Foursquare] Auth: Bearer token (key length: \(apiKey.count))")
+        log(.foursquare, "Request URL: \(components.url!.absoluteString)", verbosity: 4)
+        log(.foursquare, "Auth: Bearer token (key length: \(apiKey.count))", verbosity: 5)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][Foursquare] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.foursquare, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         if let bodyStr = String(data: data.prefix(500), encoding: .utf8) {
-            print("[PlaceSearch][Foursquare] Response body (first 500 chars): \(bodyStr)")
+            log(.foursquare, "Response body (first 500 chars): \(bodyStr)", verbosity: 5)
         }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let results = json?["results"] as? [[String: Any]] else {
-            print("[PlaceSearch][Foursquare] No 'results' array in response. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")")
+            log(.foursquare, "No 'results' array in response. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")", verbosity: 2)
             if let message = json?["message"] as? String {
                 throw PlaceSearchError.apiError("Foursquare: \(message)")
             }
             return []
         }
-        print("[PlaceSearch][Foursquare] Got \(results.count) results")
+        log(.foursquare, "Got \(results.count) results", verbosity: 4)
 
         return results.prefix(limit).compactMap { item -> PlaceSearchResult? in
             guard let fsqId = item["fsq_place_id"] as? String,
@@ -366,18 +480,18 @@ class PlaceSearchService {
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 
-        print("[PlaceSearch][Yelp] Request URL: \(components.url!.absoluteString)")
+        log(.yelp, "Request URL: \(components.url!.absoluteString)", verbosity: 4)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][Yelp] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.yelp, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let businesses = json?["businesses"] as? [[String: Any]] else {
-            print("[PlaceSearch][Yelp] No 'businesses' array. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")")
+            log(.yelp, "No 'businesses' array. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")", verbosity: 2)
             return []
         }
-        print("[PlaceSearch][Yelp] Got \(businesses.count) results")
+        log(.yelp, "Got \(businesses.count) results", verbosity: 4)
 
         return businesses.prefix(limit).compactMap { item -> PlaceSearchResult? in
             guard let yelpId = item["id"] as? String,
@@ -430,18 +544,18 @@ class PlaceSearchService {
             ]
         }
 
-        print("[PlaceSearch][Mapbox] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
+        log(.mapbox, "Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))", verbosity: 4)
 
         let (data, response) = try await URLSession.shared.data(from: components.url!)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][Mapbox] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.mapbox, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let features = json?["features"] as? [[String: Any]] else {
-            print("[PlaceSearch][Mapbox] No 'features' array. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")")
+            log(.mapbox, "No 'features' array. Keys: \(json?.keys.joined(separator: ", ") ?? "nil")", verbosity: 2)
             return []
         }
-        print("[PlaceSearch][Mapbox] Got \(features.count) results")
+        log(.mapbox, "Got \(features.count) results", verbosity: 4)
 
         return features.prefix(limit).compactMap { item -> PlaceSearchResult? in
             guard let properties = item["properties"] as? [String: Any],
@@ -481,18 +595,18 @@ class PlaceSearchService {
             URLQueryItem(name: "data", value: query)
         ]
 
-        print("[PlaceSearch][OSM] Request URL: \(components.url!.absoluteString.prefix(120))...")
+        log(.openStreetMap, "Request URL: \(components.url!.absoluteString.prefix(120))...", verbosity: 4)
 
         let (data, response) = try await URLSession.shared.data(from: components.url!)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][OSM] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.openStreetMap, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let elements = json["elements"] as? [[String: Any]] else {
-            print("[PlaceSearch][OSM] No 'elements' array in response")
+            log(.openStreetMap, "No 'elements' array in response", verbosity: 2)
             return []
         }
-        print("[PlaceSearch][OSM] Got \(elements.count) results")
+        log(.openStreetMap, "Got \(elements.count) results", verbosity: 4)
 
         return elements.prefix(limit).compactMap { element -> PlaceSearchResult? in
             guard let tags = element["tags"] as? [String: String],
@@ -552,22 +666,22 @@ class PlaceSearchService {
             components.queryItems?.append(URLQueryItem(name: "q", value: query))
         }
 
-        print("[PlaceSearch][HERE] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
+        log(.here, "Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))", verbosity: 4)
 
         let (data, response) = try await URLSession.shared.data(from: components.url!)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][HERE] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.here, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let items = json["items"] as? [[String: Any]] else {
-            print("[PlaceSearch][HERE] No 'items' array in response")
+            log(.here, "No 'items' array in response", verbosity: 2)
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let message = json["title"] as? String ?? json["error_description"] as? String {
                 throw PlaceSearchError.apiError("HERE: \(message)")
             }
             return []
         }
-        print("[PlaceSearch][HERE] Got \(items.count) results")
+        log(.here, "Got \(items.count) results", verbosity: 4)
 
         return items.prefix(limit).compactMap { item -> PlaceSearchResult? in
             guard let title = item["title"] as? String,
@@ -603,7 +717,13 @@ class PlaceSearchService {
     // MARK: - Apple Maps
 
     private func searchApple(coordinate: CLLocationCoordinate2D, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
-        print("[PlaceSearch][Apple] Searching near \(coordinate.latitude), \(coordinate.longitude), query: \(query ?? "nil")")
+        let requestKind = query == nil ? "nearbyPOI" : "naturalLanguage"
+        let requestRadiusMeters = query == nil ? 1_000.0 : 10_000.0
+        log(
+            .apple,
+            "Searching. kind=\(requestKind), center=\(formatCoordinate(coordinate)), query=\(formatQuery(query)), radius=\(Int(requestRadiusMeters))m, limit=\(limit)",
+            verbosity: 4
+        )
 
         let search: MKLocalSearch
         if let query = query {
@@ -613,15 +733,40 @@ class PlaceSearchService {
             request.pointOfInterestFilter = .includingAll
             search = MKLocalSearch(request: request)
         } else {
-            let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: 200)
+            let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: requestRadiusMeters)
             request.pointOfInterestFilter = .includingAll
             search = MKLocalSearch(request: request)
         }
-        let response = try await search.start()
+        let response: MKLocalSearch.Response
+        do {
+            response = try await search.start()
+        } catch {
+            let nsError = error as NSError
+            log(
+                .apple,
+                "MKLocalSearch failed. kind=\(requestKind), center=\(formatCoordinate(coordinate)), query=\(formatQuery(query)), radius=\(Int(requestRadiusMeters))m, limit=\(limit), \(summarize(error: error))",
+                verbosity: 1
+            )
+            if nsError.domain == MKErrorDomain && nsError.code == 4 {
+                log(
+                    .apple,
+                    "placemarkNotFound usually means Apple Maps could not resolve any indexed POI or placemark for this request area/query. Sparse coverage or a too-small nearby radius can trigger it.",
+                    verbosity: 2
+                )
+                throw PlaceSearchError.noResults(appleNoResultsMessage(query: query, radiusMeters: requestRadiusMeters))
+            }
+            throw error
+        }
 
-        print("[PlaceSearch][Apple] Got \(response.mapItems.count) results")
+        log(.apple, "Got \(response.mapItems.count) results", verbosity: 4)
 
-        return response.mapItems.prefix(limit).compactMap { item -> PlaceSearchResult? in
+        if response.mapItems.isEmpty {
+            let message = appleNoResultsMessage(query: query, radiusMeters: requestRadiusMeters)
+            log(.apple, message, verbosity: 2)
+            throw PlaceSearchError.noResults(message)
+        }
+
+        return response.mapItems.prefix(limit).enumerated().compactMap { index, item -> PlaceSearchResult? in
             guard let name = item.name else { return nil }
             let lat = item.placemark.coordinate.latitude
             let lng = item.placemark.coordinate.longitude
@@ -636,12 +781,17 @@ class PlaceSearchService {
             } else {
                 identifier = "apple_\(String(format: "%.6f", lat))_\(String(format: "%.6f", lng))"
             }
-            print("[PlaceSearch][Apple] Item: \(name) -> id: \(identifier)")
 
             var appleCategoryIds: [String] = []
             if let category = item.pointOfInterestCategory {
                 appleCategoryIds.append(category.rawValue)
             }
+
+            log(
+                .apple,
+                "Item[\(index)] name=\(name), id=\(identifier), coordinate=\(formatCoordinate(item.placemark.coordinate)), address=\(address ?? "nil"), categories=\(appleCategoryIds.joined(separator: ","))",
+                verbosity: 5
+            )
 
             return PlaceSearchResult(id: identifier, name: name, address: address,
                                      latitude: lat, longitude: lng,
@@ -649,7 +799,6 @@ class PlaceSearchService {
                                      categoryIds: appleCategoryIds)
         }
     }
-}
 
     // MARK: - Gaode (Amap)
 
@@ -667,28 +816,28 @@ class PlaceSearchService {
             components.queryItems?.append(URLQueryItem(name: "keywords", value: query))
         }
 
-        print("[PlaceSearch][Gaode] Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))")
+        log(.gaode, "Request URL: \(components.url!.absoluteString.replacingOccurrences(of: apiKey, with: "***"))", verbosity: 4)
 
         let (data, response) = try await URLSession.shared.data(from: components.url!)
         let httpResponse = response as? HTTPURLResponse
-        print("[PlaceSearch][Gaode] HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes")
+        log(.gaode, "HTTP status: \(httpResponse?.statusCode ?? -1), body size: \(data.count) bytes", verbosity: 4)
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            print("[PlaceSearch][Gaode] Failed to parse response")
+            log(.gaode, "Failed to parse response", verbosity: 2)
             return []
         }
 
         if let status = json["status"] as? String, status != "1" {
             let info = json["info"] as? String ?? "unknown error"
-            print("[PlaceSearch][Gaode] API error: \(info)")
+            log(.gaode, "API error: \(info)", verbosity: 2)
             throw PlaceSearchError.apiError("Gaode: \(info)")
         }
 
         guard let pois = json["pois"] as? [[String: Any]] else {
-            print("[PlaceSearch][Gaode] No 'pois' array in response. Keys: \(json.keys.joined(separator: ", "))")
+            log(.gaode, "No 'pois' array in response. Keys: \(json.keys.joined(separator: ", "))", verbosity: 2)
             return []
         }
-        print("[PlaceSearch][Gaode] Got \(pois.count) results")
+        log(.gaode, "Got \(pois.count) results", verbosity: 4)
 
         return pois.prefix(limit).compactMap { poi -> PlaceSearchResult? in
             guard let poiId = poi["id"] as? String,
@@ -719,15 +868,18 @@ class PlaceSearchService {
             )
         }
     }
+}
 
 enum PlaceSearchError: LocalizedError {
     case noApiKey
     case apiError(String)
+    case noResults(String)
 
     var errorDescription: String? {
         switch self {
         case .noApiKey: return "No API key configured for this provider"
         case .apiError(let msg): return msg
+        case .noResults(let msg): return msg
         }
     }
 }
