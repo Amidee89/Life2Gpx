@@ -35,6 +35,7 @@ struct TimelineView: View {
     var onRefresh: () -> Void
     var onSelectItem: (TimelineObject) -> Void
     var onSelectGroup: (([TimelineObject]) -> Void)?
+    var selectedDate: Date
     var onEditVisit: ((TimelineObject, Place?) -> Void)?
     var onRecenter: () -> Void
 
@@ -124,7 +125,7 @@ struct TimelineView: View {
                 if timelineObject.type == .waypoint {
                     EditVisitView(
                         timelineObject: timelineObject,
-                        fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date()),
+                        fileDate: selectedDate,
                         onSave: { place in
                             onEditVisit?(timelineObject, place)
                         }
@@ -132,7 +133,7 @@ struct TimelineView: View {
                 } else {
                     EditTrackView(
                         timelineObject: timelineObject,
-                        fileDate: Calendar.current.startOfDay(for: timelineObject.startDate ?? Date()),
+                        fileDate: selectedDate,
                         onSaveChanges: {
                             onRefresh()
                             onRecenter()

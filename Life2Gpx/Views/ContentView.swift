@@ -7,6 +7,7 @@
 import SwiftUI
 import MapKit
 import CoreGPX
+import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var locationManager: LocationManager
@@ -24,6 +25,7 @@ struct ContentView: View {
     @State private var rootGpxCount = 0
     @State private var groupingMinutes: Double = 0
     @State private var showGroupingSlider = false
+    @State private var currentGpxShareURL: URL?
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
@@ -115,7 +117,17 @@ struct ContentView: View {
                              Image(systemName: "gearshape")
                                  .padding(8)
                                  .foregroundColor(.blue)
-                         }
+                        }
+
+                        Button(action: {
+                            shareCurrentGpx()
+                        }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .padding(8)
+                                .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
+                        }
+                        .disabled(currentGpxShareURL == nil)
+                        .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
                         Spacer()
                     }
                     if showGroupingSlider {
@@ -151,6 +163,7 @@ struct ContentView: View {
                         onSelectGroup: { items in
                             selectAndCenterGroup(items)
                         },
+                        selectedDate: selectedDate,
                         onEditVisit: handleVisitEdit,
                         onRecenter: centerAllData
                     )
@@ -256,6 +269,7 @@ struct ContentView: View {
     
     
     private func refreshData() {
+        updateCurrentGpxShareURL()
         GPXManager.shared.getDateRange { earliest, latest in
             if let earliestDate = earliest, let latestDate = latest {
                 minDate = earliestDate
@@ -272,6 +286,47 @@ struct ContentView: View {
         centerAllData()
     }
     
+    private func shareCurrentGpx() {
+        guard let currentGpxShareURL else {
+            return
+        }
+
+        presentShareSheet(for: currentGpxShareURL)
+    }
+
+    private func presentShareSheet(for fileURL: URL) {
+        guard let presenter = topViewController() else {
+            return
+        }
+
+        let configuration = UIActivityItemsConfiguration(objects: [fileURL as NSURL])
+        configuration.supportedInteractions = [.share]
+        configuration.metadataProvider = { key in
+            if key == .title {
+                return fileURL.lastPathComponent
+            }
+            if #available(iOS 18.0, *), key == .collaborationModeRestrictions {
+                return [UIActivityViewController.CollaborationModeRestriction(disabledMode: .collaborate)]
+            }
+            return nil
+        }
+
+        let controller = UIActivityViewController(activityItemsConfiguration: configuration)
+
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(
+                x: presenter.view.bounds.midX,
+                y: presenter.view.bounds.midY,
+                width: 1,
+                height: 1
+            )
+            popover.permittedArrowDirections = []
+        }
+
+        presenter.present(controller, animated: true)
+    }
+
     private func checkForRootGpxFiles() {
         guard SettingsManager.shared.askToOrganizeGpxFiles else { return }
         let files = FileManagerUtil.shared.gpxFilesInRoot()
@@ -280,6 +335,42 @@ struct ContentView: View {
             showOrganizePrompt = true
         }
     }
+
+    private func updateCurrentGpxShareURL() {
+        let resolvedURL = GPXManager.shared.resolvedFileURL(forDate: selectedDate)
+        currentGpxShareURL = FileManager.default.fileExists(atPath: resolvedURL.path) ? resolvedURL : nil
+    }
+}
+
+private func topViewController(base: UIViewController? = nil) -> UIViewController? {
+    let rootController: UIViewController? = {
+        if let base = base {
+            return base
+        }
+
+        let windowScene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
+
+        return windowScene?
+            .windows
+            .first(where: \.isKeyWindow)?
+            .rootViewController
+    }()
+
+    if let navigationController = rootController as? UINavigationController {
+        return topViewController(base: navigationController.visibleViewController)
+    }
+
+    if let tabBarController = rootController as? UITabBarController {
+        return topViewController(base: tabBarController.selectedViewController)
+    }
+
+    if let presentedViewController = rootController?.presentedViewController {
+        return topViewController(base: presentedViewController)
+    }
+
+    return rootController
 }
 
 public func formatDateToHoursMinutes(_ date: Date) -> String {

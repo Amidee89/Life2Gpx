@@ -233,6 +233,10 @@ struct EditVisitView: View {
                     
                     // Update the working waypoint with the latest values
                     if let waypoint = workingWaypoint {
+                        guard let selectedPlace else {
+                            return
+                        }
+
                         waypoint.latitude = Double(latitudeString) ?? 0
                         waypoint.longitude = Double(longitudeString) ?? 0
                         waypoint.time = visitDate
@@ -245,10 +249,10 @@ struct EditVisitView: View {
                             waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                         }
                         
-                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace!)
+                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
                         
                         if let originalWaypoint = self.originalWaypoint {
-                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: visitDate)
+                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: fileDate)
                         }
                     }
                     
@@ -366,7 +370,7 @@ struct EditVisitView: View {
                 
                 // Delete the waypoint using the original waypoint
                 if let originalWaypoint = self.originalWaypoint {
-                    GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: visitDate)
+                    GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: fileDate)
                 }
                 
                 onSave(nil)
