@@ -23,6 +23,8 @@
 	<false/>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.4.0</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Life2Gpx shows photos taken during each timeline interval.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

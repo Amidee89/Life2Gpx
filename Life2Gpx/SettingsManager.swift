@@ -1,5 +1,27 @@
 import Foundation
 
+enum TimelinePictureDisplayMode: String, CaseIterable, Identifiable {
+    case none
+    case small
+    case medium
+    case large
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none:
+            return "None"
+        case .small:
+            return "Small"
+        case .medium:
+            return "Medium"
+        case .large:
+            return "Large"
+        }
+    }
+}
+
 class SettingsManager {
     static let shared = SettingsManager()
     private let defaults = UserDefaults.standard
@@ -15,6 +37,7 @@ class SettingsManager {
     private let askToOrganizeGpxFilesKey = "askToOrganizeGpxFiles"
     private let gpxOverwriteExistingKey = "gpxOverwriteExisting"
     private let gpxConflictResolutionKey = "gpxConflictResolution"
+    private let timelinePictureDisplayModeKey = "timelinePictureDisplayMode"
 
     
     private init() {
@@ -36,7 +59,8 @@ class SettingsManager {
             roundTripUnknownRadiusKey: 100,
             askToOrganizeGpxFilesKey: true,
             gpxOverwriteExistingKey: false,
-            gpxConflictResolutionKey: "keepExisting"
+            gpxConflictResolutionKey: "keepExisting",
+            timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -204,6 +228,16 @@ class SettingsManager {
     /// Returns the effective conflict resolution based on the overwrite toggle and the choice picker
     var effectiveGpxConflictResolution: FileManagerUtil.ConflictResolution {
         return gpxOverwriteExisting ? .overwrite : gpxConflictResolution
+    }
+
+    var timelinePictureDisplayMode: TimelinePictureDisplayMode {
+        get {
+            let raw = defaults.string(forKey: timelinePictureDisplayModeKey) ?? TimelinePictureDisplayMode.small.rawValue
+            return TimelinePictureDisplayMode(rawValue: raw) ?? .small
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: timelinePictureDisplayModeKey)
+        }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

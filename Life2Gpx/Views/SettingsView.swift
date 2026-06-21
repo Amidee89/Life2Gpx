@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 struct SettingsView: View {
     @AppStorage("debugLogVerbosity") private var debugLogVerbosity: Int = SettingsManager.shared.debugLogVerbosity
@@ -8,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("filterSmallRoundTrips") private var filterSmallRoundTrips: Bool = SettingsManager.shared.filterSmallRoundTrips
     @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
+    @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
 
     @FocusState private var valueFieldIsFocused: Bool
 
@@ -86,6 +88,18 @@ struct SettingsView: View {
                             set: { defaultNewPlaceRadius = Int($0) }
                         ), in: 10...1000, step: 10)
                     }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Show pictures in timeline")
+                            .foregroundColor(.primary)
+
+                        Picker("Show pictures in timeline", selection: $timelinePictureDisplayMode) {
+                            ForEach(TimelinePictureDisplayMode.allCases) { mode in
+                                Text(mode.displayName).tag(mode.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
                 }
                 .padding(.vertical)
             }
@@ -145,6 +159,42 @@ struct SettingsView: View {
                     valueFieldIsFocused = false
                 }
             }
+        }
+        .onChange(of: timelinePictureDisplayMode) { _, newValue in
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Settings changed timeline picture display mode to \(newValue)",
+                verbosity: 4
+            )
+            if newValue != TimelinePictureDisplayMode.none.rawValue {
+                requestPhotoLibraryAccessIfNeeded()
+            }
+        }
+    }
+
+    private func requestPhotoLibraryAccessIfNeeded() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        FileManagerUtil.logData(
+            context: TimelinePhotoLog.context,
+            content: "Settings photo permission check. Current status: \(status.timelineLogDescription)",
+            verbosity: 4
+        )
+
+        guard status == .notDetermined else {
+            return
+        }
+
+        FileManagerUtil.logData(
+            context: TimelinePhotoLog.context,
+            content: "Settings requesting photo library authorization.",
+            verbosity: 4
+        )
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Settings photo library authorization response: \(status.timelineLogDescription)",
+                verbosity: 4
+            )
         }
     }
 }
