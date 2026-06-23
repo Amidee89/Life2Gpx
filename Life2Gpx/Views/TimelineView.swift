@@ -1486,6 +1486,8 @@ private struct TimelinePhotoGridCell: View {
 }
 
 private struct TimelinePhotoDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+
     let photo: TimelinePhoto
     @ObservedObject var photoStore: TimelinePhotoStore
     let onClose: () -> Void
@@ -1508,7 +1510,10 @@ private struct TimelinePhotoDetailView: View {
             Color.black.ignoresSafeArea()
 
             if let displayImage {
-                TimelineZoomableImageView(image: displayImage)
+                TimelineZoomableImageView(
+                    image: displayImage,
+                    onDismissRequest: { dismiss() }
+                )
                     .ignoresSafeArea()
             }
 
@@ -1560,22 +1565,28 @@ private struct TimelinePhotoDetailView: View {
 
 private struct TimelineZoomableImageView: UIViewRepresentable {
     let image: UIImage
+    let onDismissRequest: () -> Void
 
     func makeUIView(context: Context) -> ZoomableImageContainerView {
-        ZoomableImageContainerView()
+        let view = ZoomableImageContainerView()
+        view.onDismissRequest = onDismissRequest
+        return view
     }
 
     func updateUIView(_ uiView: ZoomableImageContainerView, context: Context) {
+        uiView.onDismissRequest = onDismissRequest
         uiView.setImage(image)
     }
 }
 
-private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate {
+private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     private let scrollView = UIScrollView()
     private let imageView = UIImageView()
     private var currentImage: UIImage?
     private var needsZoomReset = true
     private var lastBoundsSize: CGSize = .zero
+
+    var onDismissRequest: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -1636,6 +1647,19 @@ private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate {
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         doubleTap.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTap)
+
+        let swipeDown = UISwipeGestureRecognizer(target: self, action: #selector(handleDismissSwipe(_:)))
+        swipeDown.direction = .down
+        swipeDown.delegate = self
+        scrollView.addGestureRecognizer(swipeDown)
+
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleDismissSwipe(_:)))
+        swipeRight.direction = .right
+        swipeRight.delegate = self
+        scrollView.addGestureRecognizer(swipeRight)
+
+        scrollView.panGestureRecognizer.require(toFail: swipeDown)
+        scrollView.panGestureRecognizer.require(toFail: swipeRight)
     }
 
     private func resetZoom() {
@@ -1683,6 +1707,17 @@ private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate {
             y: tapPoint.y - zoomSize.height / 2
         )
         scrollView.zoom(to: CGRect(origin: zoomOrigin, size: zoomSize), animated: true)
+    }
+
+    @objc private func handleDismissSwipe(_ recognizer: UISwipeGestureRecognizer) {
+        onDismissRequest?()
+    }
+
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer is UISwipeGestureRecognizer {
+            return scrollView.zoomScale <= scrollView.minimumZoomScale + 0.01
+        }
+        return true
     }
 }
 

@@ -26,199 +26,310 @@ struct ContentView: View {
     @State private var groupingMinutes: Double = 0
     @State private var showGroupingSlider = false
     @State private var currentGpxShareURL: URL?
+    @State private var mapPanelHeight: CGFloat?
+    @State private var lastMapSize: CGSize = .zero
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
     let settingsManager = SettingsManager.shared
 
+    private let mapTimelineHandleHeight: CGFloat = 36
+    private let mapCollapseSafeZoneHeight: CGFloat = 72
+    private let minimumBottomPanelHeight: CGFloat = 220
+    private let mapTimelineSplitCoordinateSpace = "mapTimelineSplit"
+    private let mapButtonInset: CGFloat = 80
+
     var body: some View {
         GeometryReader { geometry in
-                VStack
-                {
-                    MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
-                            selectedGroupIDs: $selectedGroupIDs,
-                            cameraPosition: $cameraPosition,
-                            selectedDate: $selectedDate
-                    )
-                    .overlay(
-                        MapControlsView(
-                            onRefresh: refreshData,
-                            onCenter: centerAllData,
-                            onSelectToday: { selectedDate = Date() },
-                            selectedDate: $selectedDate,
-                            timelineObjects: $timelineObjects
+            let currentMapHeight = resolvedMapHeight(in: geometry)
+            let isMapCollapsed = currentMapHeight <= 0
+            let safeAreaTop = geometry.safeAreaInsets.top
+            let topSlotHeight = isMapCollapsed ? safeAreaTop + mapTimelineHandleHeight : currentMapHeight
+            let handleCenterY = isMapCollapsed ? safeAreaTop + mapTimelineHandleHeight / 2 - 50 : currentMapHeight - mapTimelineHandleHeight / 2 - 50
+            let mapFrameHeight = isMapCollapsed ? 1 : currentMapHeight
+
+            ZStack(alignment: .top) {
+                VStack(spacing: 0) {
+                    ZStack(alignment: .top) {
+                        MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
+                                selectedGroupIDs: $selectedGroupIDs,
+                                cameraPosition: $cameraPosition,
+                                selectedDate: $selectedDate
                         )
-                    )
-                    HStack {
-                        Spacer()
-                        
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                showGroupingSlider.toggle()
+                        .overlay(
+                            MapControlsView(
+                                onRefresh: refreshData,
+                                onCenter: centerAllData,
+                                onSelectToday: { selectedDate = Date() },
+                                selectedDate: $selectedDate,
+                                timelineObjects: $timelineObjects
+                            )
+                        )
+                        .frame(height: mapFrameHeight)
+                        .clipped()
+                        .opacity(isMapCollapsed ? 0 : 1)
+                        .allowsHitTesting(!isMapCollapsed)
+                        .ignoresSafeArea(.container, edges: .top)
+                        .zIndex(0)
+                        .onChange(of: currentMapHeight) {
+                            if !isMapCollapsed {
+                                lastMapSize = CGSize(width: geometry.size.width, height: currentMapHeight)
                             }
-                        }) {
-                            Image(systemName: "line.3.horizontal.decrease")
-                                .padding(8)
-                                .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
                         }
+                        .onAppear {
+                            if !isMapCollapsed {
+                                lastMapSize = CGSize(width: geometry.size.width, height: currentMapHeight)
+                            }
+                        }
+                    }
+                    .frame(height: topSlotHeight)
 
-                        Spacer()
+                    VStack(spacing: 0) {
+                        HStack {
+                            Spacer()
+                            Spacer()
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    showGroupingSlider.toggle()
+                                }
+                            }) {
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .padding(8)
+                                    .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
+                            }
 
-                        Button(action: {
-                            self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
-                        }) {
-                            if (Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
-                            {
-                                Image(systemName: "chevron.left")
+                            
+                            Spacer()
+                            Spacer()
+                            Spacer()
+                            Button(action: {
+                                self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
+                            }) {
+                                if (Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
+                                {
+                                    Image(systemName: "chevron.left")
+                                        .padding(8)
+                                        .foregroundColor(.gray)
+                                }else
+                                {
+                                    Image(systemName: "chevron.left")
+                                        .padding(8)
+                                        .foregroundColor(.blue)
+                                }
+                                
+                            }
+                            .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
+                            
+                            DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
+                                .onChange(of: selectedDate) {
+                                    refreshData()
+                                    centerAllData()
+                                }
+                                .fixedSize()
+                                .labelsHidden()
+                            
+                            Button(action: {
+                                self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
+                            }) {
+
+                                if (Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
+                                {                            
+                                    Image(systemName: "chevron.right")
                                     .padding(8)
                                     .foregroundColor(.gray)
-                            }else
-                            {
-                                Image(systemName: "chevron.left")
+
+                                }else
+                                    {
+                                    Image(systemName: "chevron.right")
                                     .padding(8)
                                     .foregroundColor(.blue)
+
+                                }
                             }
-                            
-                        }
-                        .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
-                        
-                        DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
-                            .onChange(of: selectedDate) {
-                                refreshData()
-                                centerAllData()
+                            .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
+                            Spacer()
+
+                            Button(action: {
+                                 self.showSettings = true
+                             }) {
+                                 Image(systemName: "gearshape")
+                                     .padding(8)
+                                     .foregroundColor(.blue)
                             }
-                            .fixedSize()
-                            .labelsHidden()
-                        
-                        Button(action: {
-                            self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
-                        }) {
 
-                            if (Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
-                            {                            
-                                Image(systemName: "chevron.right")
-                                .padding(8)
-                                .foregroundColor(.gray)
-
-                            }else
-                                {
-                                Image(systemName: "chevron.right")
-                                .padding(8)
-                                .foregroundColor(.blue)
-
+                            Button(action: {
+                                shareCurrentGpx()
+                            }) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .padding(8)
+                                    .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
                             }
+                            .disabled(currentGpxShareURL == nil)
+                            .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
+                            Spacer()
+                        } .padding(5)
+                        if showGroupingSlider {
+                            HStack(spacing: 8) {
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                Slider(value: $groupingMinutes, in: 0...60, step: 1)
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                Text("\(Int(groupingMinutes))m")
+                                    .font(.caption)
+                                    .monospacedDigit()
+                                    .frame(width: 30)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 4)
+                            .transition(.asymmetric(
+                                insertion: .push(from: .top),
+                                removal: .push(from: .bottom)
+                            ))
                         }
-                        .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
-                        Spacer()
-
-                        Button(action: {
-                             self.showSettings = true
-                         }) {
-                             Image(systemName: "gearshape")
-                                 .padding(8)
-                                 .foregroundColor(.blue)
-                        }
-
-                        Button(action: {
-                            shareCurrentGpx()
-                        }) {
-                            Image(systemName: "square.and.arrow.up")
-                                .padding(8)
-                                .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
-                        }
-                        .disabled(currentGpxShareURL == nil)
-                        .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
-                        Spacer()
+                        TimelineView(
+                            timelineObjects: $timelineObjects,
+                            selectedTimelineObjectID: $selectedTimelineObjectID,
+                            groupingMinutes: groupingMinutes,
+                            onRefresh: refreshData,
+                            onSelectItem: { item in
+                                selectedTimelineObjectID = item.id
+                                selectAndCenter(item)
+                            },
+                            onSelectGroup: { items in
+                                selectAndCenterGroup(items)
+                            },
+                            selectedDate: selectedDate,
+                            onEditVisit: handleVisitEdit,
+                            onRecenter: centerAllData
+                        )
                     }
-                    if showGroupingSlider {
-                        HStack(spacing: 8) {
-                            Image(systemName: "line.3.horizontal")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                            Slider(value: $groupingMinutes, in: 0...60, step: 1)
-                            Image(systemName: "line.3.horizontal.decrease")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                            Text("\(Int(groupingMinutes))m")
-                                .font(.caption)
-                                .monospacedDigit()
-                                .frame(width: 30)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 4)
-                        .transition(.asymmetric(
-                            insertion: .push(from: .top),
-                            removal: .push(from: .bottom)
-                        ))
-                    }
-                    TimelineView(
-                        timelineObjects: $timelineObjects,
-                        selectedTimelineObjectID: $selectedTimelineObjectID,
-                        groupingMinutes: groupingMinutes,
-                        onRefresh: refreshData,
-                        onSelectItem: { item in
-                            selectedTimelineObjectID = item.id
-                            selectAndCenter(item)
-                        },
-                        onSelectGroup: { items in
-                            selectAndCenterGroup(items)
-                        },
-                        selectedDate: selectedDate,
-                        onEditVisit: handleVisitEdit,
-                        onRecenter: centerAllData
+                }
+                .ignoresSafeArea(.container, edges: .top)
+
+                MapTimelineHandleView(isMapCollapsed: isMapCollapsed)
+                    .frame(width: geometry.size.width, height: mapTimelineHandleHeight)
+                    .position(x: geometry.size.width / 2, y: handleCenterY)
+                    .zIndex(1)
+                    .gesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .named(mapTimelineSplitCoordinateSpace))
+                            .onChanged { value in
+                                updateMapPanelHeight(to: value.location.y, in: geometry)
+                            }
+                            .onEnded { value in
+                                finishMapPanelHeightDrag(at: value.location.y, in: geometry)
+                            }
                     )
-                }
-                .onReceive(locationManager.$dataHasBeenUpdated) { needsRefresh in
-                        if needsRefresh {
-                            refreshData()
-                            locationManager.dataHasBeenUpdated = false
-                        }
-                    }
-                .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
-                    let currentTime = Date()
-                    FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
-                    selectedDate = Date()
+            }
+            .coordinateSpace(name: mapTimelineSplitCoordinateSpace)
+            .onReceive(locationManager.$dataHasBeenUpdated) { needsRefresh in
+                if needsRefresh {
                     refreshData()
-                    centerAllData()
-                    FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
+                    locationManager.dataHasBeenUpdated = false
                 }
-                              }
-                .onAppear {
-                    _ = FileManagerUtil.shared
-                    refreshData()
-                    centerAllData()
-                    checkForRootGpxFiles()
-                }
-                .fullScreenCover(isPresented: $showSettings) {
-                    ManagementView()
-                }
-                .sheet(isPresented: $showOrganizePrompt) {
-                    GpxOrganizePromptView(
-                        fileCount: rootGpxCount,
-                        onOrganize: { rememberChoice in
-                            _ = FileManagerUtil.shared.organizeGpxFiles(
-                                conflictResolution: SettingsManager.shared.effectiveGpxConflictResolution
-                            )
-                            if rememberChoice {
-                                SettingsManager.shared.askToOrganizeGpxFiles = false
-                            }
-                            refreshData()
-                        },
-                        onDismiss: { rememberChoice in
-                            if rememberChoice {
-                                SettingsManager.shared.askToOrganizeGpxFiles = false
-                            }
-                        }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+                let currentTime = Date()
+                FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
+                selectedDate = Date()
+                refreshData()
+                centerAllData()
+                FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
+            }
+        }
+        .onAppear {
+            _ = FileManagerUtil.shared
+            refreshData()
+            centerAllData()
+            checkForRootGpxFiles()
+        }
+        .fullScreenCover(isPresented: $showSettings) {
+            ManagementView()
+        }
+        .sheet(isPresented: $showOrganizePrompt) {
+            GpxOrganizePromptView(
+                fileCount: rootGpxCount,
+                onOrganize: { rememberChoice in
+                    _ = FileManagerUtil.shared.organizeGpxFiles(
+                        conflictResolution: SettingsManager.shared.effectiveGpxConflictResolution
                     )
-                    .presentationDetents([.height(280)])
+                    if rememberChoice {
+                        SettingsManager.shared.askToOrganizeGpxFiles = false
+                    }
+                    refreshData()
+                },
+                onDismiss: { rememberChoice in
+                    if rememberChoice {
+                        SettingsManager.shared.askToOrganizeGpxFiles = false
+                    }
                 }
+            )
+            .presentationDetents([.height(280)])
+        }
+    }
+
+    private func resolvedMapHeight(in geometry: GeometryProxy) -> CGFloat {
+        let maxHeight = maximumMapPanelHeight(in: geometry)
+        guard maxHeight > 0 else { return 0 }
+
+        guard let mapPanelHeight else {
+            let defaultHeight = geometry.size.height * 0.45
+            return min(defaultHeight, maxHeight)
+        }
+
+        if mapPanelHeight <= mapCollapseThreshold(in: geometry) {
+            return 0
+        }
+
+        return min(mapPanelHeight, maxHeight)
+    }
+
+    private func updateMapPanelHeight(to splitY: CGFloat, in geometry: GeometryProxy) {
+        mapPanelHeight = clampedMapPanelHeight(splitY, in: geometry)
+    }
+
+    private func finishMapPanelHeightDrag(at splitY: CGFloat, in geometry: GeometryProxy) {
+        let clamped = clampedMapPanelHeight(splitY, in: geometry)
+        if clamped <= 0 {
+            // Skip animation when collapsing to avoid mid-animation layout conflicts
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                mapPanelHeight = clamped
+            }
+        } else {
+            withAnimation(.easeOut(duration: 0.18)) {
+                mapPanelHeight = clamped
+            }
+        }
+    }
+
+    private func clampedMapPanelHeight(_ proposedHeight: CGFloat, in geometry: GeometryProxy) -> CGFloat {
+        let maxHeight = maximumMapPanelHeight(in: geometry)
+        guard maxHeight > 0 else { return 0 }
+
+        if proposedHeight <= mapCollapseThreshold(in: geometry) {
+            return 0
+        }
+
+        return min(proposedHeight, maxHeight)
+    }
+
+    private func maximumMapPanelHeight(in geometry: GeometryProxy) -> CGFloat {
+        max(0, geometry.size.height - minimumBottomPanelHeight)
+    }
+
+    private func mapCollapseThreshold(in geometry: GeometryProxy) -> CGFloat {
+        max(mapCollapseSafeZoneHeight, geometry.safeAreaInsets.top + 44)
     }
 
     private func centerAllData() {
         let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
         if !allCoordinates.isEmpty {
             withAnimation (.easeInOut(duration: 0.5)){
-                recenterOn(coordinates: allCoordinates)
+                recenterOn(coordinates: allCoordinates, mapSize: lastMapSize)
             }
             self.selectedTimelineObjectID = nil
             self.selectedGroupIDs = []
@@ -234,7 +345,7 @@ struct ContentView: View {
              selectedTimelineObjectID = item.id
              selectedGroupIDs = []
              withAnimation (.easeInOut(duration: 0.5)){
-                 recenterOn(coordinates: timelineObjects[index].identifiableCoordinates.flatMap { $0.coordinates })
+                 recenterOn(coordinates: timelineObjects[index].identifiableCoordinates.flatMap { $0.coordinates }, mapSize: lastMapSize)
              }
          }
      }
@@ -249,18 +360,18 @@ struct ContentView: View {
         let allCoordinates = items.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
         if !allCoordinates.isEmpty {
             withAnimation(.easeInOut(duration: 0.5)) {
-                recenterOn(coordinates: allCoordinates)
+                recenterOn(coordinates: allCoordinates, mapSize: lastMapSize)
             }
         }
     }
     
-    private func recenterOn(coordinates: [CLLocationCoordinate2D]) {
+    private func recenterOn(coordinates: [CLLocationCoordinate2D], mapSize: CGSize) {
         guard !coordinates.isEmpty else { return }
         let displayCoords = CoordinateConverter.forMapDisplay(coordinates)
         let centerLat = (displayCoords.map { $0.latitude }.max()! + displayCoords.map { $0.latitude }.min()!) / 2
         let centerLon = (displayCoords.map { $0.longitude }.max()! + displayCoords.map { $0.longitude }.min()!) / 2
         let centerCoordinate = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
-        let span = calculateSpan(for: displayCoords)
+        let span = calculateSpan(for: displayCoords, mapSize: mapSize, buttonInset: mapButtonInset)
         
         cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
         
@@ -342,6 +453,34 @@ struct ContentView: View {
     }
 }
 
+private struct MapTimelineHandleView: View {
+    let isMapCollapsed: Bool
+
+    var body: some View {
+        ZStack {
+            Color.clear
+
+            VStack(spacing: 2) {
+                Capsule()
+                    .fill(Color.primary.opacity(0.55))
+                    .frame(width: 44, height: 5)
+                    .shadow(color: .black.opacity(0.22), radius: 2, x: 0, y: 1)
+
+                if isMapCollapsed {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement()
+        .accessibilityLabel(isMapCollapsed ? "Show map" : "Resize map and timeline")
+        .accessibilityHint("Drag vertically to adjust the map and timeline split")
+    }
+}
+
 private func topViewController(base: UIViewController? = nil) -> UIViewController? {
     let rootController: UIViewController? = {
         if let base = base {
@@ -379,7 +518,7 @@ public func formatDateToHoursMinutes(_ date: Date) -> String {
     return formatter.string(from: date)
 }
 
-public func calculateSpan(for coordinates: [CLLocationCoordinate2D]) -> MKCoordinateSpan {
+public func calculateSpan(for coordinates: [CLLocationCoordinate2D], mapSize: CGSize = .zero, buttonInset: CGFloat = 0) -> MKCoordinateSpan {
     guard !coordinates.isEmpty else { return MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05) }
 
     let maxLat = coordinates.map { $0.latitude }.max()!
@@ -387,10 +526,23 @@ public func calculateSpan(for coordinates: [CLLocationCoordinate2D]) -> MKCoordi
     let maxLon = coordinates.map { $0.longitude }.max()!
     let minLon = coordinates.map { $0.longitude }.min()!
 
-    let latDelta = max(maxLat - minLat, 0.001) * 1.4
-    let lonDelta = max(maxLon - minLon, 0.001) * 1.4
+    let rawLatDelta = max(maxLat - minLat, 0.001)
+    let rawLonDelta = max(maxLon - minLon, 0.001)
 
-    return MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lonDelta)
+    // If we know the map size, scale to account for button insets on all edges
+    if mapSize.width > 0, mapSize.height > 0, buttonInset > 0 {
+        let usableWidth = max(mapSize.width - buttonInset * 2, 1)
+        let usableHeight = max(mapSize.height - buttonInset * 2, 1)
+        let lonScale = mapSize.width / usableWidth
+        let latScale = mapSize.height / usableHeight
+        return MKCoordinateSpan(
+            latitudeDelta: rawLatDelta * latScale * 1.15,
+            longitudeDelta: rawLonDelta * lonScale * 1.15
+        )
+    }
+
+    // Fallback: uniform padding
+    return MKCoordinateSpan(latitudeDelta: rawLatDelta * 1.4, longitudeDelta: rawLonDelta * 1.4)
 }
 
 extension Date {
