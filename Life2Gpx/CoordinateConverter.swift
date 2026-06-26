@@ -2,6 +2,14 @@ import CoreLocation
 
 struct CoordinateConverter {
     
+    /// Whether MapKit is serving GCJ-02 tiles (Amap/Gaode). True when the device is in mainland China.
+    /// Outside China, Apple Maps uses WGS-84 tiles and overlays must not be shifted.
+    private(set) static var mapUsesGcj02 = false
+    
+    static func updateMapCoordinateSystem(for deviceLocation: CLLocationCoordinate2D) {
+        mapUsesGcj02 = isInMainlandChina(lat: deviceLocation.latitude, lng: deviceLocation.longitude)
+    }
+    
     // MARK: - Public API
     
     static func wgs84ToGcj02(_ coord: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
@@ -38,18 +46,23 @@ struct CoordinateConverter {
         return CLLocationCoordinate2D(latitude: wgsLat, longitude: wgsLng)
     }
     
-    /// Converts a coordinate for display on Apple Maps (WGS-84 -> GCJ-02 if in mainland China)
+    /// Converts a coordinate for display on Apple Maps.
+    /// Only shifts when MapKit is using GCJ-02 tiles (device in mainland China) and the point is in mainland China.
     static func forMapDisplay(_ coord: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
+        guard mapUsesGcj02 else { return coord }
         return wgs84ToGcj02(coord)
     }
     
     /// Converts an array of coordinates for display on Apple Maps
     static func forMapDisplay(_ coords: [CLLocationCoordinate2D]) -> [CLLocationCoordinate2D] {
+        guard mapUsesGcj02 else { return coords }
         return coords.map { wgs84ToGcj02($0) }
     }
     
-    /// Converts a coordinate from map display space back to WGS-84 for storage (GCJ-02 -> WGS-84 if in mainland China)
+    /// Converts a coordinate from map display space back to WGS-84 for storage.
+    /// Only needed when MapKit is using GCJ-02 tiles (device in mainland China).
     static func fromMapDisplay(_ coord: CLLocationCoordinate2D) -> CLLocationCoordinate2D {
+        guard mapUsesGcj02 else { return coord }
         return gcj02ToWgs84(coord)
     }
     

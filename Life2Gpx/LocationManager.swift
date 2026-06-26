@@ -159,6 +159,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         //maybe it could be set to other values when the app is in the foreground. 
         locationManager.distanceFilter = kCLDistanceFilterNone
         locationManager.startUpdatingLocation()
+        if let location = locationManager.location {
+            CoordinateConverter.updateMapCoordinateSystem(for: location.coordinate)
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -169,6 +172,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
+        CoordinateConverter.updateMapCoordinateSystem(for: newLocation.coordinate)
            
         var shouldProcessThisLocation: Bool
         locationHistoryLock.lock()
