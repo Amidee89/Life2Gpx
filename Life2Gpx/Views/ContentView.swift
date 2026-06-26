@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var showGroupingSlider = false
     @State private var currentGpxShareURL: URL?
     @State private var mapPanelHeight: CGFloat?
+    @State private var mapPanelDragOffset: CGFloat?
     @State private var lastMapSize: CGSize = .zero
 
     let defaults = UserDefaults.standard
@@ -34,6 +35,7 @@ struct ContentView: View {
     let settingsManager = SettingsManager.shared
 
     private let mapTimelineHandleHeight: CGFloat = 36
+    private let mapTimelineHandleVisualLift: CGFloat = 50
     private let mapCollapseSafeZoneHeight: CGFloat = 72
     private let minimumBottomPanelHeight: CGFloat = 220
     private let mapTimelineSplitCoordinateSpace = "mapTimelineSplit"
@@ -45,7 +47,9 @@ struct ContentView: View {
             let isMapCollapsed = currentMapHeight <= 0
             let safeAreaTop = geometry.safeAreaInsets.top
             let topSlotHeight = isMapCollapsed ? safeAreaTop + mapTimelineHandleHeight : currentMapHeight
-            let handleCenterY = isMapCollapsed ? safeAreaTop + mapTimelineHandleHeight / 2 - 50 : currentMapHeight - mapTimelineHandleHeight / 2 - 50
+            let handleCenterY = isMapCollapsed
+                ? safeAreaTop + mapTimelineHandleHeight / 2 - mapTimelineHandleVisualLift
+                : currentMapHeight - mapTimelineHandleHeight / 2 - mapTimelineHandleVisualLift
             let mapFrameHeight = isMapCollapsed ? 1 : currentMapHeight
 
             ZStack(alignment: .top) {
@@ -216,7 +220,7 @@ struct ContentView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named(mapTimelineSplitCoordinateSpace))
                             .onChanged { value in
-                                updateMapPanelHeight(to: value.location.y, in: geometry)
+                                updateMapPanelHeight(for: value.location.y, in: geometry)
                             }
                             .onEnded { value in
                                 finishMapPanelHeightDrag(at: value.location.y, in: geometry)
@@ -286,12 +290,15 @@ struct ContentView: View {
         return min(mapPanelHeight, maxHeight)
     }
 
-    private func updateMapPanelHeight(to splitY: CGFloat, in geometry: GeometryProxy) {
-        mapPanelHeight = clampedMapPanelHeight(splitY, in: geometry)
+    private func updateMapPanelHeight(for fingerY: CGFloat, in geometry: GeometryProxy) {
+        beginMapPanelDragIfNeeded(at: fingerY, in: geometry)
+        mapPanelHeight = clampedMapPanelHeight(adjustedMapPanelSplitY(for: fingerY), in: geometry)
     }
 
-    private func finishMapPanelHeightDrag(at splitY: CGFloat, in geometry: GeometryProxy) {
-        let clamped = clampedMapPanelHeight(splitY, in: geometry)
+    private func finishMapPanelHeightDrag(at fingerY: CGFloat, in geometry: GeometryProxy) {
+        beginMapPanelDragIfNeeded(at: fingerY, in: geometry)
+        let clamped = clampedMapPanelHeight(adjustedMapPanelSplitY(for: fingerY), in: geometry)
+        mapPanelDragOffset = nil
         if clamped <= 0 {
             // Skip animation when collapsing to avoid mid-animation layout conflicts
             var transaction = Transaction()
@@ -304,6 +311,15 @@ struct ContentView: View {
                 mapPanelHeight = clamped
             }
         }
+    }
+
+    private func beginMapPanelDragIfNeeded(at fingerY: CGFloat, in geometry: GeometryProxy) {
+        guard mapPanelDragOffset == nil else { return }
+        mapPanelDragOffset = resolvedMapHeight(in: geometry) - fingerY
+    }
+
+    private func adjustedMapPanelSplitY(for fingerY: CGFloat) -> CGFloat {
+        fingerY + (mapPanelDragOffset ?? 0)
     }
 
     private func clampedMapPanelHeight(_ proposedHeight: CGFloat, in geometry: GeometryProxy) -> CGFloat {
