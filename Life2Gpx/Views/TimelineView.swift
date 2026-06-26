@@ -836,7 +836,11 @@ struct TimelineView: View {
                         interval: photoInterval,
                         displayMode: .small,
                         onOpenPhoto: { photo in
-                            photoSheet = TimelinePhotoSheet(photos: [photo], initialPhotoID: photo.id)
+                            photoSheet = TimelinePhotoSheet(
+                                photos: photosForViewer(photo, cacheKey: photoKey),
+                                initialPhotoID: photo.id,
+                                closesOnDetailBack: true
+                            )
                         },
                         onOpenAll: { photos in
                             photoSheet = TimelinePhotoSheet(photos: photos)
@@ -1143,12 +1147,12 @@ private struct TimelinePhotoAttachmentView: View {
     private var smallThumbnail: some View {
         if let photo = photos.first {
             Button(action: {
-                onOpenAll(photos)
+                onOpenPhoto(photo)
             }) {
                 TimelineSquarePhoto(photo: photo, photoStore: photoStore, size: 44)
             }
             .buttonStyle(BorderlessButtonStyle())
-            .accessibilityLabel("Show pictures")
+            .accessibilityLabel("Show picture")
         }
     }
 
@@ -1355,14 +1359,14 @@ private struct TimelinePhotoViewer: View {
     let closesOnDetailBack: Bool
     @ObservedObject var photoStore: TimelinePhotoStore
 
-    @State private var path: [String]
+    @State private var selectedPhotoID: String?
 
     init(photos: [TimelinePhoto], initialPhotoID: String?, closesOnDetailBack: Bool, photoStore: TimelinePhotoStore) {
         self.photos = photos
         self.initialPhotoID = initialPhotoID
         self.closesOnDetailBack = closesOnDetailBack
         self.photoStore = photoStore
-        _path = State(initialValue: closesOnDetailBack ? [] : initialPhotoID.map { [$0] } ?? [])
+        _selectedPhotoID = State(initialValue: closesOnDetailBack ? (initialPhotoID ?? photos.first?.id) : initialPhotoID)
     }
 
     private var columns: [GridItem] {
@@ -1370,68 +1374,64 @@ private struct TimelinePhotoViewer: View {
     }
 
     var body: some View {
-        if closesOnDetailBack, let initialPhotoID {
-            NavigationStack {
-                if let photo = photos.first(where: { $0.id == initialPhotoID }) {
+        NavigationStack {
+            if let selectedPhotoID {
+                if photos.contains(where: { $0.id == selectedPhotoID }) {
                     TimelinePhotoDetailView(
-                        photo: photo,
+                        photos: photos,
+                        initialPhotoID: selectedPhotoID,
                         photoStore: photoStore,
-                        onClose: { dismiss() },
+                        onClose: {
+                            if closesOnDetailBack {
+                                dismiss()
+                            } else {
+                                self.selectedPhotoID = nil
+                            }
+                        },
                         leadingCloseTitle: "Back",
-                        trailingCloseTitle: nil
+                        trailingCloseTitle: closesOnDetailBack ? nil : "Done"
                     )
                 } else {
                     ContentUnavailableView("Picture unavailable", systemImage: "photo")
                         .toolbar {
                             ToolbarItem(placement: .topBarLeading) {
                                 Button("Back") {
-                                    dismiss()
+                                    if closesOnDetailBack {
+                                        dismiss()
+                                    } else {
+                                        self.selectedPhotoID = nil
+                                    }
                                 }
                             }
                         }
                 }
+            } else {
+                gridNavigation
             }
-        } else {
-            gridNavigation
         }
     }
 
     private var gridNavigation: some View {
-        NavigationStack(path: $path) {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(photos) { photo in
-                        TimelinePhotoGridCell(
-                            photo: photo,
-                            photoStore: photoStore,
-                            action: {
-                                path.append(photo.id)
-                            }
-                        )
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Pictures")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: String.self) { photoID in
-                if let photo = photos.first(where: { $0.id == photoID }) {
-                    TimelinePhotoDetailView(
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(photos) { photo in
+                    TimelinePhotoGridCell(
                         photo: photo,
                         photoStore: photoStore,
-                        onClose: { dismiss() },
-                        leadingCloseTitle: nil,
-                        trailingCloseTitle: "Done"
+                        action: {
+                            selectedPhotoID = photo.id
+                        }
                     )
-                } else {
-                    ContentUnavailableView("Picture unavailable", systemImage: "photo")
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+            .padding()
+        }
+        .navigationTitle("Pictures")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
             }
         }
@@ -1486,23 +1486,64 @@ private struct TimelinePhotoGridCell: View {
 }
 
 private struct TimelinePhotoDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let photo: TimelinePhoto
+    let photos: [TimelinePhoto]
+    let initialPhotoID: String
     @ObservedObject var photoStore: TimelinePhotoStore
     let onClose: () -> Void
     let leadingCloseTitle: String?
     let trailingCloseTitle: String?
 
     @State private var showingShareSheet = false
+    @State private var selectedPhotoID: String
+    @State private var loadedFullImagePhotoID: String?
     @State private var fullImage: UIImage?
 
+    init(
+        photos: [TimelinePhoto],
+        initialPhotoID: String,
+        photoStore: TimelinePhotoStore,
+        onClose: @escaping () -> Void,
+        leadingCloseTitle: String?,
+        trailingCloseTitle: String?
+    ) {
+        self.photos = photos
+        self.initialPhotoID = initialPhotoID
+        self.photoStore = photoStore
+        self.onClose = onClose
+        self.leadingCloseTitle = leadingCloseTitle
+        self.trailingCloseTitle = trailingCloseTitle
+        _selectedPhotoID = State(initialValue: initialPhotoID)
+    }
+
+    private var currentPhoto: TimelinePhoto? {
+        photos.first(where: { $0.id == selectedPhotoID }) ?? photos.first
+    }
+
+    private var currentPhotoIndex: Int? {
+        guard let currentPhoto else { return nil }
+        return photos.firstIndex(where: { $0.id == currentPhoto.id })
+    }
+
     private var displayImage: UIImage? {
-        fullImage ?? photoStore.fullImage(for: photo) ?? photoStore.previewImage(for: photo)
+        guard let currentPhoto else { return nil }
+        return (loadedFullImagePhotoID == currentPhoto.id ? fullImage : nil)
+            ?? photoStore.fullImage(for: currentPhoto)
+            ?? photoStore.previewImage(for: currentPhoto)
     }
 
     private var canShareFullImage: Bool {
-        fullImage != nil || photoStore.fullImage(for: photo) != nil
+        guard let currentPhoto else { return false }
+        return (loadedFullImagePhotoID == currentPhoto.id && fullImage != nil) || photoStore.fullImage(for: currentPhoto) != nil
+    }
+
+    private var canShowPreviousPhoto: Bool {
+        guard let currentPhotoIndex else { return false }
+        return currentPhotoIndex > 0
+    }
+
+    private var canShowNextPhoto: Bool {
+        guard let currentPhotoIndex else { return false }
+        return currentPhotoIndex < photos.index(before: photos.endIndex)
     }
 
     var body: some View {
@@ -1512,15 +1553,31 @@ private struct TimelinePhotoDetailView: View {
             if let displayImage {
                 TimelineZoomableImageView(
                     image: displayImage,
-                    onDismissRequest: { dismiss() }
+                    onDismissRequest: onClose,
+                    onShowPreviousPhoto: canShowPreviousPhoto ? showPreviousPhoto : nil,
+                    onShowNextPhoto: canShowNextPhoto ? showNextPhoto : nil
                 )
-                    .ignoresSafeArea()
+                .ignoresSafeArea()
             }
 
             if displayImage == nil || !canShareFullImage {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .tint(.white)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            if let currentPhoto {
+                TimelinePhotoCarousel(
+                    photos: photos,
+                    selectedPhotoID: currentPhoto.id,
+                    photoStore: photoStore,
+                    onSelectPhoto: { photo in
+                        selectedPhotoID = photo.id
+                    }
+                )
+                .padding(.bottom, 8)
             }
         }
         .navigationTitle("Picture")
@@ -1550,31 +1607,126 @@ private struct TimelinePhotoDetailView: View {
                 }
             }
         }
-        .task(id: photo.id) {
-            if fullImage == nil {
-                fullImage = await photoStore.loadFullImage(for: photo)
+        .task(id: selectedPhotoID) {
+            guard let currentPhoto else { return }
+            let photoID = currentPhoto.id
+
+            if let cachedImage = photoStore.fullImage(for: currentPhoto) {
+                loadedFullImagePhotoID = photoID
+                fullImage = cachedImage
+                return
             }
+
+            loadedFullImagePhotoID = photoID
+            fullImage = nil
+
+            let loadedImage = await photoStore.loadFullImage(for: currentPhoto)
+            guard selectedPhotoID == photoID else { return }
+
+            loadedFullImagePhotoID = photoID
+            fullImage = loadedImage
         }
         .sheet(isPresented: $showingShareSheet) {
-            if let image = fullImage ?? photoStore.fullImage(for: photo) {
+            if let currentPhoto,
+               let image = (loadedFullImagePhotoID == currentPhoto.id ? fullImage : nil) ?? photoStore.fullImage(for: currentPhoto) {
                 TimelinePhotoActivityView(items: [image])
             }
         }
+    }
+
+    private func showPreviousPhoto() {
+        guard let currentPhotoIndex, currentPhotoIndex > 0 else { return }
+        selectedPhotoID = photos[currentPhotoIndex - 1].id
+    }
+
+    private func showNextPhoto() {
+        guard let currentPhotoIndex, currentPhotoIndex < photos.index(before: photos.endIndex) else { return }
+        selectedPhotoID = photos[currentPhotoIndex + 1].id
+    }
+}
+
+private struct TimelinePhotoCarousel: View {
+    let photos: [TimelinePhoto]
+    let selectedPhotoID: String
+    @ObservedObject var photoStore: TimelinePhotoStore
+    let onSelectPhoto: (TimelinePhoto) -> Void
+
+    private let thumbnailSize: CGFloat = 62
+    private let thumbnailSpacing: CGFloat = 10
+    private let topPadding: CGFloat = 10
+    private let bottomPadding: CGFloat = 12
+    private let horizontalPadding: CGFloat = 14
+
+    private var carouselHeight: CGFloat {
+        thumbnailSize + topPadding + bottomPadding
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: thumbnailSpacing) {
+                    ForEach(photos) { photo in
+                        let isSelected = photo.id == selectedPhotoID
+
+                        Button(action: {
+                            onSelectPhoto(photo)
+                        }) {
+                            TimelineSquarePhoto(photo: photo, photoStore: photoStore, size: thumbnailSize)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .stroke(isSelected ? Color.white : Color.white.opacity(0.18), lineWidth: isSelected ? 2 : 1)
+                                )
+                                .opacity(isSelected ? 1 : 0.76)
+                        }
+                        .buttonStyle(.plain)
+                        .id(photo.id)
+                        .accessibilityLabel("Show picture")
+                    }
+                }
+                .padding(.horizontal, horizontalPadding)
+                .padding(.top, topPadding)
+                .padding(.bottom, bottomPadding)
+            }
+            .frame(height: carouselHeight, alignment: .bottom)
+            .background(
+                Color.black.opacity(0.82)
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(height: 0.5)
+                    }
+            )
+            .onAppear {
+                proxy.scrollTo(selectedPhotoID, anchor: .center)
+            }
+            .onChange(of: selectedPhotoID) { newValue in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(newValue, anchor: .center)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: carouselHeight, alignment: .bottom)
     }
 }
 
 private struct TimelineZoomableImageView: UIViewRepresentable {
     let image: UIImage
     let onDismissRequest: () -> Void
+    let onShowPreviousPhoto: (() -> Void)?
+    let onShowNextPhoto: (() -> Void)?
 
     func makeUIView(context: Context) -> ZoomableImageContainerView {
         let view = ZoomableImageContainerView()
         view.onDismissRequest = onDismissRequest
+        view.onShowPreviousPhoto = onShowPreviousPhoto
+        view.onShowNextPhoto = onShowNextPhoto
         return view
     }
 
     func updateUIView(_ uiView: ZoomableImageContainerView, context: Context) {
         uiView.onDismissRequest = onDismissRequest
+        uiView.onShowPreviousPhoto = onShowPreviousPhoto
+        uiView.onShowNextPhoto = onShowNextPhoto
         uiView.setImage(image)
     }
 }
@@ -1587,6 +1739,8 @@ private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UI
     private var lastBoundsSize: CGSize = .zero
 
     var onDismissRequest: (() -> Void)?
+    var onShowPreviousPhoto: (() -> Void)?
+    var onShowNextPhoto: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -1653,13 +1807,19 @@ private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UI
         swipeDown.delegate = self
         scrollView.addGestureRecognizer(swipeDown)
 
-        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleDismissSwipe(_:)))
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handlePhotoSwipe(_:)))
         swipeRight.direction = .right
         swipeRight.delegate = self
         scrollView.addGestureRecognizer(swipeRight)
 
+        let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handlePhotoSwipe(_:)))
+        swipeLeft.direction = .left
+        swipeLeft.delegate = self
+        scrollView.addGestureRecognizer(swipeLeft)
+
         scrollView.panGestureRecognizer.require(toFail: swipeDown)
         scrollView.panGestureRecognizer.require(toFail: swipeRight)
+        scrollView.panGestureRecognizer.require(toFail: swipeLeft)
     }
 
     private func resetZoom() {
@@ -1713,9 +1873,31 @@ private final class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UI
         onDismissRequest?()
     }
 
+    @objc private func handlePhotoSwipe(_ recognizer: UISwipeGestureRecognizer) {
+        switch recognizer.direction {
+        case .right:
+            onShowPreviousPhoto?()
+        case .left:
+            onShowNextPhoto?()
+        default:
+            break
+        }
+    }
+
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        if gestureRecognizer is UISwipeGestureRecognizer {
-            return scrollView.zoomScale <= scrollView.minimumZoomScale + 0.01
+        if let swipeGesture = gestureRecognizer as? UISwipeGestureRecognizer {
+            guard scrollView.zoomScale <= scrollView.minimumZoomScale + 0.01 else { return false }
+
+            switch swipeGesture.direction {
+            case .down:
+                return onDismissRequest != nil
+            case .right:
+                return onShowPreviousPhoto != nil
+            case .left:
+                return onShowNextPhoto != nil
+            default:
+                return true
+            }
         }
         return true
     }
