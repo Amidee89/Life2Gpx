@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
+    @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
 
     @FocusState private var valueFieldIsFocused: Bool
 
@@ -103,6 +104,18 @@ struct SettingsView: View {
                 }
                 .padding(.vertical)
             }
+
+            Section(header: Text("Map coordinates")) {
+                Picker("Map coordinate system", selection: $mapCoordinateSystemMode) {
+                    ForEach(MapCoordinateSystemMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode.rawValue)
+                    }
+                }
+
+                Text(mapCoordinateSystemHelpText)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
             
             Section(header: Text("Filter Small Round Trip Tracks")) {
                 VStack(alignment: .leading, spacing: 16) {
@@ -169,6 +182,17 @@ struct SettingsView: View {
             if newValue != TimelinePictureDisplayMode.none.rawValue {
                 requestPhotoLibraryAccessIfNeeded()
             }
+        }
+    }
+
+    private var mapCoordinateSystemHelpText: String {
+        switch MapCoordinateSystemMode(rawValue: mapCoordinateSystemMode) ?? .auto {
+        case .auto:
+            return "Automatic: shift tracks and places on the map when your device is in mainland China (Gaode tiles). GPS data is always stored as WGS-84."
+        case .forceGCJ02:
+            return "Always shift map overlays for China-style (GCJ-02) tiles. Useful for testing outside China."
+        case .forceWGS84:
+            return "Never shift map overlays. Use when viewing China data on standard WGS-84 maps abroad."
         }
     }
 

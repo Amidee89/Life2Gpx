@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 @main
 struct Life2GpxApp: App {
@@ -23,6 +24,7 @@ struct Life2GpxApp: App {
         _ = SettingsManager.shared
         _ = FileManagerUtil.shared
         _ = PlaceManager.shared
+        CoordinateConverter.restoreLastKnownDeviceLocation(from: CLLocationManager().location?.coordinate)
         FileManagerUtil.logData(context: "AppLifecycle", content: "App Initialized.", verbosity: 2)
     }
        

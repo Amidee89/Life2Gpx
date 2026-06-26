@@ -1,5 +1,22 @@
 import Foundation
 
+/// How the app decides whether MapKit is using GCJ-02 (Gaode) or WGS-84 tiles.
+enum MapCoordinateSystemMode: String, CaseIterable, Identifiable {
+    case auto
+    case forceGCJ02
+    case forceWGS84
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .auto: return "Automatic"
+        case .forceGCJ02: return "China maps (GCJ-02)"
+        case .forceWGS84: return "Standard maps (WGS-84)"
+        }
+    }
+}
+
 enum TimelinePictureDisplayMode: String, CaseIterable, Identifiable {
     case none
     case small
@@ -38,6 +55,7 @@ class SettingsManager {
     private let gpxOverwriteExistingKey = "gpxOverwriteExisting"
     private let gpxConflictResolutionKey = "gpxConflictResolution"
     private let timelinePictureDisplayModeKey = "timelinePictureDisplayMode"
+    private let mapCoordinateSystemModeKey = "mapCoordinateSystemMode"
 
     
     private init() {
@@ -60,7 +78,8 @@ class SettingsManager {
             askToOrganizeGpxFilesKey: true,
             gpxOverwriteExistingKey: false,
             gpxConflictResolutionKey: "keepExisting",
-            timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue
+            timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue,
+            mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -237,6 +256,16 @@ class SettingsManager {
         }
         set {
             defaults.set(newValue.rawValue, forKey: timelinePictureDisplayModeKey)
+        }
+    }
+
+    var mapCoordinateSystemMode: MapCoordinateSystemMode {
+        get {
+            let raw = defaults.string(forKey: mapCoordinateSystemModeKey) ?? MapCoordinateSystemMode.auto.rawValue
+            return MapCoordinateSystemMode(rawValue: raw) ?? .auto
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: mapCoordinateSystemModeKey)
         }
     }
 

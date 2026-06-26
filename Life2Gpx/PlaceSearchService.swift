@@ -54,9 +54,12 @@ enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var usesGcj02InChina: Bool {
+    /// Whether place-search input/output uses GCJ-02 for this provider.
+    /// Gaode is always GCJ-02. Apple and Google follow the current map tile system (device in China).
+    var usesGcj02ForPlaceSearch: Bool {
         switch self {
-        case .gaode, .apple, .google: return true
+        case .gaode: return true
+        case .apple, .google: return CoordinateConverter.mapUsesGcj02
         case .foursquare, .yelp, .mapbox, .openStreetMap, .here: return false
         }
     }
@@ -256,25 +259,36 @@ class PlaceSearchService {
             verbosity: 4
         )
 
+        let searchCoordinate = provider.usesGcj02ForPlaceSearch
+            ? CoordinateConverter.wgs84ToGcj02(coordinate)
+            : coordinate
+        if searchCoordinate.latitude != coordinate.latitude || searchCoordinate.longitude != coordinate.longitude {
+            log(
+                provider,
+                "Search coordinate shifted for GCJ-02. wgs84=\(formatCoordinate(coordinate)), gcj02=\(formatCoordinate(searchCoordinate))",
+                verbosity: 4
+            )
+        }
+
         let results: [PlaceSearchResult]
 
         do {
             if provider == .apple {
-                results = try await searchApple(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+                results = try await searchApple(coordinate: searchCoordinate, query: effectiveQuery, limit: effectiveLimit)
             } else if provider == .openStreetMap {
-                results = try await searchOpenStreetMap(coordinate: coordinate, query: effectiveQuery, limit: effectiveLimit)
+                results = try await searchOpenStreetMap(coordinate: searchCoordinate, query: effectiveQuery, limit: effectiveLimit)
             } else {
                 guard let apiKey = getApiKey(for: provider), !apiKey.isEmpty else {
                     throw PlaceSearchError.noApiKey
                 }
 
                 switch provider {
-                case .google: results = try await searchGoogle(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-                case .foursquare: results = try await searchFoursquare(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-                case .yelp: results = try await searchYelp(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-                case .mapbox: results = try await searchMapbox(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-                case .here: results = try await searchHERE(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
-                case .gaode: results = try await searchGaode(coordinate: coordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .google: results = try await searchGoogle(coordinate: searchCoordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .foursquare: results = try await searchFoursquare(coordinate: searchCoordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .yelp: results = try await searchYelp(coordinate: searchCoordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .mapbox: results = try await searchMapbox(coordinate: searchCoordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .here: results = try await searchHERE(coordinate: searchCoordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
+                case .gaode: results = try await searchGaode(coordinate: searchCoordinate, apiKey: apiKey, query: effectiveQuery, limit: effectiveLimit)
                 case .apple, .openStreetMap: results = []
                 }
             }
@@ -287,8 +301,8 @@ class PlaceSearchService {
             throw error
         }
 
-        // Convert GCJ-02 coordinates to WGS-84 for providers that use GCJ-02 in China
-        if provider.usesGcj02InChina {
+        // GCJ-02 search results → WGS-84 for storage
+        if provider.usesGcj02ForPlaceSearch {
             let convertedResults = results.map { result in
                 let converted = CoordinateConverter.gcj02ToWgs84(result.coordinate)
                 return PlaceSearchResult(
@@ -803,11 +817,10 @@ class PlaceSearchService {
     // MARK: - Gaode (Amap)
 
     private func searchGaode(coordinate: CLLocationCoordinate2D, apiKey: String, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
-        let gcj02Coord = CoordinateConverter.wgs84ToGcj02(coordinate)
         var components = URLComponents(string: "https://restapi.amap.com/v3/place/around")!
         components.queryItems = [
             URLQueryItem(name: "key", value: apiKey),
-            URLQueryItem(name: "location", value: "\(gcj02Coord.longitude),\(gcj02Coord.latitude)"),
+            URLQueryItem(name: "location", value: "\(coordinate.longitude),\(coordinate.latitude)"),
             URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
             URLQueryItem(name: "offset", value: "\(limit)"),
             URLQueryItem(name: "extensions", value: "all")

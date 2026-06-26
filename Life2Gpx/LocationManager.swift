@@ -160,7 +160,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.distanceFilter = kCLDistanceFilterNone
         locationManager.startUpdatingLocation()
         if let location = locationManager.location {
-            CoordinateConverter.updateMapCoordinateSystem(for: location.coordinate)
+            CoordinateConverter.updateDeviceLocation(location.coordinate)
+        } else {
+            CoordinateConverter.restoreLastKnownDeviceLocation(from: nil)
         }
     }
     
@@ -172,7 +174,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
-        CoordinateConverter.updateMapCoordinateSystem(for: newLocation.coordinate)
+        CoordinateConverter.updateDeviceLocation(newLocation.coordinate)
            
         var shouldProcessThisLocation: Bool
         locationHistoryLock.lock()
