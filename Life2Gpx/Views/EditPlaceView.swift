@@ -212,7 +212,7 @@ struct EditPlaceView: View {
                     
                     TextField("Latitude", text: $latitudeString)
                         .keyboardType(.decimalPad)
-                        .onChange(of: latitudeString) { newValue in
+                        .onChange(of: latitudeString) { _, newValue in
                             if let lat = Double(newValue), lat >= -90, lat <= 90 {
                                 center = CLLocationCoordinate2D(
                                     latitude: lat,
@@ -223,7 +223,7 @@ struct EditPlaceView: View {
                     
                     TextField("Longitude", text: $longitudeString)
                         .keyboardType(.decimalPad)
-                        .onChange(of: longitudeString) { newValue in
+                        .onChange(of: longitudeString) { _, newValue in
                             if let lon = Double(newValue), lon >= -180, lon <= 180 {
                                 center = CLLocationCoordinate2D(
                                     latitude: center.latitude,

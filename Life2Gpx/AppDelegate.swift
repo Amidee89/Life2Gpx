@@ -2,6 +2,8 @@ import UIKit
 import SwiftUI
 
 class AppDelegate: NSObject, UIApplicationDelegate {
+    private var memoryWarningObserver: NSObjectProtocol?
+
     func application(_ application: UIApplication, willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         FileManagerUtil.logData(context: "AppLifecycle", content: "WillFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
         return true
@@ -12,7 +14,26 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         if let options = launchOptions, options[.location] != nil {
             FileManagerUtil.logData(context: "AppLifecycle", content: "App launched due to location update.", verbosity: 2)
         }
+
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            ResourceDiagnostics.logMemory(
+                context: "AppLifecycle",
+                detail: "Memory warning received — MapKit tiles and PhotoKit loads often stall under pressure."
+            )
+        }
+
         return true
+    }
+
+    func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
+        ResourceDiagnostics.logMemory(
+            context: "AppLifecycle",
+            detail: "applicationDidReceiveMemoryWarning — system is reclaiming memory; graphics resources may fail to load."
+        )
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

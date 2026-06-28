@@ -176,7 +176,7 @@ struct PlaceSearchView: View {
                 selectedProvider = configuredProviders.first
             }
         }
-        .onChange(of: selectedProvider) { _ in
+        .onChange(of: selectedProvider) {
             currentLimit = 10
             performSearch()
         }

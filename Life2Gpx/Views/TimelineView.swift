@@ -98,6 +98,7 @@ private final class TimelinePhotoStore: ObservableObject {
     private var loadingKeys: Set<String> = []
     private var loadingImageKeys: Set<String> = []
     private var loadingFullImageIDs: Set<String> = []
+    private var imageRequestStartedAt: [String: Date] = [:]
     private var authorizationRequestTask: Task<PHAuthorizationStatus, Never>?
     private let imageManager = PHCachingImageManager()
     private let thumbnailCache = NSCache<NSString, UIImage>()
@@ -144,6 +145,20 @@ private final class TimelinePhotoStore: ObservableObject {
     }
 
     func clear() {
+        let inFlightThumbnails = loadingImageKeys.count
+        let inFlightFullImages = loadingFullImageIDs.count
+        if inFlightThumbnails > 0 || inFlightFullImages > 0 {
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Clearing photo cache while \(inFlightThumbnails) thumbnail and \(inFlightFullImages) full-image requests are still in flight — those tasks may never complete and can accumulate under memory pressure.",
+                verbosity: 2
+            )
+            ResourceDiagnostics.logMemory(
+                context: TimelinePhotoLog.context,
+                detail: "Photo cache clear with in-flight PhotoKit requests."
+            )
+        }
+
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
             content: "Clearing photo cache. Cached intervals: \(photosByKey.count), loading intervals: \(loadingKeys.count), loading images: \(loadingImageKeys.count), loading full images: \(loadingFullImageIDs.count)",
@@ -153,6 +168,7 @@ private final class TimelinePhotoStore: ObservableObject {
         loadingKeys.removeAll()
         loadingImageKeys.removeAll()
         loadingFullImageIDs.removeAll()
+        imageRequestStartedAt.removeAll()
         thumbnailCache.removeAllObjects()
         previewCache.removeAllObjects()
         fullImageCache.removeAllObjects()
@@ -164,10 +180,23 @@ private final class TimelinePhotoStore: ObservableObject {
         if let cachedImage = thumbnailCache.object(forKey: cacheKey as NSString) {
             return cachedImage
         }
-        guard !loadingImageKeys.contains(cacheKey) else { return nil }
+        guard !loadingImageKeys.contains(cacheKey) else {
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Thumbnail load blocked for asset \(photo.id.prefix(12)): already in flight (\(loadingImageKeys.count) total). Repeated blocks suggest a hung PhotoKit callback.",
+                verbosity: 2
+            )
+            return nil
+        }
 
         loadingImageKeys.insert(cacheKey)
-        defer { loadingImageKeys.remove(cacheKey) }
+        imageRequestStartedAt[cacheKey] = Date()
+        logInFlightImagePressureIfNeeded(trigger: "thumbnail started \(photo.id.prefix(12))")
+        defer {
+            loadingImageKeys.remove(cacheKey)
+            imageRequestStartedAt.removeValue(forKey: cacheKey)
+            logInFlightImagePressureIfNeeded(trigger: "thumbnail finished \(photo.id.prefix(12))")
+        }
 
         let authorizationStatus = await requestAuthorizationIfNeeded()
         guard authorizationStatus == .authorized || authorizationStatus == .limited else {
@@ -222,14 +251,19 @@ private final class TimelinePhotoStore: ObservableObject {
         guard !loadingFullImageIDs.contains(photo.id) else {
             FileManagerUtil.logData(
                 context: TimelinePhotoLog.context,
-                content: "Skipping full image load for asset \(photo.id.prefix(12)): already loading.",
-                verbosity: 5
+                content: "Full image load blocked for asset \(photo.id.prefix(12)): already in flight (\(loadingFullImageIDs.count) total). Repeated blocks suggest a hung PhotoKit callback.",
+                verbosity: 2
             )
             return nil
         }
 
         loadingFullImageIDs.insert(photo.id)
-        defer { loadingFullImageIDs.remove(photo.id) }
+        imageRequestStartedAt["full:\(photo.id)"] = Date()
+        defer {
+            loadingFullImageIDs.remove(photo.id)
+            imageRequestStartedAt.removeValue(forKey: "full:\(photo.id)")
+            logInFlightImagePressureIfNeeded(trigger: "full image finished \(photo.id.prefix(12))")
+        }
 
         let authorizationStatus = await requestAuthorizationIfNeeded()
         guard authorizationStatus == .authorized || authorizationStatus == .limited else {
@@ -434,6 +468,38 @@ private final class TimelinePhotoStore: ObservableObject {
         )
     }
 
+    private func logInFlightImagePressureIfNeeded(trigger: String) {
+        let inFlightCount = loadingImageKeys.count + loadingFullImageIDs.count
+        guard inFlightCount >= 8 else { return }
+
+        let oldestAge = imageRequestStartedAt.values
+            .map { Date().timeIntervalSince($0) }
+            .max() ?? 0
+
+        ResourceDiagnostics.logMemory(
+            context: TimelinePhotoLog.context,
+            detail: "High PhotoKit concurrency (\(inFlightCount) in flight, oldest ~\(Int(oldestAge))s) after \(trigger). Competing with MapKit for memory and I/O."
+        )
+    }
+
+    private func scheduleHungImageRequestWarning(
+        requestKind: String,
+        assetID: String,
+        isComplete: @escaping @Sendable () -> Bool,
+        startedAt: Date
+    ) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(15))
+            guard !isComplete() else { return }
+
+            let elapsed = Int(Date().timeIntervalSince(startedAt))
+            ResourceDiagnostics.logMemory(
+                context: TimelinePhotoLog.context,
+                detail: "PhotoKit \(requestKind) request for asset \(assetID) has not completed after \(elapsed)s — continuation likely hung; further thumbnails/tiles may stop loading."
+            )
+        }
+    }
+
     private func requestImage(for asset: PHAsset, targetSize: CGSize, contentMode: PHImageContentMode, allowsNetworkAccess: Bool) async -> UIImage? {
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
@@ -447,7 +513,16 @@ private final class TimelinePhotoStore: ObservableObject {
             options.resizeMode = .fast
             options.isNetworkAccessAllowed = allowsNetworkAccess
 
-            var didResume = false
+            nonisolated(unsafe) var didResume = false
+            let startedAt = Date()
+            let assetLabel = String(asset.localIdentifier.prefix(12))
+            scheduleHungImageRequestWarning(
+                requestKind: "thumbnail",
+                assetID: assetLabel,
+                isComplete: { didResume },
+                startedAt: startedAt
+            )
+
             imageManager.requestImage(
                 for: asset,
                 targetSize: targetSize,
@@ -462,7 +537,7 @@ private final class TimelinePhotoStore: ObservableObject {
                 if cancelled || hasError {
                     FileManagerUtil.logData(
                         context: TimelinePhotoLog.context,
-                        content: "Image request failed for asset \(asset.localIdentifier.prefix(12)). Cancelled: \(cancelled), error: \(String(describing: info?[PHImageErrorKey]))",
+                        content: "Image request failed for asset \(assetLabel). Cancelled: \(cancelled), error: \(String(describing: info?[PHImageErrorKey]))",
                         verbosity: 4
                     )
                     didResume = true
@@ -470,10 +545,19 @@ private final class TimelinePhotoStore: ObservableObject {
                     return
                 }
 
+                if image == nil, isDegraded {
+                    FileManagerUtil.logData(
+                        context: TimelinePhotoLog.context,
+                        content: "PhotoKit returned nil degraded thumbnail for asset \(assetLabel) — waiting for final callback; if none arrives this request will hang.",
+                        verbosity: 2
+                    )
+                    return
+                }
+
                 if let image {
                     FileManagerUtil.logData(
                         context: TimelinePhotoLog.context,
-                        content: "Image request succeeded for asset \(asset.localIdentifier.prefix(12)). Returned size: \(Int(image.size.width))x\(Int(image.size.height)), degraded: \(isDegraded)",
+                        content: "Image request succeeded for asset \(assetLabel). Returned size: \(Int(image.size.width))x\(Int(image.size.height)), degraded: \(isDegraded)",
                         verbosity: 5
                     )
                     didResume = true
@@ -493,7 +577,16 @@ private final class TimelinePhotoStore: ObservableObject {
             options.resizeMode = .none
             options.isNetworkAccessAllowed = true
 
-            var didResume = false
+            nonisolated(unsafe) var didResume = false
+            let startedAt = Date()
+            let assetLabel = String(asset.localIdentifier.prefix(12))
+            scheduleHungImageRequestWarning(
+                requestKind: "full image",
+                assetID: assetLabel,
+                isComplete: { didResume },
+                startedAt: startedAt
+            )
+
             imageManager.requestImage(
                 for: asset,
                 targetSize: PHImageManagerMaximumSize,
@@ -509,12 +602,20 @@ private final class TimelinePhotoStore: ObservableObject {
                 if cancelled || hasError {
                     FileManagerUtil.logData(
                         context: TimelinePhotoLog.context,
-                        content: "Full image request failed for asset \(asset.localIdentifier.prefix(12)). Cancelled: \(cancelled), error: \(String(describing: info?[PHImageErrorKey]))",
+                        content: "Full image request failed for asset \(assetLabel). Cancelled: \(cancelled), error: \(String(describing: info?[PHImageErrorKey]))",
                         verbosity: 4
                     )
                     didResume = true
                     continuation.resume(returning: nil)
                     return
+                }
+
+                if isDegraded {
+                    FileManagerUtil.logData(
+                        context: TimelinePhotoLog.context,
+                        content: "PhotoKit returned degraded full-image preview for asset \(assetLabel) (hasImage=\(image != nil)) — waiting for high-quality callback; if none arrives this request will hang.",
+                        verbosity: 2
+                    )
                 }
 
                 if let image, !isDegraded {
@@ -672,7 +773,7 @@ struct TimelineView: View {
                 photoStore: photoStore
             )
         }
-        .onChange(of: showingEditSheet) { newValue in
+        .onChange(of: showingEditSheet) { _, newValue in
             if !newValue {
                 editingTimelineObject = nil
             }
@@ -1699,7 +1800,7 @@ private struct TimelinePhotoCarousel: View {
             .onAppear {
                 proxy.scrollTo(selectedPhotoID, anchor: .center)
             }
-            .onChange(of: selectedPhotoID) { newValue in
+            .onChange(of: selectedPhotoID) { _, newValue in
                 withAnimation(.easeInOut(duration: 0.2)) {
                     proxy.scrollTo(newValue, anchor: .center)
                 }

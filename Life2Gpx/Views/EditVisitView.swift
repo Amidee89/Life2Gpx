@@ -397,7 +397,7 @@ struct EditVisitView: View {
                 }
             }
         }
-        .onChange(of: selectedPlace) { newPlace in
+        .onChange(of: selectedPlace) { _, newPlace in
             if let place = newPlace, let coordinate = currentCoordinate {
                 let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
                 let displayPlace = CoordinateConverter.forMapDisplay(place.centerCoordinate)

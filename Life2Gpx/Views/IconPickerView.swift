@@ -26,7 +26,7 @@ struct IconPickerView: View {
             switch activeTab {
             case .symbols:
                 SymbolPicker(symbol: $sfSymbolBinding)
-                    .onChange(of: sfSymbolBinding) { newValue in
+                    .onChange(of: sfSymbolBinding) { _, newValue in
                         if !newValue.isEmpty {
                             selectedIcon = newValue
                         }
@@ -76,7 +76,7 @@ private struct EmojiPickerContent: View {
             HStack {
                 TextField("Type or paste one emoji", text: $typedEmoji)
                     .textFieldStyle(.roundedBorder)
-                    .onChange(of: typedEmoji) { newValue in
+                    .onChange(of: typedEmoji) { _, newValue in
                         let filtered = newValue.filter { $0.isEmoji }
                         if let first = filtered.first {
                             typedEmoji = String(first)

@@ -310,7 +310,6 @@ protocol GPXPointProtocol {
 }
 
 extension GPXWaypoint: GPXPointProtocol {}
-extension GPXTrackPoint: GPXPointProtocol {}
 
 class ManagePlacesViewModel: ObservableObject {
     @Published var places: [Place] = []

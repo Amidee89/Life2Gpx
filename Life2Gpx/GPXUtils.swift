@@ -453,7 +453,7 @@ class GPXUtils {
     }
 
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
-        FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name ?? "Unnamed").", verbosity: 4)
+        FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name).", verbosity: 4)
         updatedWaypoint.name = place.name
         
         var extensionData: [String: String] = [

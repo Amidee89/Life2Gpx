@@ -143,7 +143,6 @@ struct EditTrackView: View {
                                                 
                                                 if let pointTime = point.time {
                                                     let calendar = Calendar.current
-                                                    let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: pointTime)
                                                     
                                                     DatePicker("Date", selection: Binding(
                                                         get: { pointTime },
@@ -225,7 +224,7 @@ struct EditTrackView: View {
                                                         TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(6)))
                                                             .keyboardType(.decimalPad)
                                                             .multilineTextAlignment(.trailing)
-                                                            .onChange(of: selectedPointLatitude) { newValue in
+                                                            .onChange(of: selectedPointLatitude) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -239,7 +238,7 @@ struct EditTrackView: View {
                                                         TextField("", value: $selectedPointLongitude, format: .number.precision(.fractionLength(6)))
                                                             .keyboardType(.decimalPad)
                                                             .multilineTextAlignment(.trailing)
-                                                            .onChange(of: selectedPointLongitude) { newValue in
+                                                            .onChange(of: selectedPointLongitude) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -253,7 +252,7 @@ struct EditTrackView: View {
                                                         TextField("", value: $selectedPointElevation, format: .number.precision(.fractionLength(1)))
                                                             .keyboardType(.decimalPad)
                                                             .multilineTextAlignment(.trailing)
-                                                            .onChange(of: selectedPointElevation) { newValue in
+                                                            .onChange(of: selectedPointElevation) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -442,7 +441,7 @@ struct EditTrackView: View {
                     ))
                 }
             }
-            .onChange(of: shouldUpdateCamera) { _ in
+            .onChange(of: shouldUpdateCamera) {
                 if shouldUpdateCamera, 
                    let segmentIndex = selectedSegmentIndex, 
                    let pointIndex = selectedPointIndex,

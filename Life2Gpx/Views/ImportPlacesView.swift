@@ -487,7 +487,7 @@ struct ImportProgressView: View {
         return nil
     }
     
-    private func handleDuplicate(place: Place, duplicate: Place, timer: PerformanceTimer) async throws -> Bool {
+    private func handleDuplicate(place: Place, duplicate: Place, timer: PerformanceTimer) throws -> Bool {
         let startHandleDuplicate = Date()
         var updatedPlace = duplicate
         var needsUpdate = false
@@ -654,7 +654,7 @@ struct ImportProgressView: View {
         }
         
         if needsUpdate {
-            try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
+            try PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
             mergedCount += 1
         }
         timer.addTime("Handle Duplicate", Date().timeIntervalSince(startHandleDuplicate), parent: "Process Place")
@@ -703,7 +703,6 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
-        let startProcessing = Date()
         let batchSize = 50
         var batchCounter = 0
         
@@ -776,11 +775,11 @@ struct ImportProgressView: View {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
                         } else {
-                            _ = try await handleDuplicate(place: place, duplicate: duplicate, timer: timer)
+                            _ = try handleDuplicate(place: place, duplicate: duplicate, timer: timer)
                         }
                     } else {
                         let startAddPlace = Date()
-                        try await PlaceManager.shared.addPlace(place, batch: true)
+                        try PlaceManager.shared.addPlace(place, batch: true)
                         timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
                         addedCount += 1
                     }
@@ -833,7 +832,7 @@ struct ImportProgressView: View {
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
         
         let startFinalize = Date()
-        try await PlaceManager.shared.finalizeBatchOperations()
+        try PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
         timer.addTime("Main Processing", Date().timeIntervalSince(startImport))
     }
@@ -907,11 +906,11 @@ struct ImportProgressView: View {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
                         } else {
-                            _ = try await handleDuplicate(place: place, duplicate: duplicate, timer: timer)
+                            _ = try handleDuplicate(place: place, duplicate: duplicate, timer: timer)
                         }
                     } else {
                         let startAddPlace = Date()
-                        try await PlaceManager.shared.addPlace(place, batch: true)
+                        try PlaceManager.shared.addPlace(place, batch: true)
                         timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
                         addedCount += 1
                     }
@@ -964,7 +963,7 @@ struct ImportProgressView: View {
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
         
         let startFinalize = Date()
-        try await PlaceManager.shared.finalizeBatchOperations()
+        try PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
         
         timer.addTime("Main Processing", Date().timeIntervalSince(startImport))

@@ -193,7 +193,7 @@ struct EditCategoryIconSheet: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.title2)
                     .multilineTextAlignment(.center)
-                    .onChange(of: emoji) { newValue in
+                    .onChange(of: emoji) { _, newValue in
                         let filtered = newValue.filter { $0.isEmoji }
                         if let first = filtered.first {
                             emoji = String(first)

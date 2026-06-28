@@ -71,10 +71,6 @@ class PlaceManager {
         // Debug: Print cells with multiple places
         for (cell, count) in cellCounts where count > 1 {
             print("Cell \(cell) contains \(count) places")
-            if let placesInCell = gridIndex[cell] {
-                for place in placesInCell {
-                }
-            }
         }
     }
     

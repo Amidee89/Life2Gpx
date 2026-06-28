@@ -88,6 +88,41 @@ struct MapView: View {
             }
         }
         .edgesIgnoringSafeArea(.all)
+        .background {
+            Color.clear
+                .task(id: mapDiagnosticsToken) {
+                    logMapOverlayDiagnostics()
+                }
+        }
 
+    }
+
+    private var mapDiagnosticsToken: String {
+        let trackSummaries = timelineObjects
+            .filter { $0.type == .track }
+            .map { track in
+                let pointCount = track.identifiableCoordinates.reduce(0) { $0 + $1.coordinates.count }
+                return "\(track.id.uuidString.prefix(8)):\(pointCount)"
+            }
+        return trackSummaries.joined(separator: "|")
+    }
+
+    private func logMapOverlayDiagnostics() {
+        let tracks = timelineObjects.filter { $0.type == .track }
+        let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
+        let polylineCount = tracks.reduce(0) { $0 + $1.identifiableCoordinates.count }
+        let maxPolylinePoints = tracks.flatMap(\.identifiableCoordinates).map(\.coordinates.count).max() ?? 0
+        let totalPolylinePoints = tracks.flatMap(\.identifiableCoordinates).reduce(0) { $0 + $1.coordinates.count }
+        let selectedTrackPoints = tracks
+            .filter { isSelected($0.id) }
+            .flatMap(\.identifiableCoordinates)
+            .reduce(0) { $0 + $1.coordinates.count }
+
+        if maxPolylinePoints >= 5_000 || totalPolylinePoints >= 20_000 {
+            ResourceDiagnostics.logMemory(
+                context: "MapView",
+                detail: "Heavy map overlay: tracks=\(tracks.count) polylines=\(polylineCount) maxPolylinePoints=\(maxPolylinePoints) totalPolylinePoints=\(totalPolylinePoints) selectedTrackPoints=\(selectedTrackPoints) waypoints=\(waypointCount). Large polylines can exhaust GPU memory and stop MapKit tile loading."
+            )
+        }
     }
 }
