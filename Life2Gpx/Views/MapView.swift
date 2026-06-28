@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import MapKit
+import os
 
 struct MapView: View {
     @Binding var timelineObjects: [TimelineObject]
@@ -21,6 +22,7 @@ struct MapView: View {
     }
 
     var body: some View {
+        let _ = Self._logBodyEvaluation()
         Map(
             position: $cameraPosition,
             interactionModes: .all
@@ -95,6 +97,10 @@ struct MapView: View {
                 }
         }
 
+    }
+
+    private static func _logBodyEvaluation() {
+        os_signpost(.event, log: diagnosticsLog, name: "MapView.body")
     }
 
     private var mapDiagnosticsToken: String {

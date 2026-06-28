@@ -233,10 +233,6 @@ struct EditVisitView: View {
                     
                     // Update the working waypoint with the latest values
                     if let waypoint = workingWaypoint {
-                        guard let selectedPlace else {
-                            return
-                        }
-
                         waypoint.latitude = Double(latitudeString) ?? 0
                         waypoint.longitude = Double(longitudeString) ?? 0
                         waypoint.time = visitDate
@@ -249,10 +245,36 @@ struct EditVisitView: View {
                             waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                         }
                         
-                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
-                        
-                        if let originalWaypoint = self.originalWaypoint {
-                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: fileDate)
+                        if let selectedPlace {
+                            let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
+                            if let originalWaypoint = self.originalWaypoint {
+                                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: fileDate)
+                            }
+                        } else {
+                            waypoint.name = nil
+                            let placeKeys: Set<String> = [
+                                "PlaceId", "Address", "FacebookPlaceId", "MapboxPlaceId",
+                                "FoursquareVenueId", "FoursquareCategoryId", "GooglePlacesId",
+                                "YelpId", "ApplePlaceId", "OsmNodeId", "HerePlaceId", "GaodePlaceId"
+                            ]
+                            if let existingExtensions = waypoint.extensions {
+                                var remainingData = [String: String]()
+                                for child in existingExtensions.children {
+                                    if !placeKeys.contains(child.name), let value = child.text, !child.name.isEmpty {
+                                        remainingData[child.name] = value
+                                    }
+                                }
+                                if remainingData.isEmpty {
+                                    waypoint.extensions = nil
+                                } else {
+                                    let newExtensions = GPXExtensions()
+                                    newExtensions.append(at: nil, contents: remainingData)
+                                    waypoint.extensions = newExtensions
+                                }
+                            }
+                            if let originalWaypoint = self.originalWaypoint {
+                                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: waypoint, forDate: fileDate)
+                            }
                         }
                     }
                     

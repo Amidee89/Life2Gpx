@@ -6,6 +6,7 @@
 //
 import Foundation
 import CoreGPX
+import os
 
 class GPXManager {
     static let shared = GPXManager()
@@ -47,11 +48,16 @@ class GPXManager {
         print(fileURL.path)
         FileManagerUtil.logData(context: "GPXManager", content: "Loading GPX file: \(fileName)", verbosity: 4)
 
+        let signpostID = diagnosticsSignposter.makeSignpostID()
+        let state = diagnosticsSignposter.beginInterval("GPX parse", id: signpostID, "\(fileName)")
+
         guard let gpx = GPXParser(withURL: fileURL)?.parsedData() else {
+            diagnosticsSignposter.endInterval("GPX parse", state)
             FileManagerUtil.logData(context: "GPXManager", content: "Failed to load or parse GPX file: \(fileName). Returning empty data.", verbosity: 2)
             completion([], [])
             return
         }
+        diagnosticsSignposter.endInterval("GPX parse", state)
         FileManagerUtil.logData(context: "GPXManager", content: "Successfully loaded and parsed GPX file: \(fileName). Waypoints: \(gpx.waypoints.count), Tracks: \(gpx.tracks.count)", verbosity: 3)
         completion(gpx.waypoints, gpx.tracks)
     }

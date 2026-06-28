@@ -26,6 +26,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             )
         }
 
+        MemoryWatchdog.shared.start()
+
         return true
     }
 
