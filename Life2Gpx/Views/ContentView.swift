@@ -29,6 +29,7 @@ struct ContentView: View {
     @State private var mapPanelHeight: CGFloat?
     @State private var mapPanelDragOffset: CGFloat?
     @State private var lastMapSize: CGSize = .zero
+    @State private var scrollPositions: [String: String] = [:]
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
@@ -196,6 +197,7 @@ struct ContentView: View {
                         TimelineView(
                             timelineObjects: $timelineObjects,
                             selectedTimelineObjectID: $selectedTimelineObjectID,
+                            scrollPositions: $scrollPositions,
                             groupingMinutes: groupingMinutes,
                             onRefresh: refreshData,
                             onSelectItem: { item in
@@ -238,6 +240,7 @@ struct ContentView: View {
                 let currentTime = Date()
                 FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
                 selectedDate = Date()
+                scrollPositions.removeAll()
                 refreshData()
                 centerAllData()
                 FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)

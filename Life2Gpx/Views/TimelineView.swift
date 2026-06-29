@@ -13,16 +13,30 @@ import Photos
 import UIKit
 import os
 
+extension TimelineObject {
+    var stableId: String {
+        let typeStr = type == .waypoint ? "w" : "t"
+        let timeStr = startDate != nil ? "\(Int(startDate!.timeIntervalSince1970))" : "nil"
+        let coordStr: String
+        if let firstCoord = identifiableCoordinates.first?.coordinates.first {
+            coordStr = String(format: "-%.5f_%.5f", firstCoord.latitude, firstCoord.longitude)
+        } else {
+            coordStr = ""
+        }
+        return "\(typeStr)-\(timeStr)\(coordStr)"
+    }
+}
+
 private enum TimelineDisplayItem: Identifiable {
     case single(TimelineObject)
-    case groupHeader(id: UUID, items: [TimelineObject], isExpanded: Bool)
+    case groupHeader(id: String, uuid: UUID, items: [TimelineObject], isExpanded: Bool)
     case groupChild(TimelineObject)
 
     var id: String {
         switch self {
-        case .single(let obj): return "s-\(obj.id.uuidString)"
-        case .groupHeader(let id, _, _): return "g-\(id.uuidString)"
-        case .groupChild(let obj): return "c-\(obj.id.uuidString)"
+        case .single(let obj): return "s-\(obj.stableId)"
+        case .groupHeader(let id, _, _, _): return "g-\(id)"
+        case .groupChild(let obj): return "c-\(obj.stableId)"
         }
     }
 }
@@ -704,6 +718,11 @@ private extension UIImage {
 struct TimelineView: View {
     @Binding var timelineObjects: [TimelineObject]
     @Binding var selectedTimelineObjectID: UUID?
+    @Binding var scrollPositions: [String: String]
+    @State private var activeScrollID: String? = nil
+    @State private var scrolledDateKey: String? = nil
+    @State private var pendingScrollTarget: String? = nil
+    @State private var visibleIDs: Set<String> = []
     @State private var editingTimelineObject: TimelineObject?
     @State private var showingEditSheet = false
     @State private var expandedGroupIDs: Set<UUID> = []
@@ -732,9 +751,10 @@ struct TimelineView: View {
             if pendingGroup.count == 1 {
                 result.append(.single(pendingGroup[0]))
             } else {
-                let groupID = pendingGroup[0].id
-                let isExpanded = expandedGroupIDs.contains(groupID)
-                result.append(.groupHeader(id: groupID, items: pendingGroup, isExpanded: isExpanded))
+                let groupUUID = pendingGroup[0].id
+                let stableGroupID = pendingGroup[0].stableId
+                let isExpanded = expandedGroupIDs.contains(groupUUID)
+                result.append(.groupHeader(id: stableGroupID, uuid: groupUUID, items: pendingGroup, isExpanded: isExpanded))
                 if isExpanded {
                     for item in pendingGroup {
                         result.append(.groupChild(item))
@@ -760,10 +780,75 @@ struct TimelineView: View {
     private var timelinePictureDisplayMode: TimelinePictureDisplayMode {
         TimelinePictureDisplayMode(rawValue: timelinePictureDisplayModeRaw) ?? .small
     }
+
+    private var selectedDayKey: String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
+        return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
+    }
+
+    private var displayedObjectsDayKey: String? {
+        guard let firstWithDate = timelineObjects.first(where: { $0.startDate != nil }),
+              let startDate = firstWithDate.startDate else {
+            return nil
+        }
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: startDate)
+        return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
+    }
+    
+    private func updateActiveScrollID() {
+        if let topVisibleItem = displayItems.first(where: { visibleIDs.contains($0.id) }) {
+            let topId = topVisibleItem.id
+            if activeScrollID != topId {
+                FileManagerUtil.logData(context: "TimelineScroll", content: "[updateActiveScrollID] Top visible item ID determined to be: \(topId)", verbosity: 4)
+                activeScrollID = topId
+            }
+        }
+    }
+
+    private func applyScrollPositionForCurrentDay() {
+        let key = selectedDayKey
+        let displayedKey = displayedObjectsDayKey
+        
+        FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Starting scroll restoration. selectedDate key: \(key), displayed items key: \(displayedKey ?? "nil"), saved positions count: \(scrollPositions.count)", verbosity: 4)
+        
+        if timelineObjects.isEmpty {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Timeline is empty. Resetting activeScrollID to nil.", verbosity: 4)
+            activeScrollID = nil
+            scrolledDateKey = key
+            return
+        }
+        
+        // We only restore/set scroll position if the displayed objects actually match the selected day.
+        guard let displayedKey = displayedKey, displayedKey == key else {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Displayed items key (\(displayedKey ?? "nil")) does not match selectedDate key (\(key)). Delaying scroll restoration.", verbosity: 4)
+            return
+        }
+        
+        let targetId: String?
+        if let savedId = scrollPositions[key], displayItems.contains(where: { $0.id == savedId }) {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Restoring saved scroll position: \(savedId) for day: \(key)", verbosity: 4)
+            targetId = savedId
+        } else if let firstId = displayItems.first?.id {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] No saved position or saved ID not found. Scrolling to first item: \(firstId) for day: \(key)", verbosity: 4)
+            targetId = firstId
+            scrollPositions[key] = firstId
+        } else {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] List is empty. Resetting activeScrollID to nil.", verbosity: 4)
+            targetId = nil
+        }
+        
+        scrolledDateKey = key
+        
+        if let targetId = targetId {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Setting pendingScrollTarget: \(targetId) for day: \(key)", verbosity: 4)
+            pendingScrollTarget = targetId
+        }
+    }
     
     var body: some View {
         let photoIntervalsByObjectID = makePhotoIntervalsByObjectID()
 
+        ScrollViewReader { proxy in
         List(displayItems) { displayItem in
             switch displayItem {
             case .single(let item):
@@ -775,9 +860,18 @@ struct TimelineView: View {
                         withAnimation { onSelectItem(item) }
                     }
                     .listRowBackground(item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
+                    .id(displayItem.id)
+                    .onAppear {
+                        visibleIDs.insert(displayItem.id)
+                        updateActiveScrollID()
+                    }
+                    .onDisappear {
+                        visibleIDs.remove(displayItem.id)
+                        updateActiveScrollID()
+                    }
 
-            case .groupHeader(let groupID, let items, let isExpanded):
-                groupHeaderRow(groupID: groupID, items: items, isExpanded: isExpanded)
+            case .groupHeader(_, let groupUUID, let items, let isExpanded):
+                groupHeaderRow(groupID: groupUUID, items: items, isExpanded: isExpanded)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
@@ -789,6 +883,15 @@ struct TimelineView: View {
                     .listRowBackground(
                         items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear
                     )
+                    .id(displayItem.id)
+                    .onAppear {
+                        visibleIDs.insert(displayItem.id)
+                        updateActiveScrollID()
+                    }
+                    .onDisappear {
+                        visibleIDs.remove(displayItem.id)
+                        updateActiveScrollID()
+                    }
 
             case .groupChild(let item):
                 itemRow(item: item, showEdit: true, photoInterval: photoIntervalsByObjectID[item.id])
@@ -800,12 +903,67 @@ struct TimelineView: View {
                         withAnimation { onSelectItem(item) }
                     }
                     .listRowBackground(item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
+                    .id(displayItem.id)
+                    .onAppear {
+                        visibleIDs.insert(displayItem.id)
+                        updateActiveScrollID()
+                    }
+                    .onDisappear {
+                        visibleIDs.remove(displayItem.id)
+                        updateActiveScrollID()
+                    }
             }
         }
         .refreshable {
             onRefresh()
         }
         .listStyle(PlainListStyle())
+        .onAppear {
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[onAppear] TimelineView appeared. selectedDate: \(selectedDate)", verbosity: 4)
+            applyScrollPositionForCurrentDay()
+        }
+        .onChange(of: selectedDate) { oldDate, newDate in
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange selectedDate] selectedDate changed from \(oldDate) to \(newDate). Locking scroll updates.", verbosity: 4)
+            scrolledDateKey = nil // Lock scroll updates during transition
+            visibleIDs.removeAll() // Clear visible IDs
+            activeScrollID = nil // Reset activeScrollID
+        }
+        .onChange(of: timelineObjects.map { $0.id }) { oldIds, newIds in
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange timelineObjects] IDs changed. Old count: \(oldIds.count), New count: \(newIds.count). Restoring scroll position.", verbosity: 4)
+            applyScrollPositionForCurrentDay()
+        }
+        .onChange(of: activeScrollID) { oldId, newId in
+            let key = selectedDayKey
+            let displayedKey = displayedObjectsDayKey
+            
+            FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] activeScrollID changed from \(oldId ?? "nil") to \(newId ?? "nil"). scrolledDateKey: \(scrolledDateKey ?? "nil"), selectedDayKey: \(key), displayedKey: \(displayedKey ?? "nil")", verbosity: 5)
+            
+            // Only save if scroll-tracking is unlocked and matches the currently displayed day
+            guard let displayedKey = displayedKey,
+                  scrolledDateKey == key,
+                  displayedKey == key else {
+                FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update (scrolledDateKey mismatch or still transitioning)", verbosity: 4)
+                return
+            }
+            
+            if let newId = newId {
+                if displayItems.contains(where: { $0.id == newId }) {
+                    FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Saving scroll position: \(newId) under key: \(key)", verbosity: 4)
+                    scrollPositions[key] = newId
+                } else {
+                    FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update because ID \(newId) is not in current displayItems", verbosity: 4)
+                }
+            }
+        }
+        .onChange(of: pendingScrollTarget) { _, targetId in
+            // This onChange runs inside the ScrollViewReader closure where proxy is guaranteed valid.
+            if let targetId = targetId {
+                FileManagerUtil.logData(context: "TimelineScroll", content: "[pendingScrollTarget] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
+                proxy.scrollTo(targetId, anchor: .top)
+                pendingScrollTarget = nil
+            }
+        }
+        } // end ScrollViewReader
         .sheet(isPresented: $showingEditSheet, content: {
             if let timelineObject = editingTimelineObject {
                 if timelineObject.type == .waypoint {
