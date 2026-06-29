@@ -917,7 +917,6 @@ struct TimelineView: View {
             TimelinePhotoViewer(
                 photos: sheet.photos,
                 initialPhotoID: sheet.initialPhotoID,
-                closesOnDetailBack: sheet.closesOnDetailBack,
                 photoStore: photoStore
             )
         }
@@ -1087,12 +1086,8 @@ struct TimelineView: View {
                         onOpenPhoto: { photo in
                             photoSheet = TimelinePhotoSheet(
                                 photos: photosForViewer(photo, cacheKey: photoKey),
-                                initialPhotoID: photo.id,
-                                closesOnDetailBack: true
+                                initialPhotoID: photo.id
                             )
-                        },
-                        onOpenAll: { photos in
-                            photoSheet = TimelinePhotoSheet(photos: photos)
                         }
                     )
                 }
@@ -1113,12 +1108,8 @@ struct TimelineView: View {
                     onOpenPhoto: { photo in
                         photoSheet = TimelinePhotoSheet(
                             photos: photosForViewer(photo, cacheKey: photoKey),
-                            initialPhotoID: photo.id,
-                            closesOnDetailBack: timelinePictureDisplayMode == .medium || timelinePictureDisplayMode == .large
+                            initialPhotoID: photo.id
                         )
-                    },
-                    onOpenAll: { photos in
-                        photoSheet = TimelinePhotoSheet(photos: photos)
                     }
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)

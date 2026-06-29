@@ -18,7 +18,6 @@ struct TimelinePhotoAttachmentView: View {
     let interval: DateInterval
     let displayMode: TimelinePictureDisplayMode
     let onOpenPhoto: (TimelinePhoto) -> Void
-    let onOpenAll: ([TimelinePhoto]) -> Void
 
     private let mediumPhotoSize: CGFloat = 56
     private let mediumPhotoSpacing: CGFloat = 6
@@ -154,57 +153,28 @@ struct TimelinePhotoAttachmentView: View {
     private var mediumStrip: some View {
         if !photos.isEmpty {
             GeometryReader { proxy in
-                mediumStripContent(width: proxy.size.width)
+                let contentWidth = mediumContentWidth(count: photos.count)
+                let leadingPadding = mediaLeadingPadding(containerWidth: proxy.size.width, contentWidth: contentWidth)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: mediumPhotoSpacing) {
+                        ForEach(photos) { photo in
+                            Button(action: {
+                                onOpenPhoto(photo)
+                            }) {
+                                TimelineSquarePhoto(photo: photo, photoStore: photoStore, size: mediumPhotoSize)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                            .accessibilityLabel("Show picture")
+                        }
+                    }
+                    .padding(.leading, leadingPadding)
+                    .padding(.vertical, 2)
+                }
             }
-            .frame(height: mediumPhotoSize)
+            .frame(height: mediumPhotoSize + 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    private func mediumStripContent(width: CGFloat) -> some View {
-        let leadingPadding = mediaLeadingPadding(containerWidth: width, contentWidth: mediumContentWidth(count: photos.count))
-        let slotCount = mediumSlotCount(for: width - leadingPadding)
-        let showsMore = photos.count > slotCount
-        let visiblePhotoCount = showsMore ? max(0, slotCount - 1) : min(photos.count, slotCount)
-
-        return HStack(spacing: mediumPhotoSpacing) {
-            ForEach(Array(photos.prefix(visiblePhotoCount))) { photo in
-                Button(action: {
-                    onOpenPhoto(photo)
-                }) {
-                    TimelineSquarePhoto(photo: photo, photoStore: photoStore, size: mediumPhotoSize)
-                }
-                .buttonStyle(BorderlessButtonStyle())
-                .accessibilityLabel("Show picture")
-            }
-
-            if showsMore {
-                Button(action: {
-                    onOpenAll(photos)
-                }) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color(.tertiarySystemFill))
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(Color.black.opacity(0.12), lineWidth: 0.5)
-                        Text("...")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(width: mediumPhotoSize, height: mediumPhotoSize)
-                }
-                .buttonStyle(BorderlessButtonStyle())
-                .accessibilityLabel("Show all pictures")
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, leadingPadding)
-    }
-
-    private func mediumSlotCount(for width: CGFloat) -> Int {
-        guard width > 0 else { return 1 }
-        return max(1, Int((width + mediumPhotoSpacing) / (mediumPhotoSize + mediumPhotoSpacing)))
     }
 
     private func mediumContentWidth(count: Int) -> CGFloat {
@@ -221,7 +191,7 @@ struct TimelinePhotoAttachmentView: View {
                 let leadingPadding = mediaLeadingPadding(containerWidth: proxy.size.width, contentWidth: contentWidth)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: largePhotoSpacing) {
+                    LazyHStack(spacing: largePhotoSpacing) {
                         ForEach(photos) { photo in
                             Button(action: {
                                 onOpenPhoto(photo)
@@ -350,132 +320,32 @@ struct TimelinePhotoViewer: View {
 
     let photos: [TimelinePhoto]
     let initialPhotoID: String?
-    let closesOnDetailBack: Bool
     @ObservedObject var photoStore: TimelinePhotoStore
-
-    @State private var selectedPhotoID: String?
-
-    init(photos: [TimelinePhoto], initialPhotoID: String?, closesOnDetailBack: Bool, photoStore: TimelinePhotoStore) {
-        self.photos = photos
-        self.initialPhotoID = initialPhotoID
-        self.closesOnDetailBack = closesOnDetailBack
-        self.photoStore = photoStore
-        _selectedPhotoID = State(initialValue: closesOnDetailBack ? (initialPhotoID ?? photos.first?.id) : initialPhotoID)
-    }
-
-    private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: 112), spacing: 10)]
-    }
 
     var body: some View {
         NavigationStack {
-            if let selectedPhotoID {
-                if photos.contains(where: { $0.id == selectedPhotoID }) {
-                    TimelinePhotoDetailView(
-                        photos: photos,
-                        initialPhotoID: selectedPhotoID,
-                        photoStore: photoStore,
-                        onClose: {
-                            if closesOnDetailBack {
-                                dismiss()
-                            } else {
-                                self.selectedPhotoID = nil
-                            }
-                        },
-                        leadingCloseTitle: "Back",
-                        trailingCloseTitle: closesOnDetailBack ? nil : "Done"
-                    )
-                } else {
-                    ContentUnavailableView("Picture unavailable", systemImage: "photo")
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button("Back") {
-                                    if closesOnDetailBack {
-                                        dismiss()
-                                    } else {
-                                        self.selectedPhotoID = nil
-                                    }
-                                }
-                            }
-                        }
-                }
-            } else {
-                gridNavigation
-            }
-        }
-    }
-
-    private var gridNavigation: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(photos) { photo in
-                    TimelinePhotoGridCell(
-                        photo: photo,
-                        photoStore: photoStore,
-                        action: {
-                            selectedPhotoID = photo.id
-                        }
-                    )
-                }
-            }
-            .padding()
-        }
-        .navigationTitle("Pictures")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
-    }
-}
-
-struct TimelinePhotoGridCell: View {
-    let photo: TimelinePhoto
-    @ObservedObject var photoStore: TimelinePhotoStore
-    let action: () -> Void
-
-    @State private var loadedImage: UIImage?
-
-    var body: some View {
-        Button(action: action) {
-            GeometryReader { geometry in
-                let displaySize = CGSize(width: geometry.size.width, height: geometry.size.height)
-                let displayImage = loadedImage ?? photoStore.thumbnail(for: photo, displaySize: displaySize, contentMode: .aspectFill)
-
-                Group {
-                    if let image = displayImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Color(.tertiarySystemFill)
-                            .overlay {
-                                Image(systemName: "photo")
-                                    .font(.title3)
-                                    .foregroundColor(.secondary)
-                            }
-                    }
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(Color.black.opacity(0.12), lineWidth: 0.5)
+            if let initialPhotoID, let firstPhoto = photos.first(where: { $0.id == initialPhotoID }) ?? photos.first {
+                TimelinePhotoDetailView(
+                    photos: photos,
+                    initialPhotoID: firstPhoto.id,
+                    photoStore: photoStore,
+                    onClose: {
+                        dismiss()
+                    },
+                    leadingCloseTitle: "Back",
+                    trailingCloseTitle: nil
                 )
-                .task(id: "\(photo.id)-grid-\(Int(geometry.size.width))x\(Int(geometry.size.height))") {
-                    if loadedImage == nil {
-                        loadedImage = await photoStore.loadThumbnail(for: photo, displaySize: displaySize, contentMode: .aspectFill)
+            } else {
+                ContentUnavailableView("Picture unavailable", systemImage: "photo")
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Back") {
+                                dismiss()
+                            }
+                        }
                     }
-                }
             }
-            .aspectRatio(1, contentMode: .fit)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Open picture")
     }
 }
 
@@ -923,14 +793,6 @@ struct TimelinePhotoActivityView: UIViewControllerRepresentable {
         .padding()
 }
 
-#Preview("Grid Cell") {
-    let store = TimelinePhotoStore.preview
-    let photo = TimelinePhoto(id: "dummy", pixelWidth: 100, pixelHeight: 100)
-    TimelinePhotoGridCell(photo: photo, photoStore: store, action: {})
-        .frame(width: 112, height: 112)
-        .padding()
-}
-
 #Preview("Carousel") {
     let store = TimelinePhotoStore.preview
     let photo = TimelinePhoto(id: "dummy", pixelWidth: 100, pixelHeight: 100)
@@ -959,15 +821,14 @@ struct TimelinePhotoActivityView: UIViewControllerRepresentable {
         cacheKey: "dummy_key",
         interval: DateInterval(start: Date(), duration: 60),
         displayMode: .medium,
-        onOpenPhoto: { _ in },
-        onOpenAll: { _ in }
+        onOpenPhoto: { _ in }
     )
     .padding()
 }
 
-#Preview("Viewer (Grid)") {
+#Preview("Viewer") {
     let store = TimelinePhotoStore.preview
     let photo = TimelinePhoto(id: "dummy", pixelWidth: 100, pixelHeight: 100)
-    TimelinePhotoViewer(photos: [photo], initialPhotoID: nil, closesOnDetailBack: false, photoStore: store)
+    TimelinePhotoViewer(photos: [photo], initialPhotoID: "dummy", photoStore: store)
 }
 

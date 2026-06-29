@@ -479,12 +479,10 @@ struct TimelinePhotoSheet: Identifiable {
     let id = UUID()
     let photos: [TimelinePhoto]
     let initialPhotoID: String?
-    let closesOnDetailBack: Bool
 
-    init(photos: [TimelinePhoto], initialPhotoID: String? = nil, closesOnDetailBack: Bool = false) {
+    init(photos: [TimelinePhoto], initialPhotoID: String? = nil) {
         self.photos = photos
         self.initialPhotoID = initialPhotoID
-        self.closesOnDetailBack = closesOnDetailBack
     }
 }
 
