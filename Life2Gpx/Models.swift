@@ -436,3 +436,77 @@ extension Place {
     
     static let previewPlace: Place = previewPlaces[0]
 }
+
+extension TimelineObject {
+    var stableId: String {
+        let typeStr = type == .waypoint ? "w" : "t"
+        let timeStr = startDate != nil ? "\(Int(startDate!.timeIntervalSince1970))" : "nil"
+        let coordStr: String
+        if let firstCoord = identifiableCoordinates.first?.coordinates.first {
+            coordStr = String(format: "-%.5f_%.5f", firstCoord.latitude, firstCoord.longitude)
+        } else {
+            coordStr = ""
+        }
+        return "\(typeStr)-\(timeStr)\(coordStr)"
+    }
+}
+
+enum TimelineDisplayItem: Identifiable {
+    case single(TimelineObject)
+    case groupHeader(id: String, uuid: UUID, items: [TimelineObject], isExpanded: Bool)
+    case groupChild(TimelineObject)
+
+    var id: String {
+        switch self {
+        case .single(let obj): return "s-\(obj.stableId)"
+        case .groupHeader(let id, _, _, _): return "g-\(id)"
+        case .groupChild(let obj): return "c-\(obj.stableId)"
+        }
+    }
+}
+
+struct TimelinePhoto: Identifiable, Sendable {
+    let id: String
+    let pixelWidth: Int
+    let pixelHeight: Int
+
+    var aspectRatio: CGFloat {
+        CGFloat(max(pixelWidth, 1)) / CGFloat(max(pixelHeight, 1))
+    }
+}
+
+struct TimelinePhotoSheet: Identifiable {
+    let id = UUID()
+    let photos: [TimelinePhoto]
+    let initialPhotoID: String?
+    let closesOnDetailBack: Bool
+
+    init(photos: [TimelinePhoto], initialPhotoID: String? = nil, closesOnDetailBack: Bool = false) {
+        self.photos = photos
+        self.initialPhotoID = initialPhotoID
+        self.closesOnDetailBack = closesOnDetailBack
+    }
+}
+
+enum TimelinePhotoLog {
+    static let context = "TimelinePhotos"
+
+    static func dateString(_ date: Date) -> String {
+        dateFormatter.string(from: date)
+    }
+
+    static func intervalString(_ interval: DateInterval) -> String {
+        "\(dateString(interval.start)) -> \(dateString(interval.end)) (\(Int(interval.duration))s)"
+    }
+
+    static func shortKey(_ key: String) -> String {
+        String(key.prefix(18))
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss ZZZZZ"
+        return formatter
+    }()
+}
+
