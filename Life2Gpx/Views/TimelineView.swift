@@ -12,6 +12,7 @@ import Foundation
 import Photos
 import UIKit
 import os
+import AVFoundation
 
 extension PHAuthorizationStatus {
     var timelineLogDescription: String {
@@ -272,6 +273,44 @@ final class TimelinePhotoStore: ObservableObject {
         }
     }
 
+    func loadVideoAsset(for photo: TimelinePhoto) async -> AVPlayerItem? {
+        guard let asset = fetchAsset(localIdentifier: photo.id) else {
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Cannot load video for asset \(photo.id.prefix(12)): PHAsset not found.",
+                verbosity: 4
+            )
+            return nil
+        }
+        
+        FileManagerUtil.logData(
+            context: TimelinePhotoLog.context,
+            content: "Requesting AVPlayerItem for asset \(photo.id.prefix(12))",
+            verbosity: 4
+        )
+        
+        return await withCheckedContinuation { continuation in
+            let options = PHVideoRequestOptions()
+            options.isNetworkAccessAllowed = true
+            options.deliveryMode = .highQualityFormat
+            
+            nonisolated(unsafe) var didResume = false
+            
+            imageManager.requestPlayerItem(forVideo: asset, options: options) { playerItem, info in
+                guard !didResume else { return }
+                didResume = true
+                if let error = info?[PHImageErrorKey] as? Error {
+                    FileManagerUtil.logData(
+                        context: TimelinePhotoLog.context,
+                        content: "Video request failed for asset \(photo.id.prefix(12)): \(error.localizedDescription)",
+                        verbosity: 4
+                    )
+                }
+                continuation.resume(returning: playerItem)
+            }
+        }
+    }
+
     @discardableResult
     func requestAuthorizationIfNeeded() async -> PHAuthorizationStatus {
         let currentStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -390,8 +429,9 @@ final class TimelinePhotoStore: ObservableObject {
             let options = PHFetchOptions()
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
             options.predicate = NSPredicate(
-                format: "mediaType == %d AND creationDate >= %@ AND creationDate < %@",
+                format: "(mediaType == %d OR mediaType == %d) AND creationDate >= %@ AND creationDate < %@",
                 PHAssetMediaType.image.rawValue,
+                PHAssetMediaType.video.rawValue,
                 startDate as NSDate,
                 endDate as NSDate
             )
@@ -404,7 +444,9 @@ final class TimelinePhotoStore: ObservableObject {
                     TimelinePhoto(
                         id: asset.localIdentifier,
                         pixelWidth: asset.pixelWidth,
-                        pixelHeight: asset.pixelHeight
+                        pixelHeight: asset.pixelHeight,
+                        isVideo: asset.mediaType == .video,
+                        duration: asset.duration
                     )
                 )
             }

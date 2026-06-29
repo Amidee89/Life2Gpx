@@ -469,9 +469,19 @@ struct TimelinePhoto: Identifiable, Sendable {
     let id: String
     let pixelWidth: Int
     let pixelHeight: Int
+    let isVideo: Bool
+    let duration: TimeInterval
 
     var aspectRatio: CGFloat {
         CGFloat(max(pixelWidth, 1)) / CGFloat(max(pixelHeight, 1))
+    }
+
+    init(id: String, pixelWidth: Int, pixelHeight: Int, isVideo: Bool = false, duration: TimeInterval = 0) {
+        self.id = id
+        self.pixelWidth = pixelWidth
+        self.pixelHeight = pixelHeight
+        self.isVideo = isVideo
+        self.duration = duration
     }
 }
 

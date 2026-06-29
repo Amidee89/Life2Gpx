@@ -8,6 +8,13 @@
 import SwiftUI
 import Photos
 import UIKit
+import AVKit
+
+private func formatVideoDuration(_ duration: TimeInterval) -> String {
+    let minutes = Int(duration) / 60
+    let seconds = Int(duration) % 60
+    return String(format: "%d:%02d", minutes, seconds)
+}
 
 struct TimelinePhotoAttachmentView: View {
     @Environment(\.openURL) private var openURL
@@ -263,6 +270,23 @@ struct TimelineSquarePhoto: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(Color.black.opacity(0.12), lineWidth: 0.5)
         )
+        .overlay(alignment: .bottomLeading) {
+            if photo.isVideo {
+                HStack(spacing: 3) {
+                    Image(systemName: "video.fill")
+                    if photo.duration > 0 {
+                        Text(formatVideoDuration(photo.duration))
+                    }
+                }
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 3)
+                .padding(.vertical, 1.5)
+                .background(Color.black.opacity(0.45))
+                .cornerRadius(3)
+                .padding(3)
+            }
+        }
         .task(id: "\(photo.id)-\(Int(size))") {
             if loadedImage == nil {
                 loadedImage = await photoStore.loadThumbnail(for: photo, displaySize: displaySize, contentMode: .aspectFill)
@@ -307,6 +331,23 @@ struct TimelineLargePhotoThumbnail: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(Color.black.opacity(0.12), lineWidth: 0.5)
         )
+        .overlay(alignment: .bottomLeading) {
+            if photo.isVideo {
+                HStack(spacing: 3) {
+                    Image(systemName: "video.fill")
+                    if photo.duration > 0 {
+                        Text(formatVideoDuration(photo.duration))
+                    }
+                }
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color.black.opacity(0.45))
+                .cornerRadius(4)
+                .padding(4)
+            }
+        }
         .task(id: "\(photo.id)-\(Int(displaySize.width))x\(Int(displaySize.height))") {
             if loadedImage == nil {
                 loadedImage = await photoStore.loadThumbnail(for: photo, displaySize: displaySize, contentMode: .aspectFit)
@@ -361,6 +402,9 @@ struct TimelinePhotoDetailView: View {
     @State private var selectedPhotoID: String
     @State private var loadedFullImagePhotoID: String?
     @State private var fullImage: UIImage?
+    @State private var player: AVPlayer? = nil
+    @State private var isPlayingVideo = false
+    @State private var isLoadingVideo = false
 
     init(
         photos: [TimelinePhoto],
@@ -424,7 +468,36 @@ struct TimelinePhotoDetailView: View {
                 .ignoresSafeArea()
             }
 
-            if displayImage == nil || !canShareFullImage {
+            if isPlayingVideo, let player {
+                VideoPlayer(player: player)
+                    .padding(.bottom, 100)
+                    .ignoresSafeArea(edges: .top)
+                    .onAppear {
+                        player.play()
+                    }
+            }
+
+            if let currentPhoto, currentPhoto.isVideo, !isPlayingVideo {
+                if isLoadingVideo {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                } else {
+                    Button(action: {
+                        Task {
+                            await playVideo(for: currentPhoto)
+                        }
+                    }) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 72))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
+                    }
+                }
+            }
+
+            if !isPlayingVideo && (displayImage == nil || !canShareFullImage) {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .tint(.white)
@@ -496,6 +569,46 @@ struct TimelinePhotoDetailView: View {
                 TimelinePhotoActivityView(items: [image])
             }
         }
+        .onChange(of: selectedPhotoID) { _, _ in
+            player?.seek(to: .zero)
+            player?.pause()
+            player = nil
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isPlayingVideo = false
+            }
+            isLoadingVideo = false
+        }
+        .onDisappear {
+            player?.pause()
+            player = nil
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isPlayingVideo = false
+            }
+            isLoadingVideo = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)) { notification in
+            if let item = notification.object as? AVPlayerItem, item == player?.currentItem {
+                player?.seek(to: .zero)
+                player?.pause()
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isPlayingVideo = false
+                }
+            }
+        }
+    }
+
+    private func playVideo(for photo: TimelinePhoto) async {
+        let photoID = photo.id
+        isLoadingVideo = true
+        if let playerItem = await photoStore.loadVideoAsset(for: photo) {
+            guard selectedPhotoID == photoID else { return }
+            let newPlayer = AVPlayer(playerItem: playerItem)
+            self.player = newPlayer
+            withAnimation(.easeInOut(duration: 0.25)) {
+                self.isPlayingVideo = true
+            }
+        }
+        isLoadingVideo = false
     }
 
     private func showPreviousPhoto() {
