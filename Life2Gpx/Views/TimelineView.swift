@@ -1157,6 +1157,11 @@ struct TimelineView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .task(id: photoKey) {
+            if let photoKey = photoKey, let photoInterval = photoInterval, timelinePictureDisplayMode != .none {
+                await photoStore.loadPhotos(for: photoKey, interval: photoInterval)
+            }
+        }
     }
 
     @ViewBuilder

@@ -43,9 +43,7 @@ struct TimelinePhotoAttachmentView: View {
         Group {
             if photoStore.authorizationStatus == .denied || photoStore.authorizationStatus == .restricted {
                 permissionButton
-            } else if photos.isEmpty && !hasLoadedPhotos {
-                loadingAnchor
-            } else {
+            } else if hasLoadedPhotos, !photos.isEmpty {
                 switch displayMode {
                 case .none:
                     EmptyView()
@@ -57,30 +55,6 @@ struct TimelinePhotoAttachmentView: View {
                     largeStrip
                 }
             }
-        }
-    }
-
-    private var loadingAnchor: some View {
-        Color.clear
-            .frame(width: loadingAnchorSize.width, height: loadingAnchorSize.height)
-            .task(id: cacheKey) {
-                FileManagerUtil.logData(
-                    context: TimelinePhotoLog.context,
-                    content: "Photo attachment loading anchor mounted. Mode: \(displayMode.rawValue), key: \(TimelinePhotoLog.shortKey(cacheKey)), auth: \(photoStore.authorizationStatus.timelineLogDescription), interval: \(TimelinePhotoLog.intervalString(interval))",
-                    verbosity: 4
-                )
-                await loadPhotos()
-            }
-    }
-
-    private var loadingAnchorSize: CGSize {
-        switch displayMode {
-        case .small:
-            return CGSize(width: 44, height: 44)
-        case .medium, .large:
-            return CGSize(width: 1, height: 1)
-        case .none:
-            return .zero
         }
     }
 
