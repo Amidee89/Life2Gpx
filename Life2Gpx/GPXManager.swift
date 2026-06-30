@@ -45,7 +45,6 @@ class GPXManager {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
         let fileURL = self.resolvedFileURL(forDate: date)
-        print(fileURL.path)
         FileManagerUtil.logData(context: "GPXManager", content: "Loading GPX file: \(fileName)", verbosity: 4)
 
         let signpostID = diagnosticsSignposter.makeSignpostID()
