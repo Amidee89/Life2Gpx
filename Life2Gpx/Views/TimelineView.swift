@@ -932,6 +932,24 @@ struct TimelineView: View {
                 pendingScrollTarget = nil
             }
         }
+        .onChange(of: selectedTimelineObjectID) { _, newId in
+            guard let newId = newId else { return }
+            if let displayItem = displayItems.first(where: { item in
+                switch item {
+                case .single(let obj):
+                    return obj.id == newId
+                case .groupHeader(_, _, let items, _):
+                    return items.contains(where: { $0.id == newId })
+                case .groupChild(let obj):
+                    return obj.id == newId
+                }
+            }) {
+                FileManagerUtil.logData(context: "TimelineScroll", content: "[selectedTimelineObjectID] Scrolling to display item: \(displayItem.id) for selected object: \(newId)", verbosity: 4)
+                withAnimation {
+                    proxy.scrollTo(displayItem.id, anchor: .center)
+                }
+            }
+        }
         } // end ScrollViewReader
         .sheet(isPresented: $showingEditSheet, content: {
             if let timelineObject = editingTimelineObject {

@@ -21,72 +21,183 @@ struct MapView: View {
         id == selectedTimelineObjectID || selectedGroupIDs.contains(id)
     }
 
+    private func selectTimelineObject(_ object: TimelineObject) {
+        for index in timelineObjects.indices {
+            timelineObjects[index].selected = (timelineObjects[index].id == object.id)
+        }
+        selectedTimelineObjectID = object.id
+        selectedGroupIDs = []
+    }
+
+    private func distanceToSegment(p: CLLocationCoordinate2D, a: CLLocationCoordinate2D, b: CLLocationCoordinate2D) -> Double {
+        let latRad = (a.latitude + b.latitude) / 2.0 * .pi / 180.0
+        let cosLat = cos(latRad)
+        
+        let ax = a.longitude * cosLat
+        let ay = a.latitude
+        let bx = b.longitude * cosLat
+        let by = b.latitude
+        let px = p.longitude * cosLat
+        let py = p.latitude
+        
+        let dx = bx - ax
+        let dy = by - ay
+        
+        let segmentLengthSquared = dx * dx + dy * dy
+        if segmentLengthSquared == 0 {
+            return p.distance(to: a)
+        }
+        
+        let t = max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / segmentLengthSquared))
+        
+        let closestX = ax + t * dx
+        let closestY = ay + t * dy
+        
+        let closestCoord = CLLocationCoordinate2D(latitude: closestY, longitude: closestX / (cosLat != 0 ? cosLat : 1.0))
+        return p.distance(to: closestCoord)
+    }
+
+    private func handleMapTap(at screenPoint: CGPoint, proxy: MapProxy) {
+        guard let tappedCoordinate = proxy.convert(screenPoint, from: .local) else {
+            return
+        }
+        
+        var closestObject: TimelineObject? = nil
+        var minDistance: Double = Double.infinity
+        
+        for obj in timelineObjects {
+            if obj.type == .waypoint {
+                if let coord = obj.identifiableCoordinates.first?.coordinates.first {
+                    let displayCoord = CoordinateConverter.forMapDisplay(coord)
+                    let distance = tappedCoordinate.distance(to: displayCoord)
+                    if distance < minDistance {
+                        minDistance = distance
+                        closestObject = obj
+                    }
+                }
+            } else if obj.type == .track {
+                for segment in obj.identifiableCoordinates {
+                    let coords = segment.coordinates
+                    guard !coords.isEmpty else { continue }
+                    
+                    if coords.count == 1 {
+                        let displayCoord = CoordinateConverter.forMapDisplay(coords[0])
+                        let distance = tappedCoordinate.distance(to: displayCoord)
+                        if distance < minDistance {
+                            minDistance = distance
+                            closestObject = obj
+                        }
+                    } else {
+                        for i in 0..<(coords.count - 1) {
+                            let displayA = CoordinateConverter.forMapDisplay(coords[i])
+                            let displayB = CoordinateConverter.forMapDisplay(coords[i+1])
+                            let distance = distanceToSegment(p: tappedCoordinate, a: displayA, b: displayB)
+                            if distance < minDistance {
+                                minDistance = distance
+                                closestObject = obj
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        let p1 = CGPoint.zero
+        let p2 = CGPoint(x: 22, y: 0)
+        let toleranceInMeters: Double
+        if let c1 = proxy.convert(p1, from: .local),
+           let c2 = proxy.convert(p2, from: .local) {
+            toleranceInMeters = c1.distance(to: c2)
+        } else {
+            toleranceInMeters = 100.0 // fallback
+        }
+        
+        if minDistance <= toleranceInMeters, let object = closestObject {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                selectTimelineObject(object)
+            }
+        }
+    }
+
     var body: some View {
         let _ = Self._logBodyEvaluation()
-        Map(
-            position: $cameraPosition,
-            interactionModes: .all
-        ) {
-            if calendar.isDate(selectedDate, inSameDayAs: Date())
-            {
-                UserAnnotation()
-            }
-            ForEach(timelineObjects.filter { $0.type == .track && !isSelected($0.id) }, id: \.id) { trackObject in
-                ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
-                    MapPolyline(coordinates: CoordinateConverter.forMapDisplay(identifiableCoordinates.coordinates))
-                        .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
-                                style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                }
-            }
-            ForEach(timelineObjects.filter { $0.type == .track && isSelected($0.id) }, id: \.id) { selectedObject in
-                let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
-                    IdentifiableCoordinates(coordinates: CoordinateConverter.forMapDisplay(coordinates.coordinates))
-                }
-
-                ForEach(selectedIdentifiableCoordinates, id: \.id) { identifiableCoordinates in
-                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                        .stroke(.white,
-                                style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                        .stroke(.black,
-                                style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                    MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                        .stroke(trackTypeColorMapping[selectedObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
-                                style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
-                }
-            }
-    
-            ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
-                if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
+        MapReader { mapProxy in
+            Map(
+                position: $cameraPosition,
+                interactionModes: .all
+            ) {
+                if calendar.isDate(selectedDate, inSameDayAs: Date())
                 {
-                    let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
-                    if isSelected(waypointObject.id) {
-                        Annotation(waypointObject.name ?? "", coordinate: displayCoord)
-                        {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                Circle()
-                                    .fill(Color.orange)
-                                    .padding(4)
-                            }
-                        }
+                    UserAnnotation()
+                }
+                ForEach(timelineObjects.filter { $0.type == .track && !isSelected($0.id) }, id: \.id) { trackObject in
+                    ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
+                        MapPolyline(coordinates: CoordinateConverter.forMapDisplay(identifiableCoordinates.coordinates))
+                            .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                     }
-                    else
-                    {
-                        Annotation(waypointObject.name ?? "", coordinate: displayCoord)
-                        {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                Circle()
-                                    .fill(Color.black)
-                                    .padding(4)
-                            }
-                        }
+                }
+                ForEach(timelineObjects.filter { $0.type == .track && isSelected($0.id) }, id: \.id) { selectedObject in
+                    let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
+                        IdentifiableCoordinates(coordinates: CoordinateConverter.forMapDisplay(coordinates.coordinates))
                     }
 
+                    ForEach(selectedIdentifiableCoordinates, id: \.id) { identifiableCoordinates in
+                        MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                            .stroke(.white,
+                                    style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                            .stroke(.black,
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: identifiableCoordinates.coordinates)
+                            .stroke(trackTypeColorMapping[selectedObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
+                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    }
                 }
+        
+                ForEach(timelineObjects.filter { $0.type == .waypoint }, id: \.id) { waypointObject in
+                    if let coordinate = waypointObject.identifiableCoordinates.first?.coordinates.first
+                    {
+                        let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
+                        if isSelected(waypointObject.id) {
+                            Annotation(waypointObject.name ?? "", coordinate: displayCoord)
+                            {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .padding(4)
+                                }
+                                .contentShape(Circle())
+                                .onTapGesture {
+                                    selectTimelineObject(waypointObject)
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Annotation(waypointObject.name ?? "", coordinate: displayCoord)
+                            {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.black)
+                                        .padding(4)
+                                }
+                                .contentShape(Circle())
+                                .onTapGesture {
+                                    selectTimelineObject(waypointObject)
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+            .onTapGesture { screenPoint in
+                handleMapTap(at: screenPoint, proxy: mapProxy)
             }
         }
         .edgesIgnoringSafeArea(.all)
