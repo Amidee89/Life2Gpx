@@ -704,7 +704,7 @@ struct TimelineView: View {
     var onSelectItem: (TimelineObject) -> Void
     var onSelectGroup: (([TimelineObject]) -> Void)?
     var selectedDate: Date
-    var onEditVisit: ((TimelineObject, Place?) -> Void)?
+    var onEditVisit: ((TimelineObject, Place?, Bool) -> Void)?
     var onRecenter: () -> Void
 
     private var displayItems: [TimelineDisplayItem] {
@@ -939,8 +939,8 @@ struct TimelineView: View {
                     EditVisitView(
                         timelineObject: timelineObject,
                         fileDate: selectedDate,
-                        onSave: { place in
-                            onEditVisit?(timelineObject, place)
+                        onSave: { place, wasUnknown in
+                            onEditVisit?(timelineObject, place, wasUnknown)
                         }
                     )
                 } else {
@@ -1170,7 +1170,7 @@ struct TimelineView: View {
 
     @ViewBuilder
     private func editButton(for item: TimelineObject) -> some View {
-        if item.type == .waypoint && (item.id == selectedTimelineObjectID || item.name == nil || item.name == "Unknown Place" || item.name == "Unknown place") {
+        if item.type == .waypoint && (item.id == selectedTimelineObjectID || item.isUnknownPlace) {
             Button(action: {
                 editingTimelineObject = item
                 onSelectItem(item)

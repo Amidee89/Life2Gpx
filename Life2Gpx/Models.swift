@@ -43,6 +43,12 @@ class TimelineObject: Identifiable, ObservableObject {
         return max(0, end.timeIntervalSince(start) / 60.0)
     }
     
+    var isUnknownPlace: Bool {
+        guard type == .waypoint, let point = points.first else { return false }
+        let placeId = point.extensions?["PlaceId"].text
+        return placeId == nil || placeId!.isEmpty
+    }
+    
     init(type: TimelineObjectType, 
          startDate: Date?, 
          endDate: Date?, 

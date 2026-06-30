@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var mapPanelDragOffset: CGFloat?
     @State private var lastMapSize: CGSize = .zero
     @State private var scrollPositions: [String: String] = [:]
+    @State private var bulkApplyContext: BulkApplyContext?
 
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
@@ -257,6 +258,20 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $showSettings) {
             ManagementView()
         }
+        .sheet(item: $bulkApplyContext) { context in
+            BulkApplyPlaceView(context: context) { selectedObjects in
+                for object in selectedObjects {
+                    if let originalWaypoint = object.points.first {
+                        // Create updated waypoint from a deep copy so we don't mutate the original before matching
+                        let workingCopy = GPXUtils.deepCopyPoint(originalWaypoint)
+                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: workingCopy, place: context.place)
+                        GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: selectedDate)
+                    }
+                }
+                refreshData()
+                centerAllData()
+            }
+        }
         .sheet(isPresented: $showOrganizePrompt) {
             GpxOrganizePromptView(
                 fileCount: rootGpxCount,
@@ -413,7 +428,30 @@ struct ContentView: View {
         }
     }
     
-    private func handleVisitEdit(timelineObject: TimelineObject, place: Place?) {
+    private func handleVisitEdit(timelineObject: TimelineObject, place: Place?, wasUnknown: Bool) {
+        if wasUnknown, let place = place {
+            // Find other unknown waypoint objects in the current timeline that match geographically
+            let matchingObjects = timelineObjects.filter { obj in
+                guard obj.type == .waypoint, obj.id != timelineObject.id else { return false }
+                guard obj.isUnknownPlace else { return false }
+                
+                if let coord = obj.identifiableCoordinates.first?.coordinates.first {
+                    let displayCoord = CoordinateConverter.forMapDisplay(coord)
+                    let placeCoord = CoordinateConverter.forMapDisplay(place.centerCoordinate)
+                    let clCoord = CLLocation(latitude: displayCoord.latitude, longitude: displayCoord.longitude)
+                    let clPlaceCoord = CLLocation(latitude: placeCoord.latitude, longitude: placeCoord.longitude)
+                    let distance = clCoord.distance(from: clPlaceCoord)
+                    return distance <= place.radius
+                }
+                return false
+            }
+            
+            if !matchingObjects.isEmpty {
+                bulkApplyContext = BulkApplyContext(place: place, originalObject: timelineObject, matchingObjects: matchingObjects)
+                return
+            }
+        }
+        
         refreshData()
         centerAllData()
     }
@@ -620,3 +658,4 @@ struct GpxOrganizePromptView: View {
     ContentView()
         .environmentObject(LocationManager())
 }
+

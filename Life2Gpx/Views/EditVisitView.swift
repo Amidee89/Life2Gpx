@@ -6,7 +6,7 @@ import CoreGPX
 struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
-    var onSave: (Place?) -> Void
+    var onSave: (Place?, Bool) -> Void
     let fileDate: Date
     
     @State private var selectedPlace: Place?
@@ -25,6 +25,7 @@ struct EditVisitView: View {
     @State private var showingPlaceSearch = false
     @State private var showingNewPlaceFromSearch = false
     @State private var pendingSearchResult: PlaceSearchResult?
+    @State private var wasOriginallyUnknown: Bool = false
     
     private var originalLatitude: Double?
     private var originalLongitude: Double?
@@ -32,7 +33,7 @@ struct EditVisitView: View {
     private var originalTime: Date?
     private var originalWaypoint: GPXWaypoint?
     
-    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?) -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?, Bool) -> Void) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
         self.onSave = onSave
@@ -41,6 +42,8 @@ struct EditVisitView: View {
         if let firstPoint = timelineObject.points.first {
             self.originalWaypoint = firstPoint
         }
+        
+        _wasOriginallyUnknown = State(initialValue: timelineObject.isUnknownPlace)
         
         _visitDate = State(initialValue: timelineObject.startDate ?? Date())
         _latitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.latitude ?? 0))
@@ -278,7 +281,7 @@ struct EditVisitView: View {
                         }
                     }
                     
-                    onSave(selectedPlace)
+                    onSave(selectedPlace, wasOriginallyUnknown)
                     dismiss()
                 }
             )
@@ -395,7 +398,7 @@ struct EditVisitView: View {
                     GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: fileDate)
                 }
                 
-                onSave(nil)
+                onSave(nil, false)
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
@@ -679,7 +682,7 @@ struct EditVisitView_Previews: PreviewProvider {
             EditVisitView(
                 timelineObject: previewTimelineObject,
                 fileDate: Date(),
-                onSave: { _ in }
+                onSave: { _, _ in }
             )
         }
     }
