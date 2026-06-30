@@ -241,6 +241,8 @@ struct ContentView: View {
                 FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
                 selectedDate = Date()
                 scrollPositions.removeAll()
+                showSettings = false
+                showOrganizePrompt = false
                 refreshData()
                 centerAllData()
                 FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)

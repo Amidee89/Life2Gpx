@@ -967,6 +967,10 @@ struct TimelineView: View {
                 editingTimelineObject = nil
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+            showingEditSheet = false
+            photoSheet = nil
+        }
         .onChange(of: groupingMinutes) {
             expandedGroupIDs.removeAll()
         }

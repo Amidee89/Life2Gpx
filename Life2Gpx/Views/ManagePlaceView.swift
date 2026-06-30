@@ -261,6 +261,11 @@ struct ManagePlacesView: View {
                     viewModel.loadPlaces()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+                isEditingPlace = false
+                isCreatingPlace = false
+                selectedPlace = nil
+            }
         }
     }
 
