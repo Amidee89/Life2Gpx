@@ -453,55 +453,56 @@ struct TimelinePhotoDetailView: View {
         guard let currentPhotoIndex else { return false }
         return currentPhotoIndex < photos.index(before: photos.endIndex)
     }
-
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if let displayImage {
-                TimelineZoomableImageView(
-                    image: displayImage,
-                    onDismissRequest: onClose,
-                    onShowPreviousPhoto: canShowPreviousPhoto ? showPreviousPhoto : nil,
-                    onShowNextPhoto: canShowNextPhoto ? showNextPhoto : nil
-                )
-                .ignoresSafeArea()
-            }
-
-            if isPlayingVideo, let player {
-                VideoPlayer(player: player)
-                    .padding(.bottom, 100)
+            ZStack {
+                if let displayImage {
+                    TimelineZoomableImageView(
+                        image: displayImage,
+                        onDismissRequest: onClose,
+                        onShowPreviousPhoto: canShowPreviousPhoto ? showPreviousPhoto : nil,
+                        onShowNextPhoto: canShowNextPhoto ? showNextPhoto : nil
+                    )
                     .ignoresSafeArea(edges: .top)
-                    .onAppear {
-                        player.play()
-                    }
-            }
+                }
 
-            if let currentPhoto, currentPhoto.isVideo, !isPlayingVideo {
-                if isLoadingVideo {
+                if isPlayingVideo, let player {
+                    VideoPlayer(player: player)
+                        .ignoresSafeArea(edges: .top)
+                        .onAppear {
+                            player.play()
+                        }
+                }
+
+                if let currentPhoto, currentPhoto.isVideo, !isPlayingVideo {
+                    if isLoadingVideo {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                            .scaleEffect(1.5)
+                    } else {
+                        Button(action: {
+                            Task {
+                                await playVideo(for: currentPhoto)
+                            }
+                        }) {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 72))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
+                        }
+                    }
+                }
+
+                if !isPlayingVideo && (displayImage == nil || !canShareFullImage) {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .tint(.white)
-                        .scaleEffect(1.5)
-                } else {
-                    Button(action: {
-                        Task {
-                            await playVideo(for: currentPhoto)
-                        }
-                    }) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 72))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.4), radius: 6, x: 0, y: 3)
-                    }
                 }
             }
-
-            if !isPlayingVideo && (displayImage == nil || !canShareFullImage) {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .tint(.white)
-            }
+            .padding(.bottom, 100)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottom) {
