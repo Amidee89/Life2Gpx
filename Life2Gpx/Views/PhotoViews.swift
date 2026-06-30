@@ -439,12 +439,10 @@ struct TimelinePhotoDetailView: View {
                         onShowPreviousPhoto: canShowPreviousPhoto ? showPreviousPhoto : nil,
                         onShowNextPhoto: canShowNextPhoto ? showNextPhoto : nil
                     )
-                    .ignoresSafeArea(edges: .top)
                 }
 
                 if isPlayingVideo, let player {
                     VideoPlayer(player: player)
-                        .ignoresSafeArea(edges: .top)
                         .onAppear {
                             player.play()
                         }
@@ -492,8 +490,6 @@ struct TimelinePhotoDetailView: View {
                 .padding(.bottom, 8)
             }
         }
-        .navigationTitle("Picture")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let leadingCloseTitle {
                 ToolbarItem(placement: .topBarLeading) {
