@@ -448,7 +448,6 @@ struct ContentView: View {
             
             if !matchingObjects.isEmpty {
                 bulkApplyContext = BulkApplyContext(place: place, originalObject: timelineObject, matchingObjects: matchingObjects)
-                return
             }
         }
         
