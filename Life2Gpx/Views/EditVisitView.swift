@@ -49,7 +49,7 @@ struct EditVisitView: View {
         _latitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.latitude ?? 0))
         _longitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.longitude ?? 0))
         _elevationString = State(initialValue: String(format: "%.1f", self.originalWaypoint?.elevation ?? 0))
-        _stepsString = State(initialValue: self.originalWaypoint?.extensions?.get(from: nil)?["Steps"] ?? "0")
+        _stepsString = State(initialValue: self.originalWaypoint?.extensions?["Steps"].text ?? "0")
         
         // Create a working copy of the waypoint (but need to assign it in onAppear)
         _workingWaypoint = State(initialValue: nil)
@@ -417,7 +417,38 @@ struct EditVisitView: View {
                 
                 nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
                 
-                if let visitName = timelineObject.name {
+                let allPlaces = PlaceManager.shared.getAllPlaces()
+                let waypointPlaceId = self.originalWaypoint?.extensions?["PlaceId"].text
+                
+                if let waypointPlaceId = waypointPlaceId, let matchingPlace = allPlaces.first(where: { $0.placeId == waypointPlaceId }) {
+                    selectedPlace = matchingPlace
+                } else if waypointPlaceId == "-1" {
+                    // Reconstruct the one-time place metadata from GPX extensions
+                    selectedPlace = Place(
+                        placeId: "-1",
+                        name: timelineObject.name ?? self.originalWaypoint?.name ?? "",
+                        center: Center(latitude: coordinate.latitude, longitude: coordinate.longitude),
+                        radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
+                        streetAddress: self.originalWaypoint?.extensions?["Address"].text,
+                        secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                        lastSaved: nil,
+                        facebookPlaceId: self.originalWaypoint?.extensions?["FacebookPlaceId"].text,
+                        mapboxPlaceId: self.originalWaypoint?.extensions?["MapboxPlaceId"].text,
+                        foursquareVenueId: self.originalWaypoint?.extensions?["FoursquareVenueId"].text,
+                        foursquareCategoryId: self.originalWaypoint?.extensions?["FoursquareCategoryId"].text,
+                        googlePlacesId: self.originalWaypoint?.extensions?["GooglePlacesId"].text,
+                        yelpId: self.originalWaypoint?.extensions?["YelpId"].text,
+                        applePlaceId: self.originalWaypoint?.extensions?["ApplePlaceId"].text,
+                        osmNodeId: self.originalWaypoint?.extensions?["OsmNodeId"].text,
+                        herePlaceId: self.originalWaypoint?.extensions?["HerePlaceId"].text,
+                        gaodePlaceId: self.originalWaypoint?.extensions?["GaodePlaceId"].text,
+                        previousIds: nil,
+                        lastVisited: nil,
+                        isFavorite: nil,
+                        customIcon: nil,
+                        elevation: self.originalWaypoint?.elevation
+                    )
+                } else if let visitName = timelineObject.name {
                     selectedPlace = nearbyPlaces.first { $0.name == visitName }
                 }
             }

@@ -97,6 +97,7 @@ struct EditPlaceView: View {
         _isFavorite = State(initialValue: place.isFavorite ?? false)
         _customIcon = State(initialValue: place.customIcon ?? "")
         _lastVisited = State(initialValue: place.lastVisited ?? Date())
+        _isOneTimeVisit = State(initialValue: place.placeId == "-1")
     }
 
     private var selectedPlaceSearchIds: [PlaceProvider: String] {
@@ -247,7 +248,7 @@ struct EditPlaceView: View {
                     }
                 }
                 
-                if isFromEditVisit && isNewPlace {
+                if isFromEditVisit && (isNewPlace || originalPlace.placeId == "-1") {
                     Section {
                         Toggle(isOn: $isOneTimeVisit) {
                             VStack(alignment: .leading) {
@@ -506,8 +507,16 @@ struct EditPlaceView: View {
     }
 
     private func savePlace() {
+        var finalPlaceId = editedPlaceId.trim()
+        if isOneTimeVisit {
+            finalPlaceId = "-1"
+        } else if finalPlaceId == "-1" {
+            // Toggled from one-time to permanent: generate a new ID
+            finalPlaceId = UUID().uuidString
+        }
+        
         let updatedPlace = Place(
-            placeId: isOneTimeVisit ? "-1" : editedPlaceId.trim(),
+            placeId: finalPlaceId,
             name: name.trim(),
             center: Center(latitude: Double(latitudeString.trim()) ?? 0,
                           longitude: Double(longitudeString.trim()) ?? 0),
@@ -533,10 +542,14 @@ struct EditPlaceView: View {
         )
         
         do {
-            if isNewPlace {
-                if !isOneTimeVisit {
-                    try PlaceManager.shared.addPlace(updatedPlace)
-                }
+            if isOneTimeVisit {
+                onSave?(updatedPlace)
+            } else if originalPlace.placeId == "-1" {
+                // Toggled from one-time to permanent: add it to the database
+                try PlaceManager.shared.addPlace(updatedPlace)
+                onSave?(updatedPlace)
+            } else if isNewPlace {
+                try PlaceManager.shared.addPlace(updatedPlace)
                 onSave?(updatedPlace)
             } else {
                 try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)
