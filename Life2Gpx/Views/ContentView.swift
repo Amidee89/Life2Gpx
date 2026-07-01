@@ -590,8 +590,31 @@ public func calculateSpan(for coordinates: [CLLocationCoordinate2D], mapSize: CG
 
     // If we know the map size, scale to account for button insets on all edges
     if mapSize.width > 0, mapSize.height > 0, buttonInset > 0 {
-        let usableWidth = max(mapSize.width - buttonInset * 2, 1)
-        let usableHeight = max(mapSize.height - buttonInset * 2, 1)
+        let normalPadding = buttonInset * 2
+        
+        // Determine horizontal and vertical padding dynamically
+        let verticalPadding: CGFloat
+        let hStart = normalPadding * 2.0
+        let hEnd = normalPadding
+        if mapSize.height >= hStart {
+            verticalPadding = normalPadding
+        } else if mapSize.height <= hEnd {
+            verticalPadding = 0
+        } else {
+            verticalPadding = mapSize.height - normalPadding
+        }
+
+        let horizontalPadding: CGFloat
+        if mapSize.width >= hStart {
+            horizontalPadding = normalPadding
+        } else if mapSize.width <= hEnd {
+            horizontalPadding = 0
+        } else {
+            horizontalPadding = mapSize.width - normalPadding
+        }
+
+        let usableWidth = max(mapSize.width - horizontalPadding, 1)
+        let usableHeight = max(mapSize.height - verticalPadding, 1)
         let lonScale = mapSize.width / usableWidth
         let latScale = mapSize.height / usableHeight
         return MKCoordinateSpan(
