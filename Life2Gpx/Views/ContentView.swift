@@ -446,7 +446,7 @@ struct ContentView: View {
                 return false
             }
             
-            if !matchingObjects.isEmpty {
+            if SettingsManager.shared.suggestApplyToOtherPlaces && !matchingObjects.isEmpty {
                 bulkApplyContext = BulkApplyContext(place: place, originalObject: timelineObject, matchingObjects: matchingObjects)
             }
         }

@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
+    @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
 
     @FocusState private var valueFieldIsFocused: Bool
 
@@ -100,6 +101,14 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
+                        
+                        Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
                 }
                 .padding(.vertical)

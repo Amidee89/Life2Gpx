@@ -56,6 +56,7 @@ class SettingsManager {
     private let gpxConflictResolutionKey = "gpxConflictResolution"
     private let timelinePictureDisplayModeKey = "timelinePictureDisplayMode"
     private let mapCoordinateSystemModeKey = "mapCoordinateSystemMode"
+    private let suggestApplyToOtherPlacesKey = "suggestApplyToOtherPlaces"
 
     
     private init() {
@@ -79,7 +80,8 @@ class SettingsManager {
             gpxOverwriteExistingKey: false,
             gpxConflictResolutionKey: "keepExisting",
             timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue,
-            mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue
+            mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue,
+            suggestApplyToOtherPlacesKey: true
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -266,6 +268,15 @@ class SettingsManager {
         }
         set {
             defaults.set(newValue.rawValue, forKey: mapCoordinateSystemModeKey)
+        }
+    }
+
+    var suggestApplyToOtherPlaces: Bool {
+        get {
+            return defaults.bool(forKey: suggestApplyToOtherPlacesKey)
+        }
+        set {
+            defaults.set(newValue, forKey: suggestApplyToOtherPlacesKey)
         }
     }
 
