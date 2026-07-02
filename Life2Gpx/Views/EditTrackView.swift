@@ -29,6 +29,7 @@ struct EditTrackView: View {
     @State private var showingDeleteConfirmation = false
     @State private var showingSecondsPicker = false
     @FocusState private var isInputActive: Bool
+    @State private var scrollTarget: String? = nil
     
     init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void) {
         self.timelineObject = timelineObject
@@ -57,7 +58,8 @@ struct EditTrackView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                VStack(spacing: 0) {
                 if !isEditing {
                     editTrackMapView
                         .frame(height: 300)
@@ -408,6 +410,7 @@ struct EditTrackView: View {
                                                 }
                                             }
                                             .listRowBackground(selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
+                                            .id("segment_\(segmentIndex)_point_\(pointIndex)")
                                         }
                                     }
                                 }
@@ -431,7 +434,16 @@ struct EditTrackView: View {
                     }
                 }
                 .listStyle(InsetGroupedListStyle())
-            }
+                .onChange(of: scrollTarget) { _, newTarget in
+                    if let target = newTarget {
+                        withAnimation {
+                            proxy.scrollTo(target, anchor: .center)
+                        }
+                        scrollTarget = nil
+                    }
+                }
+            } // closes VStack
+            } // closes ScrollViewReader
             .navigationTitle("Edit Track")
             .navigationBarItems(
                 leading: Button("Cancel") {
@@ -617,6 +629,39 @@ struct EditTrackView: View {
                                             Circle()
                                                 .fill(Color.blue)
                                                 .frame(width: 10, height: 10)
+                                        }
+                                        .onTapGesture {
+                                            if !isEditing {
+                                                withAnimation {
+                                                    selectedSegmentIndex = segmentIndex
+                                                    selectedPointIndex = index
+                                                    
+                                                    if let point = track.segments[segmentIndex].points[safe: index] {
+                                                        originalPointLatitude = point.latitude ?? 0.0
+                                                        originalPointLongitude = point.longitude ?? 0.0
+                                                        originalPointElevation = point.elevation ?? 0.0
+                                                        originalPointTime = point.time
+                                                        
+                                                        originalExtensionsDict = [:]
+                                                        if let extensions = point.extensions {
+                                                            for child in extensions.children {
+                                                                if let value = child.text {
+                                                                    originalExtensionsDict[child.name] = value
+                                                                }
+                                                            }
+                                                        }
+                                                        editedExtensions = originalExtensionsDict
+
+                                                        selectedPointLatitude = point.latitude ?? 0.0
+                                                        selectedPointLongitude = point.longitude ?? 0.0
+                                                        selectedPointElevation = point.elevation ?? 0.0
+                                                        print("Map Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
+                                                        shouldUpdateCamera = true
+                                                    }
+                                                }
+                                                // Trigger scroll slightly after selecting, or right away
+                                                scrollTarget = "segment_\(segmentIndex)_point_\(index)"
+                                            }
                                         }
                                     }
                                 }
