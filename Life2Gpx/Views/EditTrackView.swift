@@ -27,6 +27,8 @@ struct EditTrackView: View {
     @State private var editedExtensions: [String: String] = [:]
     
     @State private var showingDeleteConfirmation = false
+    @State private var showingSecondsPicker = false
+    @FocusState private var isInputActive: Bool
     
     init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void) {
         self.timelineObject = timelineObject
@@ -56,10 +58,19 @@ struct EditTrackView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                editTrackMapView
-                    .frame(height: 300)
+                if !isEditing {
+                    editTrackMapView
+                        .frame(height: 300)
+                }
                 
                 List {
+                    if isEditing {
+                        editTrackMapView
+                            .frame(height: 300)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                    }
+
                     if !isEditing {
                         Section("Track Info") {
                             Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
@@ -165,52 +176,68 @@ struct EditTrackView: View {
                                                     ), displayedComponents: .date)
                                                     
                                                     HStack {
-                                                        DatePicker("Time", selection: Binding(
-                                                            get: { pointTime },
-                                                            set: { newTime in
-                                                                let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
-                                                                let timeComponents = calendar.dateComponents([.hour, .minute], from: newTime)
-                                                                let seconds = calendar.component(.second, from: pointTime)
-                                                                
-                                                                var mergedComponents = DateComponents()
-                                                                mergedComponents.year = dateComponents.year
-                                                                mergedComponents.month = dateComponents.month
-                                                                mergedComponents.day = dateComponents.day
-                                                                mergedComponents.hour = timeComponents.hour
-                                                                mergedComponents.minute = timeComponents.minute
-                                                                mergedComponents.second = seconds
-                                                                
-                                                                if let mergedDate = calendar.date(from: mergedComponents) {
-                                                                    segment.points[pointIndex].time = mergedDate
-                                                                }
-                                                            }
-                                                        ), displayedComponents: .hourAndMinute)
-                                                        
-                                                        let seconds = calendar.component(.second, from: pointTime)
-                                                        Text(":")
-                                                            .font(.system(size: 17, weight: .regular))
-                                                        Menu {
-                                                            Picker("", selection: Binding(
-                                                                get: { seconds },
-                                                                set: { newSeconds in
-                                                                    var components = calendar.dateComponents(
-                                                                        [.year, .month, .day, .hour, .minute],
-                                                                        from: pointTime
-                                                                    )
-                                                                    components.second = newSeconds
+                                                        HStack {
+                                                            DatePicker("Time", selection: Binding(
+                                                                get: { pointTime },
+                                                                set: { newTime in
+                                                                    let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
+                                                                    let timeComponents = calendar.dateComponents([.hour, .minute], from: newTime)
+                                                                    let seconds = calendar.component(.second, from: pointTime)
                                                                     
-                                                                    if let newDate = calendar.date(from: components) {
-                                                                        segment.points[pointIndex].time = newDate
+                                                                    var mergedComponents = DateComponents()
+                                                                    mergedComponents.year = dateComponents.year
+                                                                    mergedComponents.month = dateComponents.month
+                                                                    mergedComponents.day = dateComponents.day
+                                                                    mergedComponents.hour = timeComponents.hour
+                                                                    mergedComponents.minute = timeComponents.minute
+                                                                    mergedComponents.second = seconds
+                                                                    
+                                                                    if let mergedDate = calendar.date(from: mergedComponents) {
+                                                                        segment.points[pointIndex].time = mergedDate
                                                                     }
                                                                 }
-                                                            )) {
-                                                                ForEach(0..<60) { second in
-                                                                    Text("\(second)").tag(second)
-                                                                }
+                                                            ), displayedComponents: .hourAndMinute)
+                                                            
+                                                            let seconds = calendar.component(.second, from: pointTime)
+                                                            Text(":")
+                                                                .font(.system(size: 17, weight: .regular))
+                                                            
+                                                            Button(action: {
+                                                                showingSecondsPicker = true
+                                                            }) {
+                                                                Text(String(format: "%02d", seconds))
+                                                                    .padding(.horizontal, 10)
+                                                                    .padding(.vertical, 6)
+                                                                    .background(Color(UIColor.tertiarySystemFill))
+                                                                    .cornerRadius(6)
+                                                                    .foregroundColor(.primary)
                                                             }
-                                                        } label: {
-                                                            Text(String(format: "%02d", seconds))
-                                                                .foregroundColor(.blue)
+                                                            .popover(isPresented: $showingSecondsPicker) {
+                                                                Picker("Seconds", selection: Binding(
+                                                                    get: { seconds },
+                                                                    set: { newSeconds in
+                                                                        var components = calendar.dateComponents(
+                                                                            [.year, .month, .day, .hour, .minute],
+                                                                            from: pointTime
+                                                                        )
+                                                                        components.second = newSeconds
+                                                                        
+                                                                        if let newDate = calendar.date(from: components) {
+                                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].time = newDate
+                                                                        }
+                                                                    }
+                                                                )) {
+                                                                    ForEach(0..<60) { second in
+                                                                        Text(String(format: "%02d", second)).tag(second)
+                                                                    }
+                                                                }
+                                                                .pickerStyle(.wheel)
+                                                                .labelsHidden()
+                                                                .frame(width: 80, height: 120)
+                                                                .padding(.vertical, 16)
+                                                                .padding(.horizontal, 8)
+                                                                .presentationCompactAdaptation(.popover)
+                                                            }
                                                         }
                                                     }
                                                     .padding(.bottom, 8)
@@ -223,6 +250,7 @@ struct EditTrackView: View {
                                                     LabeledContent("Latitude:") {
                                                         TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(6)))
                                                             .keyboardType(.decimalPad)
+                                                            .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
                                                             .onChange(of: selectedPointLatitude) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
@@ -237,6 +265,7 @@ struct EditTrackView: View {
                                                     LabeledContent("Longitude:") {
                                                         TextField("", value: $selectedPointLongitude, format: .number.precision(.fractionLength(6)))
                                                             .keyboardType(.decimalPad)
+                                                            .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
                                                             .onChange(of: selectedPointLongitude) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
@@ -251,6 +280,7 @@ struct EditTrackView: View {
                                                     LabeledContent("Elevation:") {
                                                         TextField("", value: $selectedPointElevation, format: .number.precision(.fractionLength(1)))
                                                             .keyboardType(.decimalPad)
+                                                            .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
                                                             .onChange(of: selectedPointElevation) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
@@ -272,6 +302,7 @@ struct EditTrackView: View {
                                                             )
                                                             LabeledContent(key) {
                                                                 TextField("Value", text: binding)
+                                                                    .focused($isInputActive)
                                                                     .multilineTextAlignment(.trailing)
                                                                     .foregroundColor(.secondary)
                                                             }
@@ -430,6 +461,17 @@ struct EditTrackView: View {
                     dismiss()
                 }
             )
+            .toolbar {
+                ToolbarItem(placement: .keyboard) {
+                    HStack {
+                        Spacer()
+                        Button("Done") {
+                            isInputActive = false
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
             .onAppear {
                 let coordinates = CoordinateConverter.forMapDisplay(workingCopy.identifiableCoordinates.flatMap { $0.coordinates })
                 if !coordinates.isEmpty {

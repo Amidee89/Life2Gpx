@@ -26,6 +26,8 @@ struct EditVisitView: View {
     @State private var showingNewPlaceFromSearch = false
     @State private var pendingSearchResult: PlaceSearchResult?
     @State private var wasOriginallyUnknown: Bool = false
+    @State private var showingSecondsPicker = false
+    @FocusState private var isInputActive: Bool
     
     private var originalLatitude: Double?
     private var originalLongitude: Double?
@@ -103,23 +105,29 @@ struct EditVisitView: View {
                                      displayedComponents: [.date])
                             }
                             
-                            // Time and seconds picker combined
                             HStack {
-                                // Hour:minute picker
                                 DatePicker("Time", 
                                      selection: $visitDate,
                                      displayedComponents: [.hourAndMinute])
                                 
-                                // Seconds component
-                                let calendar = Calendar.current
                                 let seconds = calendar.component(.second, from: visitDate)
                                 Text(":")
                                     .font(.system(size: 17, weight: .regular))
-                                Menu {
-                                    Picker("", selection: Binding(
+                                
+                                Button(action: {
+                                    showingSecondsPicker = true
+                                }) {
+                                    Text(String(format: "%02d", seconds))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Color(UIColor.tertiarySystemFill))
+                                        .cornerRadius(6)
+                                        .foregroundColor(.primary)
+                                }
+                                .popover(isPresented: $showingSecondsPicker) {
+                                    Picker("Seconds", selection: Binding(
                                         get: { seconds },
                                         set: { newSeconds in
-                                            // Preserve date and hour/minute while changing seconds
                                             var components = calendar.dateComponents(
                                                 [.year, .month, .day, .hour, .minute],
                                                 from: visitDate
@@ -128,8 +136,6 @@ struct EditVisitView: View {
                                             
                                             if let newDate = calendar.date(from: components) {
                                                 visitDate = newDate
-                                                
-                                                // Update the waypoint time
                                                 if let waypoint = workingWaypoint {
                                                     waypoint.time = newDate
                                                 }
@@ -137,36 +143,43 @@ struct EditVisitView: View {
                                         }
                                     )) {
                                         ForEach(0..<60) { second in
-                                            Text("\(second)").tag(second)
+                                            Text(String(format: "%02d", second)).tag(second)
                                         }
                                     }
-                                } label: {
-                                    Text(String(format: "%02d", seconds))
-                                        .foregroundColor(.blue)
+                                    .pickerStyle(.wheel)
+                                    .labelsHidden()
+                                    .frame(width: 80, height: 120)
+                                    .padding(.vertical, 16)
+                                    .padding(.horizontal, 8)
+                                    .presentationCompactAdaptation(.popover)
                                 }
                             }
                             
                             LabeledContent("Latitude:") {
                                 TextField("", text: $latitudeString)
                                     .keyboardType(.decimalPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
                             LabeledContent("Longitude:") {
                                 TextField("", text: $longitudeString)
                                     .keyboardType(.decimalPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
                             LabeledContent("Elevation (m):") {
                                 TextField("", text: $elevationString)
                                     .keyboardType(.decimalPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
                             LabeledContent("Steps:") {
                                 TextField("", text: $stepsString)
                                     .keyboardType(.numberPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
@@ -285,6 +298,17 @@ struct EditVisitView: View {
                     dismiss()
                 }
             )
+            .toolbar {
+                ToolbarItem(placement: .keyboard) {
+                    HStack {
+                        Spacer()
+                        Button("Done") {
+                            isInputActive = false
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
             .sheet(isPresented: $showingNewPlaceSheet) {
                 if let coordinate = currentCoordinate {
                     let initialElevation = timelineObject.points.first?.elevation
@@ -633,6 +657,7 @@ struct EditVisitView: View {
                 .frame(height: UIScreen.main.bounds.height * 0.5)
             } else {
                 TextField("Search places", text: $searchText)
+                    .focused($isInputActive)
 
                 ForEach(filteredPlaces) { place in
                     placeRow(place: place)
