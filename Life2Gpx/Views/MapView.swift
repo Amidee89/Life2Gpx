@@ -16,6 +16,7 @@ struct MapView: View {
     @Binding var selectedGroupIDs: Set<UUID>
     @Binding var cameraPosition: MapCameraPosition 
     @Binding var selectedDate: Date
+    var safeAreaTop: CGFloat
 
     private func isSelected(_ id: UUID) -> Bool {
         id == selectedTimelineObjectID || selectedGroupIDs.contains(id)
@@ -200,6 +201,7 @@ struct MapView: View {
                 handleMapTap(at: screenPoint, proxy: mapProxy)
             }
         }
+        .safeAreaPadding(.top, safeAreaTop)
         .edgesIgnoringSafeArea(.all)
         .background {
             Color.clear

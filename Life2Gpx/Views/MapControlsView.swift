@@ -18,8 +18,12 @@ struct MapControlsView: View {
     var onSelectToday: () -> Void
     @Binding var selectedDate: Date
     @Binding var timelineObjects: [TimelineObject]
+    var safeAreaTop: CGFloat
     var body: some View {
         GeometryReader { geometry in
+            let noDataHeight: CGFloat = timelineObjects.isEmpty ? 92 : 0
+            let dynamicTopPadding = max(0, min(safeAreaTop + 16, geometry.size.height - (136 + noDataHeight)))
+            
             VStack {
                 HStack{
                     Spacer()
@@ -35,7 +39,7 @@ struct MapControlsView: View {
                                 .shadow(radius: 3)
                         }
                         .padding(.trailing, 16)
-                        .padding(.top, geometry.safeAreaInsets.top + 16)
+                        .padding(.top, dynamicTopPadding)
                         .transition(.scale)
                     }
                 }

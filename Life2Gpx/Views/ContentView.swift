@@ -60,7 +60,8 @@ struct ContentView: View {
                         MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
                                 selectedGroupIDs: $selectedGroupIDs,
                                 cameraPosition: $cameraPosition,
-                                selectedDate: $selectedDate
+                                selectedDate: $selectedDate,
+                                safeAreaTop: safeAreaTop
                         )
                         .overlay(
                             MapControlsView(
@@ -68,7 +69,8 @@ struct ContentView: View {
                                 onCenter: centerAllData,
                                 onSelectToday: { selectedDate = Date() },
                                 selectedDate: $selectedDate,
-                                timelineObjects: $timelineObjects
+                                timelineObjects: $timelineObjects,
+                                safeAreaTop: safeAreaTop
                             )
                         )
                         .frame(height: mapFrameHeight)
