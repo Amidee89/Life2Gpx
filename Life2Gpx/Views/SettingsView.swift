@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
+    @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
 
     @FocusState private var valueFieldIsFocused: Bool
 
@@ -107,6 +108,14 @@ struct SettingsView: View {
                         Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
                         
                         Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Add up steps when merging to visit", isOn: $mergeVisitAddSteps)
+                        
+                        Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }

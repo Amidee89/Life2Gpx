@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7D8A21782FF425A5004EF5E1 /* BulkApplyPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */; };
+		7D8A21792FF425A6004EF5E1 /* MergeItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */; };
 		7DC64B372D905D6800E6ED1F /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 7DC64B362D905D6800E6ED1F /* SymbolPicker */; };
 		7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */; };
 		8B3DC67109A35B10F54C9D97 /* PlaceIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD242B4DF275680F15CC17F /* PlaceIconView.swift */; };
@@ -99,6 +100,7 @@
 /* Begin PBXFileReference section */
 		2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
 		7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkApplyPlaceView.swift; sourceTree = "<group>"; };
+		7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeItemsView.swift; sourceTree = "<group>"; };
 		7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditVisitView.swift; sourceTree = "<group>"; };
 		8BD242B4DF275680F15CC17F /* PlaceIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIconView.swift; sourceTree = "<group>"; };
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
@@ -205,6 +207,7 @@
 				A93842372CEBCC4300004536 /* FindDuplicatesView.swift */,
 				A93842352CEBCBDE00004536 /* ManagePlaceView.swift */,
 				7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */,
+				7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */,
 				A98A65402CC1943F00061903 /* ManagementView.swift */,
 				A9B62FA72B66E692004A010E /* ContentView.swift */,
 				A9D55E262BDADA09006B6316 /* TimelineView.swift */,
@@ -506,6 +509,7 @@
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
 				A96B279E2DC65660002B2D2B /* SignificantLocationChangeManager.swift in Sources */,
 				7D8A21782FF425A5004EF5E1 /* BulkApplyPlaceView.swift in Sources */,
+				7D8A21792FF425A6004EF5E1 /* MergeItemsView.swift in Sources */,
 				A9D55E272BDADA09006B6316 /* TimelineView.swift in Sources */,
 				A9D55E272BDADA09006B6317 /* PhotoViews.swift in Sources */,
 				A9A3E9022DA5763400F8E32E /* EditTrackView.swift in Sources */,

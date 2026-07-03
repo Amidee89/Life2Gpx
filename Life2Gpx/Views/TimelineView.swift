@@ -706,6 +706,8 @@ struct TimelineView: View {
     var selectedDate: Date
     var onEditVisit: ((TimelineObject, Place?, Bool) -> Void)?
     var onRecenter: () -> Void
+    var isEditMode: Bool = false
+    @Binding var selectedEditItems: Set<UUID>
 
     private var displayItems: [TimelineDisplayItem] {
         guard groupingMinutes > 0 else {
@@ -821,14 +823,29 @@ struct TimelineView: View {
         List(displayItems) { displayItem in
             switch displayItem {
             case .single(let item):
-                itemRow(item: item, showEdit: true, photoInterval: photoIntervalsByObjectID[item.id])
+                HStack(spacing: 0) {
+                    if isEditMode {
+                        editModeSelectionCircle(for: item)
+                    }
+                    itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervalsByObjectID[item.id])
+                }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
                     .onTapGesture {
-                        withAnimation { onSelectItem(item) }
+                        if isEditMode {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                toggleEditSelection(for: item)
+                            }
+                        } else {
+                            withAnimation { onSelectItem(item) }
+                        }
                     }
-                    .listRowBackground(item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
+                    .listRowBackground(
+                        isEditMode
+                            ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color.clear)
+                            : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
+                    )
                     .id(displayItem.id)
                     .onAppear {
                         visibleIDs.insert(displayItem.id)
@@ -840,17 +857,38 @@ struct TimelineView: View {
                     }
 
             case .groupHeader(_, let groupUUID, let items, let isExpanded):
-                groupHeaderRow(groupID: groupUUID, items: items, isExpanded: isExpanded)
+                HStack(spacing: 0) {
+                    if isEditMode {
+                        // In edit mode, allow selecting all items in the group
+                        editModeGroupSelectionCircle(for: items)
+                    }
+                    groupHeaderRow(groupID: groupUUID, items: items, isExpanded: isExpanded)
+                }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
                     .onTapGesture {
-                        withAnimation {
-                            onSelectGroup?(items)
+                        if isEditMode {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                let allSelected = items.allSatisfy { selectedEditItems.contains($0.id) }
+                                for item in items {
+                                    if allSelected {
+                                        selectedEditItems.remove(item.id)
+                                    } else {
+                                        selectedEditItems.insert(item.id)
+                                    }
+                                }
+                            }
+                        } else {
+                            withAnimation {
+                                onSelectGroup?(items)
+                            }
                         }
                     }
                     .listRowBackground(
-                        items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear
+                        isEditMode
+                            ? (items.contains(where: { selectedEditItems.contains($0.id) }) ? Color.blue.opacity(0.15) : Color.clear)
+                            : (items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear)
                     )
                     .id(displayItem.id)
                     .onAppear {
@@ -863,15 +901,30 @@ struct TimelineView: View {
                     }
 
             case .groupChild(let item):
-                itemRow(item: item, showEdit: true, photoInterval: photoIntervalsByObjectID[item.id])
+                HStack(spacing: 0) {
+                    if isEditMode {
+                        editModeSelectionCircle(for: item)
+                    }
+                    itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervalsByObjectID[item.id])
+                }
                     .padding(.leading, 12)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
                     .onTapGesture {
-                        withAnimation { onSelectItem(item) }
+                        if isEditMode {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                toggleEditSelection(for: item)
+                            }
+                        } else {
+                            withAnimation { onSelectItem(item) }
+                        }
                     }
-                    .listRowBackground(item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
+                    .listRowBackground(
+                        isEditMode
+                            ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color(.secondarySystemBackground))
+                            : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
+                    )
                     .id(displayItem.id)
                     .onAppear {
                         visibleIDs.insert(displayItem.id)
@@ -1321,6 +1374,35 @@ struct TimelineView: View {
             parts.append("\(stops) stop\(stops == 1 ? "" : "s")")
         }
         return parts.joined(separator: " and ")
+    }
+
+    // MARK: - Edit Mode Helpers
+
+    @ViewBuilder
+    private func editModeSelectionCircle(for item: TimelineObject) -> some View {
+        let isSelected = selectedEditItems.contains(item.id)
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundColor(isSelected ? .blue : .gray)
+            .padding(.trailing, 8)
+    }
+
+    @ViewBuilder
+    private func editModeGroupSelectionCircle(for items: [TimelineObject]) -> some View {
+        let allSelected = items.allSatisfy { selectedEditItems.contains($0.id) }
+        let someSelected = !allSelected && items.contains(where: { selectedEditItems.contains($0.id) })
+        Image(systemName: allSelected ? "checkmark.circle.fill" : (someSelected ? "minus.circle.fill" : "circle"))
+            .font(.title3)
+            .foregroundColor(allSelected ? .blue : (someSelected ? .blue.opacity(0.5) : .gray))
+            .padding(.trailing, 8)
+    }
+
+    private func toggleEditSelection(for item: TimelineObject) {
+        if selectedEditItems.contains(item.id) {
+            selectedEditItems.remove(item.id)
+        } else {
+            selectedEditItems.insert(item.id)
+        }
     }
 }
 

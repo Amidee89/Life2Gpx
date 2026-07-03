@@ -229,4 +229,68 @@ class GPXManager {
             }
         }
     }
+
+    /// Delete multiple waypoints and tracks in a single file load/save cycle.
+    func deleteItems(waypointsToDelete: [GPXWaypoint], tracksToDelete: [GPXTrack], forDate date: Date) {
+        loadFile(forDate: date) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            FileManagerUtil.logData(context: "GPXManager", content: "Bulk deleting \(waypointsToDelete.count) waypoints and \(tracksToDelete.count) tracks for date: \(dateFormatter.string(from: date))", verbosity: 3)
+
+            var fileWaypoints = waypoints
+            for wpToDelete in waypointsToDelete {
+                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: 5) }) {
+                    fileWaypoints.remove(at: index)
+                }
+            }
+
+            var fileTracks = tracks
+            for trackToDelete in tracksToDelete {
+                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: 5) }) {
+                    fileTracks.remove(at: index)
+                }
+            }
+
+            self.saveLocationData(fileWaypoints, tracks: fileTracks, forDate: date)
+            FileManagerUtil.logData(context: "GPXManager", content: "Bulk delete completed. Remaining waypoints: \(fileWaypoints.count), tracks: \(fileTracks.count)", verbosity: 3)
+        }
+    }
+
+    /// Atomic merge: delete originals and insert merged item in a single file load/save.
+    func replaceItems(deleteWaypoints: [GPXWaypoint], deleteTracks: [GPXTrack], addWaypoint: GPXWaypoint?, addTrack: GPXTrack?, forDate date: Date) {
+        loadFile(forDate: date) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            FileManagerUtil.logData(context: "GPXManager", content: "Replace items for date: \(dateFormatter.string(from: date)). Deleting \(deleteWaypoints.count) waypoints and \(deleteTracks.count) tracks.", verbosity: 3)
+
+            var fileWaypoints = waypoints
+            for wpToDelete in deleteWaypoints {
+                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: 5) }) {
+                    fileWaypoints.remove(at: index)
+                }
+            }
+
+            var fileTracks = tracks
+            for trackToDelete in deleteTracks {
+                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: 5) }) {
+                    fileTracks.remove(at: index)
+                }
+            }
+
+            if let newWaypoint = addWaypoint {
+                fileWaypoints.append(newWaypoint)
+                FileManagerUtil.logData(context: "GPXManager", content: "Added merged waypoint at time \(newWaypoint.time?.description ?? "N/A")", verbosity: 3)
+            }
+
+            if let newTrack = addTrack {
+                fileTracks.append(newTrack)
+                FileManagerUtil.logData(context: "GPXManager", content: "Added merged track with \(newTrack.segments.flatMap { $0.points }.count) points", verbosity: 3)
+            }
+
+            self.saveLocationData(fileWaypoints, tracks: fileTracks, forDate: date)
+            FileManagerUtil.logData(context: "GPXManager", content: "Replace items completed. Waypoints: \(fileWaypoints.count), Tracks: \(fileTracks.count)", verbosity: 3)
+        }
+    }
 }

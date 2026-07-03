@@ -7,6 +7,7 @@ struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
     var onSave: (Place?, Bool) -> Void
+    var customSaveAction: ((_ updatedWaypoint: GPXWaypoint, _ place: Place?, _ wasUnknown: Bool) -> Void)? = nil
     let fileDate: Date
     
     @State private var selectedPlace: Place?
@@ -35,10 +36,11 @@ struct EditVisitView: View {
     private var originalTime: Date?
     private var originalWaypoint: GPXWaypoint?
     
-    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?, Bool) -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?, Bool) -> Void, customSaveAction: ((_ updatedWaypoint: GPXWaypoint, _ place: Place?, _ wasUnknown: Bool) -> Void)? = nil) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
         self.onSave = onSave
+        self.customSaveAction = customSaveAction
         
         // Store the original waypoint and its values
         if let firstPoint = timelineObject.points.first {
@@ -237,64 +239,67 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // First, backup the current GPX file
-                    do {
-                        try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                    } catch {
-                        print("Error backing up GPX file: \(error)")
-                        return
-                    }
-                    
-                    timelineObject.startDate = visitDate
-                    
                     // Update the working waypoint with the latest values
-                    if let waypoint = workingWaypoint {
-                        waypoint.latitude = Double(latitudeString) ?? 0
-                        waypoint.longitude = Double(longitudeString) ?? 0
-                        waypoint.time = visitDate
-                        waypoint.elevation = Double(elevationString) ?? 0
-                        
-                        if let steps = Int(stepsString), steps > 0 {
-                            if waypoint.extensions == nil {
-                                waypoint.extensions = GPXExtensions()
-                            }
-                            waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
+                    guard let waypoint = workingWaypoint else { return }
+                    waypoint.latitude = Double(latitudeString) ?? 0
+                    waypoint.longitude = Double(longitudeString) ?? 0
+                    waypoint.time = visitDate
+                    waypoint.elevation = Double(elevationString) ?? 0
+                    
+                    if let steps = Int(stepsString), steps > 0 {
+                        if waypoint.extensions == nil {
+                            waypoint.extensions = GPXExtensions()
                         }
-                        
-                        if let selectedPlace {
-                            let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
-                            if let originalWaypoint = self.originalWaypoint {
-                                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: fileDate)
-                            }
-                        } else {
-                            waypoint.name = nil
-                            let placeKeys: Set<String> = [
-                                "PlaceId", "Address", "FacebookPlaceId", "MapboxPlaceId",
-                                "FoursquareVenueId", "FoursquareCategoryId", "GooglePlacesId",
-                                "YelpId", "ApplePlaceId", "OsmNodeId", "HerePlaceId", "GaodePlaceId"
-                            ]
-                            if let existingExtensions = waypoint.extensions {
-                                var remainingData = [String: String]()
-                                for child in existingExtensions.children {
-                                    if !placeKeys.contains(child.name), let value = child.text, !child.name.isEmpty {
-                                        remainingData[child.name] = value
-                                    }
-                                }
-                                if remainingData.isEmpty {
-                                    waypoint.extensions = nil
-                                } else {
-                                    let newExtensions = GPXExtensions()
-                                    newExtensions.append(at: nil, contents: remainingData)
-                                    waypoint.extensions = newExtensions
-                                }
-                            }
-                            if let originalWaypoint = self.originalWaypoint {
-                                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: waypoint, forDate: fileDate)
-                            }
-                        }
+                        waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                     }
                     
-                    onSave(selectedPlace, wasOriginallyUnknown)
+                    let finalWaypoint: GPXWaypoint
+                    if let selectedPlace {
+                        finalWaypoint = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
+                    } else {
+                        waypoint.name = nil
+                        let placeKeys: Set<String> = [
+                            "PlaceId", "Address", "FacebookPlaceId", "MapboxPlaceId",
+                            "FoursquareVenueId", "FoursquareCategoryId", "GooglePlacesId",
+                            "YelpId", "ApplePlaceId", "OsmNodeId", "HerePlaceId", "GaodePlaceId"
+                        ]
+                        if let existingExtensions = waypoint.extensions {
+                            var remainingData = [String: String]()
+                            for child in existingExtensions.children {
+                                if !placeKeys.contains(child.name), let value = child.text, !child.name.isEmpty {
+                                    remainingData[child.name] = value
+                                }
+                            }
+                            if remainingData.isEmpty {
+                                waypoint.extensions = nil
+                            } else {
+                                let newExtensions = GPXExtensions()
+                                newExtensions.append(at: nil, contents: remainingData)
+                                waypoint.extensions = newExtensions
+                            }
+                        }
+                        finalWaypoint = waypoint
+                    }
+                    
+                    if let customSave = customSaveAction {
+                        customSave(finalWaypoint, selectedPlace, wasOriginallyUnknown)
+                    } else {
+                        // First, backup the current GPX file
+                        do {
+                            try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                        } catch {
+                            print("Error backing up GPX file: \(error)")
+                            return
+                        }
+                        
+                        timelineObject.startDate = visitDate
+                        
+                        if let originalWaypoint = self.originalWaypoint {
+                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: fileDate)
+                        }
+                        
+                        onSave(selectedPlace, wasOriginallyUnknown)
+                    }
                     dismiss()
                 }
             )

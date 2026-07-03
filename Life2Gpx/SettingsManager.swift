@@ -57,6 +57,7 @@ class SettingsManager {
     private let timelinePictureDisplayModeKey = "timelinePictureDisplayMode"
     private let mapCoordinateSystemModeKey = "mapCoordinateSystemMode"
     private let suggestApplyToOtherPlacesKey = "suggestApplyToOtherPlaces"
+    private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
 
     
     private init() {
@@ -81,7 +82,8 @@ class SettingsManager {
             gpxConflictResolutionKey: "keepExisting",
             timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue,
             mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue,
-            suggestApplyToOtherPlacesKey: true
+            suggestApplyToOtherPlacesKey: true,
+            mergeVisitAddStepsKey: true
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -278,6 +280,11 @@ class SettingsManager {
         set {
             defaults.set(newValue, forKey: suggestApplyToOtherPlacesKey)
         }
+    }
+    
+    var mergeVisitAddSteps: Bool {
+        get { return defaults.bool(forKey: mergeVisitAddStepsKey) }
+        set { defaults.set(newValue, forKey: mergeVisitAddStepsKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

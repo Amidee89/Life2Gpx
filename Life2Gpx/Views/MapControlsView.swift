@@ -82,6 +82,7 @@ struct MapControlsView: View {
                     .padding(.bottom, 16)
                 }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
 }

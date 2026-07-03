@@ -7,6 +7,7 @@ struct EditTrackView: View {
     let timelineObject: TimelineObject
     let fileDate: Date
     var onSaveChanges: () -> Void
+    var customSaveAction: ((_ updatedTrack: GPXTrack) -> Void)? = nil
     
     @State private var cameraPosition: MapCameraPosition = .automatic
     @StateObject var workingCopy: TimelineObject
@@ -31,10 +32,11 @@ struct EditTrackView: View {
     @FocusState private var isInputActive: Bool
     @State private var scrollTarget: String? = nil
     
-    init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void, customSaveAction: ((_ updatedTrack: GPXTrack) -> Void)? = nil) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
         self.onSaveChanges = onSaveChanges
+        self.customSaveAction = customSaveAction
         
         let copy = TimelineObject(
             type: timelineObject.type,
@@ -457,18 +459,19 @@ struct EditTrackView: View {
                         return
                     }
 
-                    do {
-                        try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                    } catch {
-
-                        return
-                    }
-
                     workingCopy.track?.type = workingCopy.trackType
 
-                    GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
-
-                    onSaveChanges()
+                    if let customSave = customSaveAction {
+                        customSave(updatedTrack)
+                    } else {
+                        do {
+                            try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                        } catch {
+                            return
+                        }
+                        GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
+                        onSaveChanges()
+                    }
 
                     dismiss()
                 }

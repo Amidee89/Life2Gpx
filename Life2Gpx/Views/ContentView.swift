@@ -32,6 +32,19 @@ struct ContentView: View {
     @State private var scrollPositions: [String: String] = [:]
     @State private var bulkApplyContext: BulkApplyContext?
 
+    // Edit mode state
+    @State private var isEditMode: Bool = false
+    @State private var selectedEditItems: Set<UUID> = []
+    @State private var savedGroupingMinutes: Double = 0
+    @State private var showDeleteConfirmation = false
+    @State private var showMergeTypePicker = false
+    @State private var showMergeTrackEditor = false
+    @State private var showMergeVisitLocationPicker = false
+    @State private var showMergeVisitEditor = false
+    @State private var mergedTrackTimelineObject: TimelineObject?
+    @State private var mergedVisitTimelineObject: TimelineObject?
+    @State private var mergeItemsContiguous: Bool = true
+
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
     let settingsManager = SettingsManager.shared
@@ -93,90 +106,92 @@ struct ContentView: View {
                     .frame(height: topSlotHeight)
 
                     VStack(spacing: 0) {
-                        HStack {
-                            Spacer()
-                            Spacer()
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    showGroupingSlider.toggle()
-                                }
-                            }) {
-                                Image(systemName: "line.3.horizontal.decrease")
-                                    .padding(8)
-                                    .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
-                            }
-
-                            
-                            Spacer()
-                            Spacer()
-                            Spacer()
-                            Button(action: {
-                                self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
-                            }) {
-                                if (Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
-                                {
-                                    Image(systemName: "chevron.left")
+                        
+                        ZStack {
+                            HStack {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        showGroupingSlider.toggle()
+                                    }
+                                }) {
+                                    Image(systemName: "line.3.horizontal.decrease")
                                         .padding(8)
-                                        .foregroundColor(.gray)
-                                }else
-                                {
-                                    Image(systemName: "chevron.left")
+                                        .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
+                                }
+                                .disabled(isEditMode)
+                                .opacity(isEditMode ? 0.4 : 1)
+
+                                Button(action: {
+                                    toggleEditMode()
+                                }) {
+                                    Image(systemName: "square.and.pencil")
+                                        .padding(8)
+                                        .foregroundColor(isEditMode ? .orange : .blue)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    self.showSettings = true
+                                }) {
+                                    Image(systemName: "gearshape")
                                         .padding(8)
                                         .foregroundColor(.blue)
                                 }
+                                .disabled(isEditMode)
+                                .opacity(isEditMode ? 0.4 : 1)
                                 
-                            }
-                            .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day))
-                            
-                            DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
-                                .onChange(of: selectedDate) {
-                                    refreshData()
-                                    centerAllData()
+                                Button(action: {
+                                    shareCurrentGpx()
+                                }) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .padding(8)
+                                        .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
                                 }
-                                .fixedSize()
-                                .labelsHidden()
-                            
-                            Button(action: {
-                                self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
-                            }) {
+                                .disabled(currentGpxShareURL == nil || isEditMode)
+                                .opacity(isEditMode ? 0.4 : 1)
+                                .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
+                            }
 
-                                if (Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
-                                {                            
-                                    Image(systemName: "chevron.right")
-                                    .padding(8)
-                                    .foregroundColor(.gray)
-
-                                }else
-                                    {
-                                    Image(systemName: "chevron.right")
-                                    .padding(8)
-                                    .foregroundColor(.blue)
-
+                            HStack {
+                                Button(action: {
+                                    self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
+                                }) {
+                                    Image(systemName: "chevron.left")
+                                        .padding(8)
+                                        .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) ? .gray : .blue)
                                 }
+                                .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) || isEditMode)
+                                .opacity(isEditMode ? 0.4 : 1)
+                                
+                                if isEditMode {
+                                    Text("\(selectedEditItems.count) selected")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .frame(minWidth: 100)
+                                        .multilineTextAlignment(.center)
+                                } else {
+                                    DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
+                                        .onChange(of: selectedDate) {
+                                            refreshData()
+                                            centerAllData()
+                                        }
+                                        .fixedSize()
+                                        .labelsHidden()
+                                }
+                                
+                                Button(action: {
+                                    self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
+                                }) {
+                                    Image(systemName: "chevron.right")
+                                        .padding(8)
+                                        .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) ? .gray : .blue)
+                                }
+                                .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) || isEditMode)
+                                .opacity(isEditMode ? 0.4 : 1)
                             }
-                            .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day))
-                            Spacer()
-
-                            Button(action: {
-                                 self.showSettings = true
-                             }) {
-                                 Image(systemName: "gearshape")
-                                     .padding(8)
-                                     .foregroundColor(.blue)
-                            }
-
-                            Button(action: {
-                                shareCurrentGpx()
-                            }) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .padding(8)
-                                    .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
-                            }
-                            .disabled(currentGpxShareURL == nil)
-                            .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
-                            Spacer()
                         } .padding(5)
-                        if showGroupingSlider {
+                        if showGroupingSlider && !isEditMode {
                             HStack(spacing: 8) {
                                 Image(systemName: "line.3.horizontal")
                                     .foregroundColor(.secondary)
@@ -201,7 +216,7 @@ struct ContentView: View {
                             timelineObjects: $timelineObjects,
                             selectedTimelineObjectID: $selectedTimelineObjectID,
                             scrollPositions: $scrollPositions,
-                            groupingMinutes: groupingMinutes,
+                            groupingMinutes: isEditMode ? 0 : groupingMinutes,
                             onRefresh: refreshData,
                             onSelectItem: { item in
                                 selectedTimelineObjectID = item.id
@@ -212,8 +227,52 @@ struct ContentView: View {
                             },
                             selectedDate: selectedDate,
                             onEditVisit: handleVisitEdit,
-                            onRecenter: centerAllData
+                            onRecenter: centerAllData,
+                            isEditMode: isEditMode,
+                            selectedEditItems: $selectedEditItems
                         )
+
+                        // Bottom action bar for edit mode
+                        if isEditMode && !selectedEditItems.isEmpty {
+                            HStack(spacing: 16) {
+                                Button(action: {
+                                    mergeItemsContiguous = MergeHelpers.areItemsContiguous(
+                                        selectedIDs: selectedEditItems,
+                                        allItems: timelineObjects
+                                    )
+                                    showMergeTypePicker = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.triangle.merge")
+                                        Text("Merge")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                }
+                                .disabled(selectedEditItems.count < 2)
+
+                                Button(action: {
+                                    showDeleteConfirmation = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "trash")
+                                        Text("Delete")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(Color.red)
+                                    .foregroundColor(.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemBackground).shadow(color: .black.opacity(0.1), radius: 4, y: -2))
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
                 }
                 .ignoresSafeArea(.container, edges: .top)
@@ -246,6 +305,7 @@ struct ContentView: View {
                 scrollPositions.removeAll()
                 showSettings = false
                 showOrganizePrompt = false
+                exitEditMode()
                 refreshData()
                 centerAllData()
                 FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
@@ -293,6 +353,73 @@ struct ContentView: View {
                 }
             )
             .presentationDetents([.height(280)])
+        }
+        .alert("Delete \(selectedEditItems.count) item\(selectedEditItems.count == 1 ? "" : "s")?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                performBulkDelete()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete the selected items. A backup will be created first.")
+        }
+        .sheet(isPresented: $showMergeTypePicker) {
+            MergeTypePickerView(
+                isContiguous: mergeItemsContiguous,
+                onSelect: { mergeType in
+                    showMergeTypePicker = false
+                    let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
+                    switch mergeType {
+                    case .track:
+                        mergedTrackTimelineObject = MergeHelpers.buildMergedTrackTimelineObject(from: selectedItems)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showMergeTrackEditor = true
+                        }
+                    case .visit:
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showMergeVisitLocationPicker = true
+                        }
+                    }
+                }
+            )
+            .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showMergeTrackEditor) {
+            if let mergedObject = mergedTrackTimelineObject {
+                EditTrackView(
+                    timelineObject: mergedObject,
+                    fileDate: selectedDate,
+                    onSaveChanges: {},
+                    customSaveAction: { updatedTrack in
+                        performMergeTrackSave(updatedTrack: updatedTrack)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showMergeVisitLocationPicker) {
+            let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
+            MergeLocationPickerView(
+                items: selectedItems,
+                onSelect: { selectedPoint in
+                    showMergeVisitLocationPicker = false
+                    let items = timelineObjects.filter { selectedEditItems.contains($0.id) }
+                    mergedVisitTimelineObject = MergeHelpers.buildMergedVisitTimelineObject(at: selectedPoint, from: items)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        showMergeVisitEditor = true
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showMergeVisitEditor) {
+            if let mergedObject = mergedVisitTimelineObject {
+                EditVisitView(
+                    timelineObject: mergedObject,
+                    fileDate: selectedDate,
+                    onSave: { _, _ in },
+                    customSaveAction: { updatedWaypoint, place, wasUnknown in
+                        performMergeVisitSave(updatedWaypoint: updatedWaypoint)
+                    }
+                )
+            }
         }
     }
 
@@ -510,6 +637,97 @@ struct ContentView: View {
     private func updateCurrentGpxShareURL() {
         let resolvedURL = GPXManager.shared.resolvedFileURL(forDate: selectedDate)
         currentGpxShareURL = FileManager.default.fileExists(atPath: resolvedURL.path) ? resolvedURL : nil
+    }
+
+    // MARK: - Edit Mode
+
+    private func toggleEditMode() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if isEditMode {
+                exitEditMode()
+            } else {
+                isEditMode = true
+                selectedEditItems.removeAll()
+                selectedTimelineObjectID = nil
+                selectedGroupIDs = []
+            }
+        }
+    }
+
+    private func exitEditMode() {
+        isEditMode = false
+        selectedEditItems.removeAll()
+    }
+
+    private func performBulkDelete() {
+        let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
+        guard !selectedItems.isEmpty else { return }
+
+        do {
+            try FileManagerUtil.shared.backupFile(forDate: selectedDate)
+        } catch {
+            print("Error backing up GPX file: \(error)")
+            return
+        }
+
+        let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
+        GPXManager.shared.deleteItems(waypointsToDelete: waypoints, tracksToDelete: tracks, forDate: selectedDate)
+
+        exitEditMode()
+        refreshData()
+        centerAllData()
+    }
+
+    private func performMergeTrackSave(updatedTrack: GPXTrack) {
+        let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
+        let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
+
+        do {
+            try FileManagerUtil.shared.backupFile(forDate: selectedDate)
+        } catch {
+            print("Error backing up GPX file: \(error)")
+            return
+        }
+
+        GPXManager.shared.replaceItems(
+            deleteWaypoints: waypoints,
+            deleteTracks: tracks,
+            addWaypoint: nil,
+            addTrack: updatedTrack,
+            forDate: selectedDate
+        )
+
+        showMergeTrackEditor = false
+        mergedTrackTimelineObject = nil
+        exitEditMode()
+        refreshData()
+        centerAllData()
+    }
+
+    private func performMergeVisitSave(updatedWaypoint: GPXWaypoint) {
+        let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
+        let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
+
+        do {
+            try FileManagerUtil.shared.backupFile(forDate: selectedDate)
+        } catch {
+            print("Error backing up GPX file: \(error)")
+            return
+        }
+
+        GPXManager.shared.replaceItems(
+            deleteWaypoints: waypoints,
+            deleteTracks: tracks,
+            addWaypoint: updatedWaypoint,
+            addTrack: nil,
+            forDate: selectedDate
+        )
+
+        showMergeVisitEditor = false
+        mergedVisitTimelineObject = nil
+        exitEditMode()
+        refreshData()
+        centerAllData()
     }
 }
 
