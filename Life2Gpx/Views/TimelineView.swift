@@ -33,6 +33,16 @@ extension PHAuthorizationStatus {
     }
 }
 
+private func timelinePhotoKitInfoSummary(_ info: [AnyHashable: Any]?) -> String {
+    guard let info else { return "info=nil" }
+
+    let cancelled = info[PHImageCancelledKey] as? Bool ?? false
+    let degraded = info[PHImageResultIsDegradedKey] as? Bool ?? false
+    let inCloud = info[PHImageResultIsInCloudKey] as? Bool ?? false
+    let errorDescription = (info[PHImageErrorKey] as? Error)?.localizedDescription ?? "nil"
+    return "cancelled=\(cancelled) degraded=\(degraded) inCloud=\(inCloud) error=\(errorDescription)"
+}
+
 @MainActor
 final class TimelinePhotoStore: ObservableObject {
     @Published private var photosByKey: [String: [TimelinePhoto]] = [:]
@@ -285,7 +295,7 @@ final class TimelinePhotoStore: ObservableObject {
         
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
-            content: "Requesting AVPlayerItem for asset \(photo.id.prefix(12))",
+            content: "Requesting AVPlayerItem for asset \(photo.id.prefix(12)), network={\(NetworkDiagnostics.shared.snapshot())}",
             verbosity: 4
         )
         
@@ -293,6 +303,14 @@ final class TimelinePhotoStore: ObservableObject {
             let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
             options.deliveryMode = .highQualityFormat
+            options.progressHandler = { progress, error, _, info in
+                let errorDescription = error?.localizedDescription ?? "nil"
+                FileManagerUtil.logData(
+                    context: TimelinePhotoLog.context,
+                    content: "PhotoKit video network progress for asset \(photo.id.prefix(12)): \(Int(progress * 100))%, error=\(errorDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
+                    verbosity: error == nil ? 5 : 4
+                )
+            }
             
             nonisolated(unsafe) var didResume = false
             
@@ -302,10 +320,15 @@ final class TimelinePhotoStore: ObservableObject {
                 if let error = info?[PHImageErrorKey] as? Error {
                     FileManagerUtil.logData(
                         context: TimelinePhotoLog.context,
-                        content: "Video request failed for asset \(photo.id.prefix(12)): \(error.localizedDescription)",
+                        content: "Video request failed for asset \(photo.id.prefix(12)): \(error.localizedDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                         verbosity: 4
                     )
                 }
+                FileManagerUtil.logData(
+                    context: TimelinePhotoLog.context,
+                    content: "Video request completed for asset \(photo.id.prefix(12)). playerItem=\(playerItem != nil), \(timelinePhotoKitInfoSummary(info))",
+                    verbosity: 5
+                )
                 continuation.resume(returning: playerItem)
             }
         }
@@ -491,7 +514,7 @@ final class TimelinePhotoStore: ObservableObject {
     private func requestImage(for asset: PHAsset, targetSize: CGSize, contentMode: PHImageContentMode, allowsNetworkAccess: Bool, cacheKey: String) async -> UIImage? {
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
-            content: "Request image target for asset \(asset.localIdentifier.prefix(12)): \(Int(targetSize.width))x\(Int(targetSize.height)), contentMode: \(contentMode.rawValue)",
+            content: "Request image target for asset \(asset.localIdentifier.prefix(12)): \(Int(targetSize.width))x\(Int(targetSize.height)), contentMode: \(contentMode.rawValue), allowsNetworkAccess=\(allowsNetworkAccess), network={\(NetworkDiagnostics.shared.snapshot())}",
             verbosity: 5
         )
 
@@ -503,6 +526,14 @@ final class TimelinePhotoStore: ObservableObject {
                 options.deliveryMode = .opportunistic
                 options.resizeMode = .fast
                 options.isNetworkAccessAllowed = allowsNetworkAccess
+                options.progressHandler = { progress, error, _, info in
+                    let errorDescription = error?.localizedDescription ?? "nil"
+                    FileManagerUtil.logData(
+                        context: TimelinePhotoLog.context,
+                        content: "PhotoKit thumbnail network progress for asset \(assetLabel): \(Int(progress * 100))%, error=\(errorDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
+                        verbosity: error == nil ? 5 : 4
+                    )
+                }
 
                 nonisolated(unsafe) var didResume = false
                 let startedAt = Date()
@@ -518,10 +549,18 @@ final class TimelinePhotoStore: ObservableObject {
                     let cancelled = info?[PHImageCancelledKey] as? Bool ?? false
                     let hasError = info?[PHImageErrorKey] != nil
                     let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                    let isInCloud = info?[PHImageResultIsInCloudKey] as? Bool ?? false
+                    if isInCloud {
+                        FileManagerUtil.logData(
+                            context: TimelinePhotoLog.context,
+                            content: "PhotoKit thumbnail callback indicates asset \(assetLabel) is iCloud-backed. \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
+                            verbosity: 5
+                        )
+                    }
                     if cancelled || hasError {
                         FileManagerUtil.logData(
                             context: TimelinePhotoLog.context,
-                            content: "Image request failed for asset \(assetLabel). Cancelled: \(cancelled), error: \(String(describing: info?[PHImageErrorKey]))",
+                            content: "Image request failed for asset \(assetLabel). \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                             verbosity: 4
                         )
                         didResume = true
@@ -542,7 +581,7 @@ final class TimelinePhotoStore: ObservableObject {
                         let elapsed = Int(Date().timeIntervalSince(startedAt))
                         FileManagerUtil.logData(
                             context: TimelinePhotoLog.context,
-                            content: "Image request succeeded for asset \(assetLabel). Returned size: \(Int(image.size.width))x\(Int(image.size.height)), degraded: \(isDegraded), elapsed: \(elapsed)s",
+                            content: "Image request succeeded for asset \(assetLabel). Returned size: \(Int(image.size.width))x\(Int(image.size.height)), degraded: \(isDegraded), elapsed: \(elapsed)s, \(timelinePhotoKitInfoSummary(info))",
                             verbosity: 5
                         )
                         didResume = true
@@ -594,6 +633,14 @@ final class TimelinePhotoStore: ObservableObject {
                 options.deliveryMode = .highQualityFormat
                 options.resizeMode = .none
                 options.isNetworkAccessAllowed = true
+                options.progressHandler = { progress, error, _, info in
+                    let errorDescription = error?.localizedDescription ?? "nil"
+                    FileManagerUtil.logData(
+                        context: TimelinePhotoLog.context,
+                        content: "PhotoKit full-image network progress for asset \(assetLabel): \(Int(progress * 100))%, error=\(errorDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
+                        verbosity: error == nil ? 5 : 4
+                    )
+                }
 
                 nonisolated(unsafe) var didResume = false
                 let startedAt = Date()
@@ -609,11 +656,20 @@ final class TimelinePhotoStore: ObservableObject {
                     let cancelled = info?[PHImageCancelledKey] as? Bool ?? false
                     let hasError = info?[PHImageErrorKey] != nil
                     let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                    let isInCloud = info?[PHImageResultIsInCloudKey] as? Bool ?? false
+
+                    if isInCloud {
+                        FileManagerUtil.logData(
+                            context: TimelinePhotoLog.context,
+                            content: "PhotoKit full-image callback indicates asset \(assetLabel) is iCloud-backed. \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
+                            verbosity: 5
+                        )
+                    }
 
                     if cancelled || hasError {
                         FileManagerUtil.logData(
                             context: TimelinePhotoLog.context,
-                            content: "Full image request failed for asset \(assetLabel). Cancelled: \(cancelled), error: \(String(describing: info?[PHImageErrorKey]))",
+                            content: "Full image request failed for asset \(assetLabel). \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                             verbosity: 4
                         )
                         didResume = true
@@ -624,7 +680,7 @@ final class TimelinePhotoStore: ObservableObject {
                     if isDegraded {
                         FileManagerUtil.logData(
                             context: TimelinePhotoLog.context,
-                            content: "PhotoKit returned degraded full-image preview for asset \(assetLabel) (hasImage=\(image != nil)) — waiting for high-quality callback; timeout after \(Self.requestTimeoutSeconds)s.",
+                            content: "PhotoKit returned degraded full-image preview for asset \(assetLabel) (hasImage=\(image != nil)) - waiting for high-quality callback; timeout after \(Self.requestTimeoutSeconds)s. \(timelinePhotoKitInfoSummary(info))",
                             verbosity: 2
                         )
                     }
@@ -633,7 +689,7 @@ final class TimelinePhotoStore: ObservableObject {
                         let elapsed = Int(Date().timeIntervalSince(startedAt))
                         FileManagerUtil.logData(
                             context: TimelinePhotoLog.context,
-                            content: "Full image loaded for asset \(assetLabel), elapsed: \(elapsed)s",
+                            content: "Full image loaded for asset \(assetLabel), elapsed: \(elapsed)s, \(timelinePhotoKitInfoSummary(info))",
                             verbosity: 4
                         )
                         didResume = true
@@ -1446,4 +1502,3 @@ extension TimelinePhotoStore {
     }
 }
 #endif
-

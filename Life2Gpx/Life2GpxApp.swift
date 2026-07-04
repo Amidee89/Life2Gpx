@@ -38,16 +38,32 @@ struct Life2GpxApp: App {
             case .active:
                 let currentTime = Date()
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became active at \(currentTime).", verbosity: 2)
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Scene phase \(oldPhase) -> active at \(currentTime)."
+                )
                 checkAndLoadTodayIfNeeded()
             case .inactive:
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became inactive.", verbosity: 3)
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Scene phase \(oldPhase) -> inactive."
+                )
             case .background:
                 let currentTime = Date()
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene moved to background at \(currentTime).", verbosity: 2)
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Scene phase \(oldPhase) -> background at \(currentTime)."
+                )
                 defaults.set(currentTime, forKey: "LastActiveTime")
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Saved LastActiveTime: \(currentTime)", verbosity: 3)
             @unknown default:
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene entered unknown state.", verbosity: 2)
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Scene phase \(oldPhase) -> unknown."
+                )
             }
         }
     }

@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import os
+import Network
 
 let diagnosticsLog = OSLog(subsystem: "com.life2gpx.diagnostics", category: "performance")
 let diagnosticsSignposter = OSSignposter(logHandle: diagnosticsLog)
@@ -39,6 +40,197 @@ enum ResourceDiagnostics {
             content: "\(detail) \(memorySnapshot())",
             verbosity: verbosity
         )
+    }
+
+    static func runtimeSnapshot() -> String {
+        let app = UIApplication.shared
+        let processInfo = ProcessInfo.processInfo
+        let backgroundTime = app.backgroundTimeRemaining
+        let backgroundTimeDescription = backgroundTime == .greatestFiniteMagnitude
+            ? "unlimited"
+            : "\(String(format: "%.1f", backgroundTime))s"
+
+        return [
+            memorySnapshot(),
+            "appState=\(applicationStateDescription(app.applicationState))",
+            "thermal=\(thermalStateDescription(processInfo.thermalState))",
+            "lowPower=\(processInfo.isLowPowerModeEnabled)",
+            "protectedData=\(app.isProtectedDataAvailable)",
+            "backgroundTimeRemaining=\(backgroundTimeDescription)",
+            "network={\(NetworkDiagnostics.shared.snapshot())}"
+        ].joined(separator: " ")
+    }
+
+    static func logRuntime(context: String, detail: String, verbosity: Int = 4) {
+        FileManagerUtil.logData(
+            context: context,
+            content: "\(detail) \(runtimeSnapshot())",
+            verbosity: verbosity
+        )
+    }
+
+    private static func applicationStateDescription(_ state: UIApplication.State) -> String {
+        switch state {
+        case .active:
+            return "active"
+        case .inactive:
+            return "inactive"
+        case .background:
+            return "background"
+        @unknown default:
+            return "unknown(\(state.rawValue))"
+        }
+    }
+
+    private static func thermalStateDescription(_ state: ProcessInfo.ThermalState) -> String {
+        switch state {
+        case .nominal:
+            return "nominal"
+        case .fair:
+            return "fair"
+        case .serious:
+            return "serious"
+        case .critical:
+            return "critical"
+        @unknown default:
+            return "unknown"
+        }
+    }
+}
+
+final class NetworkDiagnostics {
+    static let shared = NetworkDiagnostics()
+
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "com.life2gpx.network-diagnostics")
+    private let lock = NSLock()
+    private var hasStarted = false
+    private var latestSnapshot = "not-started"
+
+    private init() {}
+
+    func start() {
+        lock.lock()
+        guard !hasStarted else {
+            lock.unlock()
+            return
+        }
+        hasStarted = true
+        lock.unlock()
+
+        monitor.pathUpdateHandler = { [weak self] path in
+            self?.record(path)
+        }
+        monitor.start(queue: queue)
+
+        FileManagerUtil.logData(
+            context: "NetworkDiagnostics",
+            content: "NWPathMonitor started. Initial path: \(snapshot())",
+            verbosity: 4
+        )
+    }
+
+    func snapshot() -> String {
+        lock.lock()
+        let cachedSnapshot = latestSnapshot
+        let started = hasStarted
+        lock.unlock()
+
+        guard started, cachedSnapshot != "not-started" else {
+            return Self.describe(monitor.currentPath)
+        }
+        return cachedSnapshot
+    }
+
+    private func record(_ path: NWPath) {
+        let newSnapshot = Self.describe(path)
+
+        lock.lock()
+        let previousSnapshot = latestSnapshot
+        latestSnapshot = newSnapshot
+        lock.unlock()
+
+        let verbosity = previousSnapshot == "not-started" || previousSnapshot != newSnapshot ? 4 : 5
+        FileManagerUtil.logData(
+            context: "NetworkDiagnostics",
+            content: "Path update: \(newSnapshot)",
+            verbosity: verbosity
+        )
+    }
+
+    private static func describe(_ path: NWPath) -> String {
+        let activeInterfaces = [
+            (NWInterface.InterfaceType.wifi, "wifi"),
+            (.cellular, "cellular"),
+            (.wiredEthernet, "wired"),
+            (.loopback, "loopback"),
+            (.other, "other")
+        ]
+            .filter { path.usesInterfaceType($0.0) }
+            .map { $0.1 }
+
+        let availableInterfaces = path.availableInterfaces.map { interface in
+            "\(interface.name):\(interfaceTypeDescription(interface.type))"
+        }
+
+        return [
+            "status=\(statusDescription(path.status))",
+            "reason=\(unsatisfiedReasonDescription(path.unsatisfiedReason))",
+            "expensive=\(path.isExpensive)",
+            "constrained=\(path.isConstrained)",
+            "dns=\(path.supportsDNS)",
+            "ipv4=\(path.supportsIPv4)",
+            "ipv6=\(path.supportsIPv6)",
+            "active=\(activeInterfaces.isEmpty ? "none" : activeInterfaces.joined(separator: ","))",
+            "available=\(availableInterfaces.isEmpty ? "none" : availableInterfaces.joined(separator: ","))"
+        ].joined(separator: " ")
+    }
+
+    private static func statusDescription(_ status: NWPath.Status) -> String {
+        switch status {
+        case .satisfied:
+            return "satisfied"
+        case .unsatisfied:
+            return "unsatisfied"
+        case .requiresConnection:
+            return "requiresConnection"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
+    private static func unsatisfiedReasonDescription(_ reason: NWPath.UnsatisfiedReason) -> String {
+        switch reason {
+        case .notAvailable:
+            return "notAvailable"
+        case .cellularDenied:
+            return "cellularDenied"
+        case .wifiDenied:
+            return "wifiDenied"
+        case .localNetworkDenied:
+            return "localNetworkDenied"
+        case .vpnInactive:
+            return "vpnInactive"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
+    private static func interfaceTypeDescription(_ type: NWInterface.InterfaceType) -> String {
+        switch type {
+        case .wifi:
+            return "wifi"
+        case .cellular:
+            return "cellular"
+        case .wiredEthernet:
+            return "wired"
+        case .loopback:
+            return "loopback"
+        case .other:
+            return "other"
+        @unknown default:
+            return "unknown"
+        }
     }
 }
 

@@ -206,8 +206,17 @@ struct MapView: View {
         .background {
             Color.clear
                 .task(id: mapDiagnosticsToken) {
-                    logMapOverlayDiagnostics()
+                    logMapOverlayDiagnostics(reason: "Map diagnostics token changed")
                 }
+        }
+        .onAppear {
+            logMapOverlayDiagnostics(reason: "MapView appeared")
+        }
+        .onDisappear {
+            ResourceDiagnostics.logRuntime(
+                context: "MapView",
+                detail: "MapView disappeared."
+            )
         }
 
     }
@@ -226,7 +235,7 @@ struct MapView: View {
         return trackSummaries.joined(separator: "|")
     }
 
-    private func logMapOverlayDiagnostics() {
+    private func logMapOverlayDiagnostics(reason: String) {
         let tracks = timelineObjects.filter { $0.type == .track }
         let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
         let polylineCount = tracks.reduce(0) { $0 + $1.identifiableCoordinates.count }
@@ -237,10 +246,16 @@ struct MapView: View {
             .flatMap(\.identifiableCoordinates)
             .reduce(0) { $0 + $1.coordinates.count }
 
+        FileManagerUtil.logData(
+            context: "MapView",
+            content: "\(reason). selectedDate=\(selectedDate), tracks=\(tracks.count), polylines=\(polylineCount), maxPolylinePoints=\(maxPolylinePoints), totalPolylinePoints=\(totalPolylinePoints), selectedTrackPoints=\(selectedTrackPoints), waypoints=\(waypointCount), selectedObject=\(selectedTimelineObjectID?.uuidString ?? "nil"), selectedGroups=\(selectedGroupIDs.count), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
+            verbosity: 5
+        )
+
         if maxPolylinePoints >= 5_000 || totalPolylinePoints >= 20_000 {
             ResourceDiagnostics.logMemory(
                 context: "MapView",
-                detail: "Heavy map overlay: tracks=\(tracks.count) polylines=\(polylineCount) maxPolylinePoints=\(maxPolylinePoints) totalPolylinePoints=\(totalPolylinePoints) selectedTrackPoints=\(selectedTrackPoints) waypoints=\(waypointCount). Large polylines can exhaust GPU memory and stop MapKit tile loading."
+                detail: "Heavy map overlay: tracks=\(tracks.count) polylines=\(polylineCount) maxPolylinePoints=\(maxPolylinePoints) totalPolylinePoints=\(totalPolylinePoints) selectedTrackPoints=\(selectedTrackPoints) waypoints=\(waypointCount). Large polylines can exhaust GPU memory and stop MapKit tile loading. network={\(NetworkDiagnostics.shared.snapshot())}"
             )
         }
     }

@@ -11,6 +11,7 @@ import UIKit
 
 struct ContentView: View {
     @EnvironmentObject var locationManager: LocationManager
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var selectedDate = Date()
     @State private var cameraPosition: MapCameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 0, longitude: 0), span: MKCoordinateSpan(latitudeDelta: 360, longitudeDelta: 360)))
@@ -38,9 +39,7 @@ struct ContentView: View {
     @State private var savedGroupingMinutes: Double = 0
     @State private var showDeleteConfirmation = false
     @State private var showMergeTypePicker = false
-    @State private var showMergeTrackEditor = false
     @State private var showMergeVisitLocationPicker = false
-    @State private var showMergeVisitEditor = false
     @State private var mergedTrackTimelineObject: TimelineObject?
     @State private var mergedVisitTimelineObject: TimelineObject?
     @State private var mergeItemsContiguous: Bool = true
@@ -301,6 +300,7 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
                 let currentTime = Date()
                 FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
+                logContentSnapshot("Before handling loadTodayData notification")
                 selectedDate = Date()
                 scrollPositions.removeAll()
                 showSettings = false
@@ -308,14 +308,19 @@ struct ContentView: View {
                 exitEditMode()
                 refreshData()
                 centerAllData()
+                logContentSnapshot("After handling loadTodayData notification")
                 FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
             }
         }
         .onAppear {
             _ = FileManagerUtil.shared
+            logContentSnapshot("ContentView appeared")
             refreshData()
             centerAllData()
             checkForRootGpxFiles()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            logContentSnapshot("ContentView scene phase \(oldPhase) -> \(newPhase)")
         }
         .fullScreenCover(isPresented: $showSettings) {
             ManagementView()
@@ -370,9 +375,9 @@ struct ContentView: View {
                     let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
                     switch mergeType {
                     case .track:
-                        mergedTrackTimelineObject = MergeHelpers.buildMergedTrackTimelineObject(from: selectedItems)
+                        let mergedObject = MergeHelpers.buildMergedTrackTimelineObject(from: selectedItems)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            showMergeTrackEditor = true
+                            mergedTrackTimelineObject = mergedObject
                         }
                     case .visit:
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -383,17 +388,17 @@ struct ContentView: View {
             )
             .presentationDetents([.medium])
         }
-        .sheet(isPresented: $showMergeTrackEditor) {
-            if let mergedObject = mergedTrackTimelineObject {
-                EditTrackView(
-                    timelineObject: mergedObject,
-                    fileDate: selectedDate,
-                    onSaveChanges: {},
-                    customSaveAction: { updatedTrack in
-                        performMergeTrackSave(updatedTrack: updatedTrack)
-                    }
-                )
-            }
+        .sheet(item: $mergedTrackTimelineObject, onDismiss: {
+            mergedTrackTimelineObject = nil
+        }) { mergedObject in
+            EditTrackView(
+                timelineObject: mergedObject,
+                fileDate: selectedDate,
+                onSaveChanges: {},
+                customSaveAction: { updatedTrack in
+                    performMergeTrackSave(updatedTrack: updatedTrack)
+                }
+            )
         }
         .sheet(isPresented: $showMergeVisitLocationPicker) {
             let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
@@ -402,24 +407,24 @@ struct ContentView: View {
                 onSelect: { selectedPoint in
                     showMergeVisitLocationPicker = false
                     let items = timelineObjects.filter { selectedEditItems.contains($0.id) }
-                    mergedVisitTimelineObject = MergeHelpers.buildMergedVisitTimelineObject(at: selectedPoint, from: items)
+                    let mergedObject = MergeHelpers.buildMergedVisitTimelineObject(at: selectedPoint, from: items)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        showMergeVisitEditor = true
+                        mergedVisitTimelineObject = mergedObject
                     }
                 }
             )
         }
-        .sheet(isPresented: $showMergeVisitEditor) {
-            if let mergedObject = mergedVisitTimelineObject {
-                EditVisitView(
-                    timelineObject: mergedObject,
-                    fileDate: selectedDate,
-                    onSave: { _, _ in },
-                    customSaveAction: { updatedWaypoint, place, wasUnknown in
-                        performMergeVisitSave(updatedWaypoint: updatedWaypoint)
-                    }
-                )
-            }
+        .sheet(item: $mergedVisitTimelineObject, onDismiss: {
+            mergedVisitTimelineObject = nil
+        }) { mergedObject in
+            EditVisitView(
+                timelineObject: mergedObject,
+                fileDate: selectedDate,
+                onSave: { _, _ in },
+                customSaveAction: { updatedWaypoint, place, wasUnknown in
+                    performMergeVisitSave(updatedWaypoint: updatedWaypoint)
+                }
+            )
         }
     }
 
@@ -492,6 +497,11 @@ struct ContentView: View {
 
     private func centerAllData() {
         let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
+        FileManagerUtil.logData(
+            context: "ContentView",
+            content: "centerAllData called. coordinateCount=\(allCoordinates.count), lastMapSize=\(sizeDescription(lastMapSize)), network={\(NetworkDiagnostics.shared.snapshot())}",
+            verbosity: 5
+        )
         if !allCoordinates.isEmpty {
             withAnimation (.easeInOut(duration: 0.5)){
                 recenterOn(coordinates: allCoordinates, mapSize: lastMapSize)
@@ -539,22 +549,77 @@ struct ContentView: View {
         let span = calculateSpan(for: displayCoords, mapSize: mapSize, buttonInset: mapButtonInset)
         
         cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
+        FileManagerUtil.logData(
+            context: "ContentView",
+            content: "Map recentered. coordinateCount=\(coordinates.count), center=(\(centerCoordinate.latitude),\(centerCoordinate.longitude)), span=(\(span.latitudeDelta),\(span.longitudeDelta)), mapSize=\(sizeDescription(mapSize))",
+            verbosity: 5
+        )
         
     }
 
     
     
     private func refreshData() {
+        let requestedDate = selectedDate
+        let startedAt = Date()
+        logContentSnapshot("refreshData started for \(requestedDate)")
         updateCurrentGpxShareURL()
         GPXManager.shared.getDateRange { earliest, latest in
             if let earliestDate = earliest, let latestDate = latest {
                 minDate = earliestDate
                 maxDate = latestDate
+                FileManagerUtil.logData(
+                    context: "ContentView",
+                    content: "Date range refreshed for \(requestedDate). minDate=\(earliestDate), maxDate=\(latestDate)",
+                    verbosity: 5
+                )
+            } else {
+                FileManagerUtil.logData(
+                    context: "ContentView",
+                    content: "Date range refresh returned empty range for \(requestedDate).",
+                    verbosity: 5
+                )
             }
         }
-        loadTimelineForDate(selectedDate) { timelineObjects in
+        loadTimelineForDate(requestedDate) { timelineObjects in
             self.timelineObjects = timelineObjects
+            let elapsed = Date().timeIntervalSince(startedAt)
+            let trackCount = timelineObjects.filter { $0.type == .track }.count
+            let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
+            let totalTrackPoints = timelineObjects
+                .filter { $0.type == .track }
+                .flatMap(\.identifiableCoordinates)
+                .reduce(0) { $0 + $1.coordinates.count }
+            FileManagerUtil.logData(
+                context: "ContentView",
+                content: "refreshData finished for \(requestedDate) in \(String(format: "%.3f", elapsed))s. objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), currentSelectedDate=\(selectedDate), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
+                verbosity: 4
+            )
         }
+    }
+
+    private func logContentSnapshot(_ reason: String, verbosity: Int = 4) {
+        let trackCount = timelineObjects.filter { $0.type == .track }.count
+        let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
+        let totalTrackPoints = timelineObjects
+            .filter { $0.type == .track }
+            .flatMap(\.identifiableCoordinates)
+            .reduce(0) { $0 + $1.coordinates.count }
+
+        FileManagerUtil.logData(
+            context: "ContentView",
+            content: "\(reason). selectedDate=\(selectedDate), objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), selectedObject=\(selectedTimelineObjectID?.uuidString ?? "nil"), selectedGroups=\(selectedGroupIDs.count), settingsSheet=\(showSettings), organizePrompt=\(showOrganizePrompt), editMode=\(isEditMode), selectedEditItems=\(selectedEditItems.count), mapPanelHeight=\(optionalCGFloatDescription(mapPanelHeight)), lastMapSize=\(sizeDescription(lastMapSize)), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
+            verbosity: verbosity
+        )
+    }
+
+    private func optionalCGFloatDescription(_ value: CGFloat?) -> String {
+        guard let value else { return "nil" }
+        return String(format: "%.1f", value)
+    }
+
+    private func sizeDescription(_ size: CGSize) -> String {
+        "\(String(format: "%.1f", size.width))x\(String(format: "%.1f", size.height))"
     }
     
     private func handleVisitEdit(timelineObject: TimelineObject, place: Place?, wasUnknown: Bool) {
@@ -697,7 +762,6 @@ struct ContentView: View {
             forDate: selectedDate
         )
 
-        showMergeTrackEditor = false
         mergedTrackTimelineObject = nil
         exitEditMode()
         refreshData()
@@ -723,7 +787,6 @@ struct ContentView: View {
             forDate: selectedDate
         )
 
-        showMergeVisitEditor = false
         mergedVisitTimelineObject = nil
         exitEditMode()
         refreshData()
@@ -900,4 +963,3 @@ struct GpxOrganizePromptView: View {
     ContentView()
         .environmentObject(LocationManager())
 }
-

@@ -3,6 +3,16 @@ import SwiftUI
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     private var memoryWarningObserver: NSObjectProtocol?
+    private var lifecycleObservers: [NSObjectProtocol] = []
+
+    deinit {
+        if let memoryWarningObserver {
+            NotificationCenter.default.removeObserver(memoryWarningObserver)
+        }
+        for observer in lifecycleObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 
     func application(_ application: UIApplication, willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         FileManagerUtil.logData(context: "AppLifecycle", content: "WillFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
@@ -11,6 +21,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         FileManagerUtil.logData(context: "AppLifecycle", content: "DidFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
+        NetworkDiagnostics.shared.start()
+        ResourceDiagnostics.logRuntime(
+            context: "AppLifecycle",
+            detail: "Launch runtime snapshot."
+        )
         if let options = launchOptions, options[.location] != nil {
             FileManagerUtil.logData(context: "AppLifecycle", content: "App launched due to location update.", verbosity: 2)
         }
@@ -26,6 +41,45 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             )
         }
 
+        lifecycleObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.protectedDataWillBecomeUnavailableNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Protected data will become unavailable."
+                )
+            }
+        )
+
+        lifecycleObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Protected data became available."
+                )
+            }
+        )
+
+        lifecycleObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: ProcessInfo.thermalStateDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                ResourceDiagnostics.logRuntime(
+                    context: "AppLifecycle",
+                    detail: "Thermal state changed."
+                )
+            }
+        )
+
         MemoryWatchdog.shared.start()
 
         return true
@@ -40,21 +94,41 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     func applicationWillTerminate(_ application: UIApplication) {
         FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationWillTerminate called at \(Date())", verbosity: 1)
+        ResourceDiagnostics.logRuntime(
+            context: "AppLifecycle",
+            detail: "ApplicationWillTerminate runtime snapshot."
+        )
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
         FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationDidEnterBackground called at \(Date())", verbosity: 2)
+        ResourceDiagnostics.logRuntime(
+            context: "AppLifecycle",
+            detail: "ApplicationDidEnterBackground runtime snapshot."
+        )
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
         FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationWillEnterForeground called at \(Date())", verbosity: 2)
+        ResourceDiagnostics.logRuntime(
+            context: "AppLifecycle",
+            detail: "ApplicationWillEnterForeground runtime snapshot."
+        )
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationDidBecomeActive called at \(Date())", verbosity: 2)
+        ResourceDiagnostics.logRuntime(
+            context: "AppLifecycle",
+            detail: "ApplicationDidBecomeActive runtime snapshot."
+        )
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
         FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationWillResignActive called at \(Date())", verbosity: 2)
+        ResourceDiagnostics.logRuntime(
+            context: "AppLifecycle",
+            detail: "ApplicationWillResignActive runtime snapshot."
+        )
     }
 } 
