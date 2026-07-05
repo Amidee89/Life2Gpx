@@ -125,6 +125,50 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         notificationResetTimer = nil
     }
 
+    private func cancelUnknownPlaceCheckInNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["UnknownPlaceCheckIn"])
+        FileManagerUtil.logData(context: "LocationManager", content: "Cancelled pending UnknownPlaceCheckIn notification.", verbosity: 4)
+    }
+
+    private func scheduleUnknownPlaceCheckInNotification(for waypoint: GPXWaypoint) {
+        guard SettingsManager.shared.sendNotificationOnUnknownPlace else {
+            FileManagerUtil.logData(context: "LocationManager", content: "Skip scheduling UnknownPlaceCheckIn: setting is disabled.", verbosity: 4)
+            return
+        }
+        
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["UnknownPlaceCheckIn"])
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Unknown Place Detected"
+        content.body = "Tap here to add a name to this unknown place"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        
+        let waypointTime = waypoint.time ?? Date()
+        let userInfo: [AnyHashable: Any] = [
+            "waypointTimestamp": waypointTime.timeIntervalSince1970,
+            "latitude": waypoint.latitude ?? 0.0,
+            "longitude": waypoint.longitude ?? 0.0
+        ]
+        content.userInfo = userInfo
+        
+        let minutes = SettingsManager.shared.unknownPlaceNotificationMinutes
+        let triggerSeconds = Double(minutes) * 60.0
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: triggerSeconds, repeats: false)
+        let request = UNNotificationRequest(identifier: "UnknownPlaceCheckIn", content: content, trigger: trigger)
+        
+        center.add(request) { error in
+            if let error = error {
+                FileManagerUtil.logData(context: "LocationManager", content: "Error scheduling UnknownPlaceCheckIn: \(error.localizedDescription)", verbosity: 2)
+            } else {
+                FileManagerUtil.logData(context: "LocationManager", content: "Scheduled UnknownPlaceCheckIn in \(minutes) minutes (\(triggerSeconds)s) for waypoint at \(waypointTime).", verbosity: 3)
+            }
+        }
+    }
+
     private func setupMotionActivityManager() {
         if CMMotionActivityManager.isActivityAvailable() {
             motionActivityManager.startActivityUpdates(to: .main) { [weak self] activity in
@@ -313,6 +357,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationUpdate", content: logContent, verbosity: 5)
     }
     private func adjustSettingsForMovement() {
+        self.cancelUnknownPlaceCheckInNotification()
         locationManager.stopUpdatingLocation()
         FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -433,6 +478,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
                 if type == "Moving"
                 {
+                    self.cancelUnknownPlaceCheckInNotification()
                     let newTrackPoint = GPXTrackPoint(
                         latitude: location.coordinate.latitude,
                         longitude: location.coordinate.longitude
@@ -551,6 +597,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     newWaypoint.elevation = location.altitude
                     
                     if let matchingPlace = PlaceManager.shared.findPlaceAtCoordinates(for: location.coordinate) {
+                        self.cancelUnknownPlaceCheckInNotification()
                         newWaypoint.name = matchingPlace.name
                         
                         var customExtensionData: [String: String] = [
@@ -590,6 +637,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         let extensions = GPXExtensions()
                         extensions.append(at: nil, contents: customExtensionData)
                         newWaypoint.extensions = extensions
+                        self.scheduleUnknownPlaceCheckInNotification(for: newWaypoint)
                     }
                     
                     gpxWaypoints.append(newWaypoint)

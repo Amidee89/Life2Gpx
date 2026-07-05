@@ -43,6 +43,7 @@ struct ContentView: View {
     @State private var showMergeVisitLocationPicker = false
     @State private var mergedTrackTimelineObject: TimelineObject?
     @State private var mergedVisitTimelineObject: TimelineObject?
+    @State private var editingWaypointFromNotification: TimelineObject? = nil
     @State private var mergeItemsContiguous: Bool = true
 
     let defaults = UserDefaults.standard
@@ -337,6 +338,10 @@ struct ContentView: View {
             refreshData()
             centerAllData()
             checkForRootGpxFiles()
+            checkPendingNotification()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openEditVisitForUnknownPlace)) { _ in
+            checkPendingNotification()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             logContentSnapshot("ContentView scene phase \(oldPhase) -> \(newPhase)")
@@ -445,6 +450,17 @@ struct ContentView: View {
                 onSave: { _, _ in },
                 customSaveAction: { updatedWaypoint, place, wasUnknown in
                     performMergeVisitSave(updatedWaypoint: updatedWaypoint)
+                }
+            )
+        }
+        .sheet(item: $editingWaypointFromNotification, onDismiss: {
+            editingWaypointFromNotification = nil
+        }) { timelineObject in
+            EditVisitView(
+                timelineObject: timelineObject,
+                fileDate: selectedDate,
+                onSave: { place, wasUnknown in
+                    handleVisitEdit(timelineObject: timelineObject, place: place, wasUnknown: wasUnknown)
                 }
             )
         }
@@ -845,6 +861,40 @@ struct ContentView: View {
         exitEditMode()
         refreshData()
         centerAllData()
+    }
+
+    private func checkPendingNotification() {
+        if let userInfo = NotificationManager.shared.pendingUnknownPlaceUserInfo {
+            NotificationManager.shared.pendingUnknownPlaceUserInfo = nil
+            handleIncomingUnknownPlaceNotification(userInfo: userInfo)
+        }
+    }
+
+    private func handleIncomingUnknownPlaceNotification(userInfo: [AnyHashable: Any]) {
+        guard let timestampVal = userInfo["waypointTimestamp"] as? TimeInterval else { return }
+        let targetDate = Date(timeIntervalSince1970: timestampVal)
+        
+        FileManagerUtil.logData(context: "ContentView", content: "Handling unknown place notification for timestamp: \(targetDate)", verbosity: 3)
+        
+        // 1. Set the selected date to match the target date
+        self.selectedDate = targetDate
+        
+        // 2. Fetch the timeline objects for this day
+        loadTimelineForDate(targetDate) { loadedObjects in
+            self.timelineObjects = loadedObjects
+            
+            // 3. Find the matching waypoint
+            if let matchingObj = loadedObjects.first(where: { obj in
+                guard obj.type == .waypoint, let start = obj.startDate else { return false }
+                return abs(start.timeIntervalSince(targetDate)) < 2.0
+            }) {
+                // 4. Open the edit sheet
+                self.editingWaypointFromNotification = matchingObj
+                FileManagerUtil.logData(context: "ContentView", content: "Deep-linked to EditVisitView for waypoint: \(matchingObj.id)", verbosity: 3)
+            } else {
+                FileManagerUtil.logData(context: "ContentView", content: "Failed to find matching waypoint in loaded timeline for \(targetDate)", verbosity: 2)
+            }
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 import UIKit
 import SwiftUI
+import UserNotifications
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     private var memoryWarningObserver: NSObjectProtocol?
     private var lifecycleObservers: [NSObjectProtocol] = []
 
@@ -20,6 +21,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
         FileManagerUtil.logData(context: "AppLifecycle", content: "DidFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
         NetworkDiagnostics.shared.start()
         ResourceDiagnostics.logRuntime(
@@ -130,5 +132,24 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             context: "AppLifecycle",
             detail: "ApplicationWillResignActive runtime snapshot."
         )
+    }
+    
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let identifier = response.notification.request.identifier
+        let userInfo = response.notification.request.content.userInfo
+        
+        FileManagerUtil.logData(context: "AppLifecycle", content: "Notification received. Identifier: \(identifier)", verbosity: 3)
+        
+        if identifier == "UnknownPlaceCheckIn" {
+            NotificationManager.shared.handleNotificationTap(userInfo: userInfo)
+        }
+        
+        completionHandler()
     }
 } 

@@ -58,7 +58,8 @@ class SettingsManager {
     private let mapCoordinateSystemModeKey = "mapCoordinateSystemMode"
     private let suggestApplyToOtherPlacesKey = "suggestApplyToOtherPlaces"
     private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
-
+    private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
+    private let unknownPlaceNotificationMinutesKey = "unknownPlaceNotificationMinutes"
     
     private init() {
         registerDefaults()
@@ -83,7 +84,9 @@ class SettingsManager {
             timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue,
             mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue,
             suggestApplyToOtherPlacesKey: true,
-            mergeVisitAddStepsKey: true
+            mergeVisitAddStepsKey: true,
+            sendNotificationOnUnknownPlaceKey: true,
+            unknownPlaceNotificationMinutesKey: 10
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -285,6 +288,16 @@ class SettingsManager {
     var mergeVisitAddSteps: Bool {
         get { return defaults.bool(forKey: mergeVisitAddStepsKey) }
         set { defaults.set(newValue, forKey: mergeVisitAddStepsKey) }
+    }
+
+    var sendNotificationOnUnknownPlace: Bool {
+        get { return defaults.bool(forKey: sendNotificationOnUnknownPlaceKey) }
+        set { defaults.set(newValue, forKey: sendNotificationOnUnknownPlaceKey) }
+    }
+
+    var unknownPlaceNotificationMinutes: Int {
+        get { return max(1, defaults.integer(forKey: unknownPlaceNotificationMinutesKey)) }
+        set { defaults.set(max(1, newValue), forKey: unknownPlaceNotificationMinutesKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

@@ -13,6 +13,8 @@ struct SettingsView: View {
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
+    @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
+    @AppStorage("unknownPlaceNotificationMinutes") private var unknownPlaceNotificationMinutes: Int = 10
 
     @FocusState private var valueFieldIsFocused: Bool
 
@@ -116,6 +118,27 @@ struct SettingsView: View {
                         Toggle("Add up steps when merging to visit", isOn: $mergeVisitAddSteps)
                         
                         Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Send notification to check in unknown places", isOn: $sendNotificationOnUnknownPlace)
+                        
+                        if sendNotificationOnUnknownPlace {
+                            HStack(spacing: 4) {
+                                Text("After")
+                                TextField("Minutes", value: $unknownPlaceNotificationMinutes, format: .number)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.numberPad)
+                                    .frame(maxWidth: 80)
+                                    .focused($valueFieldIsFocused)
+                                Text("minutes")
+                                Spacer()
+                            }
+                        }
+                        
+                        Text("A notification will be sent when you are in an unknown place for longer than this duration.")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
