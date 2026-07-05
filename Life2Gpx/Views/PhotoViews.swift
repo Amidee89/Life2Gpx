@@ -863,6 +863,7 @@ struct TimelinePhotoActivityView: UIViewControllerRepresentable {
 
 // MARK: - Previews
 
+#if DEBUG
 #Preview("Square Photo") {
     let store = TimelinePhotoStore.preview
     let photo = TimelinePhoto(id: "dummy", pixelWidth: 100, pixelHeight: 100)
@@ -915,4 +916,5 @@ struct TimelinePhotoActivityView: UIViewControllerRepresentable {
     let photo = TimelinePhoto(id: "dummy", pixelWidth: 100, pixelHeight: 100)
     TimelinePhotoViewer(photos: [photo], initialPhotoID: "dummy", photoStore: store)
 }
+#endif
 
