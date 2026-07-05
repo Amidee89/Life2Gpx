@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var lastMapSize: CGSize = .zero
     @State private var scrollPositions: [String: String] = [:]
     @State private var bulkApplyContext: BulkApplyContext?
+    @State private var isMapSuspendedForSceneTransition = false
 
     // Edit mode state
     @State private var isEditMode: Bool = false
@@ -54,6 +55,8 @@ struct ContentView: View {
     private let minimumBottomPanelHeight: CGFloat = 220
     private let mapTimelineSplitCoordinateSpace = "mapTimelineSplit"
     private let mapButtonInset: CGFloat = 80
+    //If we leave the map, there is a chance MapKit will crash and render the app unstable, so we need to force the suspension of the view after some time, enough that you can multitask back to the app without having a reload but not too much that we risk getting into unstable territory.
+    private let mapSceneSuspensionDelayNanoseconds: UInt64 = 9_250_000_000
 
     var body: some View {
         GeometryReader { geometry in
@@ -65,39 +68,55 @@ struct ContentView: View {
                 ? safeAreaTop + mapTimelineHandleHeight / 2 - mapTimelineHandleVisualLift
                 : currentMapHeight - mapTimelineHandleHeight / 2 - mapTimelineHandleVisualLift
             let mapFrameHeight = isMapCollapsed ? 1 : currentMapHeight
+            let shouldRenderMap = !isMapCollapsed
+                && scenePhase != .background
+                && (scenePhase == .active || !isMapSuspendedForSceneTransition)
 
             ZStack(alignment: .top) {
                 VStack(spacing: 0) {
                     ZStack(alignment: .top) {
-                        MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
-                                selectedGroupIDs: $selectedGroupIDs,
-                                cameraPosition: $cameraPosition,
-                                selectedDate: $selectedDate,
-                                safeAreaTop: safeAreaTop
-                        )
-                        .overlay(
-                            MapControlsView(
-                                onRefresh: refreshData,
-                                onCenter: centerAllData,
-                                onSelectToday: { selectedDate = Date() },
-                                selectedDate: $selectedDate,
-                                timelineObjects: $timelineObjects,
-                                safeAreaTop: safeAreaTop
+                        Group {
+                            if shouldRenderMap {
+                                MapView(timelineObjects: $timelineObjects, selectedTimelineObjectID: $selectedTimelineObjectID,
+                                        selectedGroupIDs: $selectedGroupIDs,
+                                        cameraPosition: $cameraPosition,
+                                        selectedDate: $selectedDate,
+                                        safeAreaTop: safeAreaTop
+                                )
+                                .overlay(
+                                    MapControlsView(
+                                        onRefresh: refreshData,
+                                        onCenter: centerAllData,
+                                        onSelectToday: { selectedDate = Date() },
+                                        selectedDate: $selectedDate,
+                                        timelineObjects: $timelineObjects,
+                                        safeAreaTop: safeAreaTop
+                                    )
+                                )
+                            } else {
+                                Color.clear
+                            }
+                        }
+                        .onChange(of: shouldRenderMap) { _, newValue in
+                            FileManagerUtil.logData(
+                                context: "ContentView",
+                                content: "Map render state changed. shouldRenderMap=\(newValue), scenePhase=\(scenePhase), isMapCollapsed=\(isMapCollapsed), sceneSuspended=\(isMapSuspendedForSceneTransition)",
+                                verbosity: 4
                             )
-                        )
+                        }
                         .frame(height: mapFrameHeight)
                         .clipped()
-                        .opacity(isMapCollapsed ? 0 : 1)
-                        .allowsHitTesting(!isMapCollapsed)
+                        .opacity(shouldRenderMap ? 1 : 0)
+                        .allowsHitTesting(shouldRenderMap)
                         .ignoresSafeArea(.container, edges: .top)
                         .zIndex(0)
                         .onChange(of: currentMapHeight) {
-                            if !isMapCollapsed {
+                            if shouldRenderMap {
                                 lastMapSize = CGSize(width: geometry.size.width, height: currentMapHeight)
                             }
                         }
                         .onAppear {
-                            if !isMapCollapsed {
+                            if shouldRenderMap {
                                 lastMapSize = CGSize(width: geometry.size.width, height: currentMapHeight)
                             }
                         }
@@ -321,6 +340,9 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             logContentSnapshot("ContentView scene phase \(oldPhase) -> \(newPhase)")
+        }
+        .task(id: scenePhase) {
+            await updateMapRenderingForScenePhase(scenePhase)
         }
         .fullScreenCover(isPresented: $showSettings) {
             ManagementView()
@@ -620,6 +642,38 @@ struct ContentView: View {
 
     private func sizeDescription(_ size: CGSize) -> String {
         "\(String(format: "%.1f", size.width))x\(String(format: "%.1f", size.height))"
+    }
+
+    @MainActor
+    private func updateMapRenderingForScenePhase(_ phase: ScenePhase) async {
+        switch phase {
+        case .active:
+            setMapSceneSuspended(false, reason: "scene active")
+        case .inactive:
+            do {
+                try await Task.sleep(nanoseconds: mapSceneSuspensionDelayNanoseconds)
+            } catch {
+                return
+            }
+
+            setMapSceneSuspended(true, reason: "inactive grace period elapsed")
+        case .background:
+            setMapSceneSuspended(true, reason: "scene background")
+        @unknown default:
+            setMapSceneSuspended(true, reason: "unknown scene phase")
+        }
+    }
+
+    @MainActor
+    private func setMapSceneSuspended(_ isSuspended: Bool, reason: String) {
+        guard isMapSuspendedForSceneTransition != isSuspended else { return }
+
+        isMapSuspendedForSceneTransition = isSuspended
+        FileManagerUtil.logData(
+            context: "ContentView",
+            content: "Map scene suspension changed. suspended=\(isSuspended), reason=\(reason), scenePhase=\(scenePhase)",
+            verbosity: 4
+        )
     }
     
     private func handleVisitEdit(timelineObject: TimelineObject, place: Place?, wasUnknown: Bool) {
