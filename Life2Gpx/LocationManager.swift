@@ -94,7 +94,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func scheduleDeadMansSwitchNotification() {
         let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests() // Clear any existing notifications
+        center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch"]) 
 
         let content = UNMutableNotificationContent()
         content.title = "Recording Stopped"
