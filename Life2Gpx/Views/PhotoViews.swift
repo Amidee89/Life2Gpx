@@ -10,6 +10,19 @@ import Photos
 import UIKit
 import AVKit
 
+private func photoScenePhaseDescription(_ phase: ScenePhase) -> String {
+    switch phase {
+    case .active:
+        return "active"
+    case .inactive:
+        return "inactive"
+    case .background:
+        return "background"
+    @unknown default:
+        return "unknown"
+    }
+}
+
 private func formatVideoDuration(_ duration: TimeInterval) -> String {
     let minutes = Int(duration) / 60
     let seconds = Int(duration) % 60
@@ -208,6 +221,8 @@ struct TimelinePhotoAttachmentView: View {
 }
 
 struct TimelineSquarePhoto: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     let photo: TimelinePhoto
     @ObservedObject var photoStore: TimelinePhotoStore
     let size: CGFloat
@@ -261,8 +276,8 @@ struct TimelineSquarePhoto: View {
                 .padding(3)
             }
         }
-        .task(id: "\(photo.id)-\(Int(size))") {
-            if loadedImage == nil {
+        .task(id: "\(photo.id)-\(Int(size))-\(photoScenePhaseDescription(scenePhase))") {
+            if scenePhase == .active, loadedImage == nil {
                 loadedImage = await photoStore.loadThumbnail(for: photo, displaySize: displaySize, contentMode: .aspectFill)
             }
         }
@@ -270,6 +285,8 @@ struct TimelineSquarePhoto: View {
 }
 
 struct TimelineLargePhotoThumbnail: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     let photo: TimelinePhoto
     @ObservedObject var photoStore: TimelinePhotoStore
     let height: CGFloat
@@ -322,8 +339,8 @@ struct TimelineLargePhotoThumbnail: View {
                 .padding(4)
             }
         }
-        .task(id: "\(photo.id)-\(Int(displaySize.width))x\(Int(displaySize.height))") {
-            if loadedImage == nil {
+        .task(id: "\(photo.id)-\(Int(displaySize.width))x\(Int(displaySize.height))-\(photoScenePhaseDescription(scenePhase))") {
+            if scenePhase == .active, loadedImage == nil {
                 loadedImage = await photoStore.loadThumbnail(for: photo, displaySize: displaySize, contentMode: .aspectFit)
             }
         }
@@ -365,6 +382,8 @@ struct TimelinePhotoViewer: View {
 }
 
 struct TimelinePhotoDetailView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     let photos: [TimelinePhoto]
     let initialPhotoID: String
     @ObservedObject var photoStore: TimelinePhotoStore
@@ -515,8 +534,8 @@ struct TimelinePhotoDetailView: View {
                 }
             }
         }
-        .task(id: selectedPhotoID) {
-            guard let currentPhoto else { return }
+        .task(id: "\(selectedPhotoID)-\(photoScenePhaseDescription(scenePhase))") {
+            guard scenePhase == .active, let currentPhoto else { return }
             let photoID = currentPhoto.id
 
             if let cachedImage = photoStore.fullImage(for: currentPhoto) {
@@ -533,6 +552,12 @@ struct TimelinePhotoDetailView: View {
 
             loadedFullImagePhotoID = photoID
             fullImage = loadedImage
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            photoStore.setSceneSuspended(newPhase != .active, reason: "TimelinePhotoDetailView scene phase \(photoScenePhaseDescription(oldPhase)) -> \(photoScenePhaseDescription(newPhase))")
+            if newPhase != .active {
+                player?.pause()
+            }
         }
         .sheet(isPresented: $showingShareSheet) {
             if let currentPhoto,
@@ -569,6 +594,7 @@ struct TimelinePhotoDetailView: View {
     }
 
     private func playVideo(for photo: TimelinePhoto) async {
+        guard scenePhase == .active else { return }
         let photoID = photo.id
         isLoadingVideo = true
         if let playerItem = await photoStore.loadVideoAsset(for: photo) {
@@ -917,4 +943,3 @@ struct TimelinePhotoActivityView: UIViewControllerRepresentable {
     TimelinePhotoViewer(photos: [photo], initialPhotoID: "dummy", photoStore: store)
 }
 #endif
-

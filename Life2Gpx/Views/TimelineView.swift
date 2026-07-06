@@ -54,6 +54,7 @@ final class TimelinePhotoStore: ObservableObject {
     private var imageRequestStartedAt: [String: Date] = [:]
     private var inFlightRequestIDs: [String: PHImageRequestID] = [:]
     private var authorizationRequestTask: Task<PHAuthorizationStatus, Never>?
+    private var isSceneSuspended = false
     private let imageManager = PHCachingImageManager()
     private let thumbnailCache = NSCache<NSString, UIImage>()
     private let previewCache = NSCache<NSString, UIImage>()
@@ -72,12 +73,14 @@ final class TimelinePhotoStore: ObservableObject {
         previewCache.totalCostLimit = 96 * 1024 * 1024
         fullImageCache.countLimit = 4
         fullImageCache.totalCostLimit = 160 * 1024 * 1024
+        isSceneSuspended = UIApplication.shared.applicationState != .active
 
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
             content: "Photo store initialized. Initial authorization status: \(authorizationStatus.timelineLogDescription)",
             verbosity: 4
         )
+        recordDiagnostics(reason: "Photo store initialized")
     }
 
     func photos(for key: String) -> [TimelinePhoto] {
@@ -98,6 +101,36 @@ final class TimelinePhotoStore: ObservableObject {
 
     func fullImage(for photo: TimelinePhoto) -> UIImage? {
         fullImageCache.object(forKey: photo.id as NSString)
+    }
+
+    func setSceneSuspended(_ suspended: Bool, reason: String) {
+        let inFlightCount = inFlightRequestIDs.count
+        let stateChanged = isSceneSuspended != suspended
+        isSceneSuspended = suspended
+
+        if suspended, inFlightCount > 0 {
+            for (_, requestID) in inFlightRequestIDs {
+                imageManager.cancelImageRequest(requestID)
+            }
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Cancelling \(inFlightCount) in-flight PhotoKit image request(s) because scene photo loading suspended. reason=\(reason)",
+                verbosity: 2
+            )
+            ResourceDiagnostics.logMemory(
+                context: TimelinePhotoLog.context,
+                detail: "Scene suspended PhotoKit work — cancelled \(inFlightCount) in-flight image request(s)."
+            )
+        }
+
+        if stateChanged || suspended {
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Photo scene suspension changed. suspended=\(suspended), reason=\(reason), appState=\(UIApplication.shared.applicationState.rawValue)",
+                verbosity: 4
+            )
+            recordDiagnostics(reason: "Photo scene suspension changed: \(reason)")
+        }
     }
 
     func clear() {
@@ -134,10 +167,15 @@ final class TimelinePhotoStore: ObservableObject {
         thumbnailCache.removeAllObjects()
         previewCache.removeAllObjects()
         fullImageCache.removeAllObjects()
+        recordDiagnostics(reason: "Photo cache cleared")
     }
 
     @discardableResult
     func loadThumbnail(for photo: TimelinePhoto, displaySize: CGSize, contentMode: PHImageContentMode, allowsNetworkAccess: Bool = true) async -> UIImage? {
+        guard canStartPhotoWork("thumbnail \(photo.id.prefix(12))") else {
+            return nil
+        }
+
         let cacheKey = imageCacheKey(for: photo, displaySize: displaySize, contentMode: contentMode)
         if let cachedImage = thumbnailCache.object(forKey: cacheKey as NSString) {
             return cachedImage
@@ -153,11 +191,13 @@ final class TimelinePhotoStore: ObservableObject {
 
         loadingImageKeys.insert(cacheKey)
         imageRequestStartedAt[cacheKey] = Date()
+        recordDiagnostics(reason: "Thumbnail started \(photo.id.prefix(12))")
         logInFlightImagePressureIfNeeded(trigger: "thumbnail started \(photo.id.prefix(12))")
         defer {
             loadingImageKeys.remove(cacheKey)
             imageRequestStartedAt.removeValue(forKey: cacheKey)
             inFlightRequestIDs.removeValue(forKey: cacheKey)
+            recordDiagnostics(reason: "Thumbnail finished \(photo.id.prefix(12))")
             logInFlightImagePressureIfNeeded(trigger: "thumbnail finished \(photo.id.prefix(12))")
         }
 
@@ -208,6 +248,10 @@ final class TimelinePhotoStore: ObservableObject {
 
     @discardableResult
     func loadFullImage(for photo: TimelinePhoto) async -> UIImage? {
+        guard canStartPhotoWork("full image \(photo.id.prefix(12))") else {
+            return nil
+        }
+
         if let cachedImage = fullImageCache.object(forKey: photo.id as NSString) {
             FileManagerUtil.logData(
                 context: TimelinePhotoLog.context,
@@ -227,10 +271,12 @@ final class TimelinePhotoStore: ObservableObject {
 
         loadingFullImageIDs.insert(photo.id)
         imageRequestStartedAt["full:\(photo.id)"] = Date()
+        recordDiagnostics(reason: "Full image started \(photo.id.prefix(12))")
         defer {
             loadingFullImageIDs.remove(photo.id)
             imageRequestStartedAt.removeValue(forKey: "full:\(photo.id)")
             inFlightRequestIDs.removeValue(forKey: "full:\(photo.id)")
+            recordDiagnostics(reason: "Full image finished \(photo.id.prefix(12))")
             logInFlightImagePressureIfNeeded(trigger: "full image finished \(photo.id.prefix(12))")
         }
 
@@ -284,6 +330,10 @@ final class TimelinePhotoStore: ObservableObject {
     }
 
     func loadVideoAsset(for photo: TimelinePhoto) async -> AVPlayerItem? {
+        guard canStartPhotoWork("video \(photo.id.prefix(12))") else {
+            return nil
+        }
+
         guard let asset = fetchAsset(localIdentifier: photo.id) else {
             FileManagerUtil.logData(
                 context: TimelinePhotoLog.context,
@@ -390,6 +440,10 @@ final class TimelinePhotoStore: ObservableObject {
     }
 
     func loadPhotos(for key: String, interval: DateInterval) async {
+        guard canStartPhotoWork("photo metadata \(TimelinePhotoLog.shortKey(key))") else {
+            return
+        }
+
         let shortKey = TimelinePhotoLog.shortKey(key)
         if let cachedPhotos = photosByKey[key] {
             FileManagerUtil.logData(
@@ -410,7 +464,11 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         loadingKeys.insert(key)
-        defer { loadingKeys.remove(key) }
+        recordDiagnostics(reason: "Photo metadata load started \(shortKey)")
+        defer {
+            loadingKeys.remove(key)
+            recordDiagnostics(reason: "Photo metadata load finished \(shortKey)")
+        }
 
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
@@ -445,6 +503,52 @@ final class TimelinePhotoStore: ObservableObject {
             content: "Finished loading photo metadata for \(shortKey). Records: \(photos.count)",
             verbosity: 4
         )
+    }
+
+    private func canStartPhotoWork(_ operation: String) -> Bool {
+        let appState = UIApplication.shared.applicationState
+        guard !isSceneSuspended, appState == .active else {
+            FileManagerUtil.logData(
+                context: TimelinePhotoLog.context,
+                content: "Skipping PhotoKit \(operation): scene photo loading is suspended=\(isSceneSuspended), appState=\(appState.rawValue).",
+                verbosity: 4
+            )
+            recordDiagnostics(reason: "Skipped PhotoKit \(operation)")
+            return false
+        }
+
+        return true
+    }
+
+    private func recordDiagnostics(reason: String) {
+        DiagnosticsStateStore.shared.update(
+            section: "TimelinePhotoStore",
+            detail: "\(reason). \(diagnosticSnapshot)"
+        )
+    }
+
+    private var diagnosticSnapshot: String {
+        let loadedRecords = photosByKey.values.reduce(0) { $0 + $1.count }
+        let oldestAge = imageRequestStartedAt.values
+            .map { Date().timeIntervalSince($0) }
+            .max()
+        let oldestAgeDescription = oldestAge.map { "\(Int($0))s" } ?? "none"
+
+        return [
+            "auth=\(authorizationStatus.timelineLogDescription)",
+            "canRead=\(canReadPhotos)",
+            "sceneSuspended=\(isSceneSuspended)",
+            "appState=\(UIApplication.shared.applicationState.rawValue)",
+            "cachedIntervals=\(photosByKey.count)",
+            "loadedRecords=\(loadedRecords)",
+            "loadingIntervals=\(loadingKeys.count)",
+            "loadingThumbnails=\(loadingImageKeys.count)",
+            "loadingFullImages=\(loadingFullImageIDs.count)",
+            "inFlightRequests=\(inFlightRequestIDs.count)",
+            "oldestInFlight=\(oldestAgeDescription)",
+            ResourceDiagnostics.memorySnapshot(),
+            "network={\(NetworkDiagnostics.shared.snapshot())}"
+        ].joined(separator: " ")
     }
 
     private func fetchPhotoRecords(from startDate: Date, to endDate: Date) async -> [TimelinePhoto] {
@@ -741,6 +845,8 @@ private extension UIImage {
 }
 
 struct TimelineView: View {
+    @Environment(\.scenePhase) private var scenePhase
+
     @Binding var timelineObjects: [TimelineObject]
     @Binding var selectedTimelineObjectID: UUID?
     @Binding var scrollPositions: [String: String]
@@ -998,16 +1104,20 @@ struct TimelineView: View {
         .listStyle(PlainListStyle())
         .onAppear {
             FileManagerUtil.logData(context: "TimelineScroll", content: "[onAppear] TimelineView appeared. selectedDate: \(selectedDate)", verbosity: 4)
+            photoStore.setSceneSuspended(scenePhase != .active, reason: "TimelineView appeared with scenePhase=\(scenePhaseDescription(scenePhase))")
+            recordTimelineDiagnostics(reason: "TimelineView appeared")
             applyScrollPositionForCurrentDay()
         }
         .onChange(of: selectedDate) { oldDate, newDate in
             FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange selectedDate] selectedDate changed from \(oldDate) to \(newDate). Locking scroll updates.", verbosity: 4)
+            recordTimelineDiagnostics(reason: "Selected date changed \(oldDate) -> \(newDate)")
             scrolledDateKey = nil // Lock scroll updates during transition
             visibleIDs.removeAll() // Clear visible IDs
             activeScrollID = nil // Reset activeScrollID
         }
         .onChange(of: timelineObjects.map { $0.id }) { oldIds, newIds in
             FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange timelineObjects] IDs changed. Old count: \(oldIds.count), New count: \(newIds.count). Restoring scroll position.", verbosity: 4)
+            recordTimelineDiagnostics(reason: "Timeline object IDs changed \(oldIds.count) -> \(newIds.count)")
             applyScrollPositionForCurrentDay()
         }
         .onChange(of: activeScrollID) { oldId, newId in
@@ -1123,16 +1233,27 @@ struct TimelineView: View {
                 content: "Timeline picture display mode changed to \(timelinePictureDisplayModeRaw). Clearing timeline photo cache.",
                 verbosity: 4
             )
+            recordTimelineDiagnostics(reason: "Timeline picture display mode changed")
             photoStore.clear()
         }
-        .task(id: timelinePictureDisplayModeRaw) {
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            photoStore.setSceneSuspended(newPhase != .active, reason: "TimelineView scene phase \(scenePhaseDescription(oldPhase)) -> \(scenePhaseDescription(newPhase))")
+            recordTimelineDiagnostics(reason: "TimelineView scene phase \(scenePhaseDescription(oldPhase)) -> \(scenePhaseDescription(newPhase))")
+        }
+        .task(id: "\(timelinePictureDisplayModeRaw)-\(scenePhaseDescription(scenePhase))") {
             FileManagerUtil.logData(
                 context: TimelinePhotoLog.context,
-                content: "Timeline photo task started. Mode: \(timelinePictureDisplayModeRaw), selectedDate: \(TimelinePhotoLog.dateString(selectedDate)), timelineObjects: \(timelineObjects.count), displayItems: \(displayItems.count)",
+                content: "Timeline photo task started. Mode: \(timelinePictureDisplayModeRaw), scenePhase: \(scenePhaseDescription(scenePhase)), selectedDate: \(TimelinePhotoLog.dateString(selectedDate)), timelineObjects: \(timelineObjects.count), displayItems: \(displayItems.count)",
                 verbosity: 4
             )
-            if timelinePictureDisplayMode != .none {
+            if scenePhase == .active, timelinePictureDisplayMode != .none {
                 await photoStore.requestAuthorizationIfNeeded()
+            } else if scenePhase != .active {
+                FileManagerUtil.logData(
+                    context: TimelinePhotoLog.context,
+                    content: "Timeline photo task skipped authorization because scene is \(scenePhaseDescription(scenePhase)).",
+                    verbosity: 4
+                )
             } else {
                 FileManagerUtil.logData(
                     context: TimelinePhotoLog.context,
@@ -1272,8 +1393,11 @@ struct TimelineView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .task(id: photoKey) {
-            if let photoKey = photoKey, let photoInterval = photoInterval, timelinePictureDisplayMode != .none {
+        .task(id: photoTaskID(for: photoKey)) {
+            if scenePhase == .active,
+               let photoKey = photoKey,
+               let photoInterval = photoInterval,
+               timelinePictureDisplayMode != .none {
                 await photoStore.loadPhotos(for: photoKey, interval: photoInterval)
             }
         }
@@ -1393,6 +1517,37 @@ struct TimelineView: View {
     private func photosForViewer(_ selectedPhoto: TimelinePhoto, cacheKey: String) -> [TimelinePhoto] {
         let photos = photoStore.photos(for: cacheKey)
         return photos.isEmpty ? [selectedPhoto] : photos
+    }
+
+    private func photoTaskID(for photoKey: String?) -> String {
+        "\(photoKey ?? "nil")-\(timelinePictureDisplayModeRaw)-\(scenePhaseDescription(scenePhase))"
+    }
+
+    private func recordTimelineDiagnostics(reason: String) {
+        let trackCount = timelineObjects.filter { $0.type == .track }.count
+        let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
+        let totalTrackPoints = timelineObjects
+            .filter { $0.type == .track }
+            .flatMap(\.identifiableCoordinates)
+            .reduce(0) { $0 + $1.coordinates.count }
+
+        DiagnosticsStateStore.shared.update(
+            section: "TimelineView",
+            detail: "\(reason). scenePhase=\(scenePhaseDescription(scenePhase)), selectedDate=\(selectedDate), objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), displayItems=\(displayItems.count), visibleIDs=\(visibleIDs.count), activeScrollID=\(activeScrollID ?? "nil"), pendingScrollTarget=\(pendingScrollTarget ?? "nil"), photoMode=\(timelinePictureDisplayModeRaw), photoSheet=\(photoSheet != nil), editSheet=\(showingEditSheet), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}"
+        )
+    }
+
+    private func scenePhaseDescription(_ phase: ScenePhase) -> String {
+        switch phase {
+        case .active:
+            return "active"
+        case .inactive:
+            return "inactive"
+        case .background:
+            return "background"
+        @unknown default:
+            return "unknown"
+        }
     }
 
     private func endOfSelectedDay() -> Date {

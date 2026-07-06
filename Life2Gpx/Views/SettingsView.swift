@@ -1,6 +1,11 @@
 import SwiftUI
 import Photos
 
+private struct DiagnosticReportShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 struct SettingsView: View {
     @AppStorage("debugLogVerbosity") private var debugLogVerbosity: Int = SettingsManager.shared.debugLogVerbosity
     @AppStorage("loadCurrentDayOnRestoreAfterValue") private var loadCurrentDayOnRestoreAfterValue: Int = SettingsManager.shared.loadCurrentDayOnRestoreAfterValue
@@ -17,6 +22,9 @@ struct SettingsView: View {
     @AppStorage("unknownPlaceNotificationMinutes") private var unknownPlaceNotificationMinutes: Int = 10
 
     @FocusState private var valueFieldIsFocused: Bool
+    @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
+    @State private var diagnosticReportError: String?
+    @State private var showDiagnosticReportError = false
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
 
@@ -48,6 +56,10 @@ struct SettingsView: View {
                     .padding(.top, 5)
                 }
                 .padding(.vertical)
+
+                Button(action: dumpBadSituationLog) {
+                    Label("Dump bad situation log", systemImage: "doc.text.magnifyingglass")
+                }
             }
             
             Section(header: Text("App Behaviour")) {
@@ -224,6 +236,14 @@ struct SettingsView: View {
                 requestPhotoLibraryAccessIfNeeded()
             }
         }
+        .sheet(item: $diagnosticReportShareItem) { item in
+            TimelinePhotoActivityView(items: [item.url])
+        }
+        .alert("Could not dump bad situation log", isPresented: $showDiagnosticReportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(diagnosticReportError ?? "Unknown error")
+        }
     }
 
     private var mapCoordinateSystemHelpText: String {
@@ -259,6 +279,26 @@ struct SettingsView: View {
                 context: TimelinePhotoLog.context,
                 content: "Settings photo library authorization response: \(status.timelineLogDescription)",
                 verbosity: 4
+            )
+        }
+    }
+
+    private func dumpBadSituationLog() {
+        ResourceDiagnostics.logRuntime(
+            context: "Diagnostics",
+            detail: "Manual bad situation dump started from Settings."
+        )
+
+        do {
+            let reportURL = try BadSituationReportBuilder.writeReport()
+            diagnosticReportShareItem = DiagnosticReportShareItem(url: reportURL)
+        } catch {
+            diagnosticReportError = error.localizedDescription
+            showDiagnosticReportError = true
+            FileManagerUtil.logData(
+                context: "Diagnostics",
+                content: "Failed to write bad situation report: \(error.localizedDescription)",
+                verbosity: 1
             )
         }
     }

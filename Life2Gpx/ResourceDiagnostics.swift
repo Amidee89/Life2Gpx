@@ -35,6 +35,10 @@ enum ResourceDiagnostics {
     }
 
     static func logMemory(context: String, detail: String, verbosity: Int = 2) {
+        DiagnosticsStateStore.shared.update(
+            section: "Memory",
+            detail: "\(context): \(detail) \(memorySnapshot())"
+        )
         FileManagerUtil.logData(
             context: context,
             content: "\(detail) \(memorySnapshot())",
@@ -62,6 +66,10 @@ enum ResourceDiagnostics {
     }
 
     static func logRuntime(context: String, detail: String, verbosity: Int = 4) {
+        DiagnosticsStateStore.shared.update(
+            section: "Runtime",
+            detail: "\(context): \(detail) \(runtimeSnapshot())"
+        )
         FileManagerUtil.logData(
             context: context,
             content: "\(detail) \(runtimeSnapshot())",
@@ -80,6 +88,200 @@ enum ResourceDiagnostics {
         @unknown default:
             return "unknown(\(state.rawValue))"
         }
+    }
+
+    private static func thermalStateDescription(_ state: ProcessInfo.ThermalState) -> String {
+        switch state {
+        case .nominal:
+            return "nominal"
+        case .fair:
+            return "fair"
+        case .serious:
+            return "serious"
+        case .critical:
+            return "critical"
+        @unknown default:
+            return "unknown"
+        }
+    }
+}
+
+final class DiagnosticsStateStore {
+    static let shared = DiagnosticsStateStore()
+
+    private let lock = NSLock()
+    private var sections: [String: String] = [:]
+    private var events: [String] = []
+    private let maxEvents = 180
+    private let timestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        return formatter
+    }()
+
+    private init() {}
+
+    func update(section: String, detail: String) {
+        let entry: String
+        lock.lock()
+        let timestamp = timestampFormatter.string(from: Date())
+        entry = "\(timestamp) \(section): \(detail)"
+        sections[section] = detail
+        events.append(entry)
+        if events.count > maxEvents {
+            events.removeFirst(events.count - maxEvents)
+        }
+        lock.unlock()
+    }
+
+    func reportText() -> String {
+        lock.lock()
+        let sectionSnapshot = sections
+        let eventSnapshot = events
+        lock.unlock()
+
+        var lines: [String] = []
+        lines.append("Latest Diagnostic Sections")
+        if sectionSnapshot.isEmpty {
+            lines.append("(none recorded yet)")
+        } else {
+            for key in sectionSnapshot.keys.sorted() {
+                lines.append("[\(key)]")
+                lines.append(sectionSnapshot[key] ?? "")
+                lines.append("")
+            }
+        }
+
+        lines.append("Recent Diagnostic Events")
+        if eventSnapshot.isEmpty {
+            lines.append("(none recorded yet)")
+        } else {
+            lines.append(contentsOf: eventSnapshot)
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
+enum BadSituationReportBuilder {
+    static func writeReport(trigger: String = "manual settings button") throws -> URL {
+        FileManagerUtil.logData(
+            context: "Diagnostics",
+            content: "Bad situation report requested. trigger=\(trigger)",
+            verbosity: 1
+        )
+
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let reportsDirectory = documentsURL.appendingPathComponent("Logs/BadSituationReports")
+        try FileManager.default.createDirectory(at: reportsDirectory, withIntermediateDirectories: true)
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let reportURL = reportsDirectory.appendingPathComponent("Life2Gpx-bad-situation-\(formatter.string(from: Date())).txt")
+        try buildReport(trigger: trigger).write(to: reportURL, atomically: true, encoding: .utf8)
+
+        FileManagerUtil.logData(
+            context: "Diagnostics",
+            content: "Bad situation report written to \(reportURL.path)",
+            verbosity: 1
+        )
+        return reportURL
+    }
+
+    private static func buildReport(trigger: String) -> String {
+        var lines: [String] = []
+        let bundle = Bundle.main
+        let device = UIDevice.current
+        let processInfo = ProcessInfo.processInfo
+        let screen = UIScreen.main
+
+        lines.append("Life2Gpx Bad Situation Report")
+        lines.append("Generated: \(Date())")
+        lines.append("Trigger: \(trigger)")
+        lines.append("")
+
+        lines.append("App")
+        lines.append("bundleID=\(bundle.bundleIdentifier ?? "unknown")")
+        lines.append("version=\(bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "unknown")")
+        lines.append("build=\(bundle.object(forInfoDictionaryKey: "CFBundleVersion") ?? "unknown")")
+        lines.append("debugLogVerbosity=\(SettingsManager.shared.debugLogVerbosity)")
+        lines.append("")
+
+        lines.append("Device")
+        lines.append("model=\(device.model) system=\(device.systemName) \(device.systemVersion)")
+        lines.append("physicalMemoryMB=\(processInfo.physicalMemory / 1_048_576)")
+        lines.append("processorCount=\(processInfo.processorCount) activeProcessorCount=\(processInfo.activeProcessorCount)")
+        lines.append("lowPowerMode=\(processInfo.isLowPowerModeEnabled) thermal=\(thermalStateDescription(processInfo.thermalState))")
+        lines.append("screenBounds=\(Int(screen.bounds.width))x\(Int(screen.bounds.height)) scale=\(screen.scale)")
+        lines.append("")
+
+        lines.append("Runtime")
+        lines.append(ResourceDiagnostics.runtimeSnapshot())
+        lines.append("")
+
+        lines.append(DiagnosticsStateStore.shared.reportText())
+        lines.append("")
+
+        lines.append("Recent Log Files")
+        let logURLs = recentLogURLs()
+        if logURLs.isEmpty {
+            lines.append("(no log files found)")
+        } else {
+            for url in logURLs {
+                lines.append(logFileSummary(url))
+            }
+        }
+        lines.append("")
+
+        for url in logURLs {
+            lines.append("==== \(url.lastPathComponent) ====")
+            lines.append(logTail(url))
+            lines.append("")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static func recentLogURLs(limit: Int = 4) -> [URL] {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logsDirectory = documentsURL.appendingPathComponent("Logs")
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: logsDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        return contents
+            .filter { $0.pathExtension == "log" }
+            .sorted {
+                let lhsDate = ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate) ?? .distantPast
+                let rhsDate = ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate) ?? .distantPast
+                return lhsDate > rhsDate
+            }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    private static func logFileSummary(_ url: URL) -> String {
+        let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+        let modified = values?.contentModificationDate?.description ?? "unknown"
+        let size = values?.fileSize ?? 0
+        return "\(url.lastPathComponent) size=\(size) modified=\(modified)"
+    }
+
+    private static func logTail(_ url: URL, maxBytes: UInt64 = 750_000) -> String {
+        guard let handle = try? FileHandle(forReadingFrom: url) else {
+            return "(could not open log)"
+        }
+        defer { handle.closeFile() }
+
+        let attributes = (try? FileManager.default.attributesOfItem(atPath: url.path)) ?? [:]
+        let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
+        if size > maxBytes {
+            handle.seek(toFileOffset: size - maxBytes)
+        }
+        let data = handle.readDataToEndOfFile()
+        let prefix = size > maxBytes ? "(log truncated to final \(maxBytes) bytes)\n" : ""
+        return prefix + (String(data: data, encoding: .utf8) ?? "(log is not valid UTF-8)")
     }
 
     private static func thermalStateDescription(_ state: ProcessInfo.ThermalState) -> String {
