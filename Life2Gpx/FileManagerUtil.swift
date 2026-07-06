@@ -17,6 +17,7 @@ class FileManagerUtil {
             "Import/Arc",
             "Import/Done",
             "Places",
+            "Preferences",
             "Backups",
             "Backups/GPX",
             "Backups/Places",

@@ -1165,23 +1165,7 @@ struct TimelineView: View {
                         if item.type == .waypoint {
                             PlaceIconView(icon: item.customIcon, fallbackColor: .gray)
                         } else {
-                            switch item.trackType {
-                            case "cycling":
-                                Image(systemName: "figure.outdoor.cycle")
-                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "cycling"])
-                            case "walking":
-                                Image(systemName: "figure.walk")
-                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "walking"])
-                            case "running":
-                                Image(systemName: "figure.run")
-                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "running"])
-                            case "automotive":
-                                Image(systemName: "car.fill")
-                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "automotive"])
-                            default:
-                                Image(systemName: "arrow.down")
-                                    .foregroundColor(trackTypeColorMapping[item.trackType ?? "unknown"])
-                            }
+                            PlaceIconView(icon: PreferencesManager.shared.icon(for: item.trackType), fallbackColor: PreferencesManager.shared.color(for: item.trackType))
                         }
                     }
                     .frame(width: 35, alignment: .center)

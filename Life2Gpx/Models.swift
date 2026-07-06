@@ -8,14 +8,6 @@ import SwiftUI
 import CoreLocation
 import CoreGPX
 
-let trackTypeColorMapping: [String: Color] = [
-    "walking": .green,
-    "running": .orange,
-    "cycling": .red,
-    "automotive": .blue,
-    "unknown": .purple
-]
-
 enum TimelineObjectType {
     case waypoint, track
 }

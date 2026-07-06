@@ -134,8 +134,8 @@ struct MapView: View {
                 ForEach(timelineObjects.filter { $0.type == .track && !isSelected($0.id) }, id: \.id) { trackObject in
                     ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
                         MapPolyline(coordinates: CoordinateConverter.forMapDisplay(identifiableCoordinates.coordinates))
-                            .stroke(trackTypeColorMapping[trackObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
-                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                            .stroke(PreferencesManager.shared.color(for: trackObject.trackType),
+                                   style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                     }
                 }
                 ForEach(timelineObjects.filter { $0.type == .track && isSelected($0.id) }, id: \.id) { selectedObject in
@@ -151,8 +151,8 @@ struct MapView: View {
                             .stroke(.black,
                                     style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         MapPolyline(coordinates: identifiableCoordinates.coordinates)
-                            .stroke(trackTypeColorMapping[selectedObject.trackType?.lowercased() ?? "unknown"] ?? .purple,
-                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                            .stroke(PreferencesManager.shared.color(for: selectedObject.trackType),
+                                   style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                     }
                 }
         

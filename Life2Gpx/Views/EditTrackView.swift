@@ -78,11 +78,9 @@ struct EditTrackView: View {
                     if !isEditing {
                         Section("Track Info") {
                             Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
-                                Text("Walking").tag("walking")
-                                Text("Running").tag("running")
-                                Text("Cycling").tag("cycling")
-                                Text("Automotive").tag("automotive")
-                                Text("Unknown").tag("unknown")
+                                ForEach(PreferencesManager.shared.trackTypes) { trackType in
+                                    Text(trackType.name).tag(trackType.id)
+                                }
                             }
                             .onChange(of: workingCopy.trackType) { oldValue, newValue in
                                 print("[EditTrackView] Picker selection changed: workingCopy.trackType is now \(newValue ?? "nil") (was \(oldValue ?? "nil"))")
@@ -459,7 +457,11 @@ struct EditTrackView: View {
                         return
                     }
 
-                    workingCopy.track?.type = workingCopy.trackType
+                    if workingCopy.trackType == "unknown" {
+                        workingCopy.track?.type = nil
+                    } else {
+                        workingCopy.track?.type = workingCopy.trackType
+                    }
 
                     if let customSave = customSaveAction {
                         customSave(updatedTrack)
@@ -604,7 +606,7 @@ struct EditTrackView: View {
                             .stroke(.black,
                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         MapPolyline(coordinates: coordinates)
-                            .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
+                            .stroke(PreferencesManager.shared.color(for: workingCopy.trackType),
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         
                         ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in

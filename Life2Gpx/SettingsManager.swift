@@ -308,3 +308,150 @@ class SettingsManager {
         defaults.set(key, forKey: provider.settingsKey)
     }
 } 
+import Foundation
+import SwiftUI
+
+struct TrackType: Identifiable, Codable, Equatable, Hashable {
+    var id: String
+    var name: String
+    var colorHex: String
+    var icon: String
+    var isDefault: Bool
+    
+    var color: Color {
+        Color(hex: colorHex) ?? .gray
+    }
+}
+
+class PreferencesManager: ObservableObject {
+    static let shared = PreferencesManager()
+    
+    @Published var trackTypes: [TrackType] {
+        didSet { saveTrackTypes() }
+    }
+    
+    private let trackTypesURL: URL
+    
+    private init() {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let preferencesDir = documentsUrl.appendingPathComponent("Preferences")
+        self.trackTypesURL = preferencesDir.appendingPathComponent("tracktypes.json")
+        
+        self.trackTypes = []
+        loadTrackTypes()
+    }
+    
+    private func defaultTrackTypes() -> [TrackType] {
+        return [
+            TrackType(id: "walking", name: "Walking", colorHex: "#34C759", icon: "figure.walk", isDefault: true),
+            TrackType(id: "running", name: "Running", colorHex: "#FF9500", icon: "figure.run", isDefault: true),
+            TrackType(id: "cycling", name: "Cycling", colorHex: "#FF3B30", icon: "figure.outdoor.cycle", isDefault: true),
+            TrackType(id: "automotive", name: "Automotive", colorHex: "#007AFF", icon: "car.fill", isDefault: true),
+            TrackType(id: "train", name: "Train", colorHex: "#5AC8FA", icon: "train.side.front.car", isDefault: true),
+            TrackType(id: "plane", name: "Plane", colorHex: "#5856D6", icon: "airplane", isDefault: true),
+            TrackType(id: "boat", name: "Boat", colorHex: "#00C7BE", icon: "sailboat.fill", isDefault: true),
+            TrackType(id: "unknown", name: "Unknown", colorHex: "#AF52DE", icon: "arrow.down", isDefault: true)
+        ]
+    }
+    
+    private func loadTrackTypes() {
+        if let data = try? Data(contentsOf: trackTypesURL) {
+            let decoder = JSONDecoder()
+            if let decoded = try? decoder.decode([TrackType].self, from: data) {
+                var mergedTypes = decoded
+                for defaultType in defaultTrackTypes() {
+                    if !mergedTypes.contains(where: { $0.id == defaultType.id }) {
+                        mergedTypes.append(defaultType)
+                    }
+                }
+                self.trackTypes = mergedTypes
+                return
+            }
+        }
+        self.trackTypes = defaultTrackTypes()
+        saveTrackTypes()
+    }
+    
+    private func saveTrackTypes() {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        if let data = try? encoder.encode(trackTypes) {
+            do {
+                try data.write(to: trackTypesURL, options: .atomic)
+            } catch {
+                print("Failed to save tracktypes: \(error)")
+            }
+        }
+    }
+    
+    func trackType(for id: String?) -> TrackType? {
+        guard let id = id else { return nil }
+        return trackTypes.first(where: { $0.id.lowercased() == id.lowercased() })
+    }
+    
+    func color(for id: String?) -> Color {
+        if let type = trackType(for: id) { return type.color }
+        return trackTypes.first(where: { $0.id == "unknown" })?.color ?? .purple
+    }
+    
+    func icon(for id: String?) -> String {
+        if let type = trackType(for: id) { return type.icon }
+        return trackTypes.first(where: { $0.id == "unknown" })?.icon ?? "arrow.down"
+    }
+}
+
+// MARK: - Color Hex Extension
+extension Color {
+    init?(hex: String) {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+
+        var rgb: UInt64 = 0
+
+        var r: CGFloat = 0.0
+        var g: CGFloat = 0.0
+        var b: CGFloat = 0.0
+        var a: CGFloat = 1.0
+
+        let length = hexSanitized.count
+
+        guard Scanner(string: hexSanitized).scanHexInt64(&rgb) else { return nil }
+
+        if length == 6 {
+            r = CGFloat((rgb & 0xFF0000) >> 16) / 255.0
+            g = CGFloat((rgb & 0x00FF00) >> 8) / 255.0
+            b = CGFloat(rgb & 0x0000FF) / 255.0
+        } else if length == 8 {
+            r = CGFloat((rgb & 0xFF000000) >> 24) / 255.0
+            g = CGFloat((rgb & 0x00FF0000) >> 16) / 255.0
+            b = CGFloat((rgb & 0x0000FF00) >> 8) / 255.0
+            a = CGFloat(rgb & 0x000000FF) / 255.0
+        } else {
+            return nil
+        }
+
+        self.init(red: r, green: g, blue: b, opacity: a)
+    }
+
+    func toHex() -> String? {
+        let uic = UIColor(self)
+        guard let components = uic.cgColor.components, components.count >= 3 else {
+            return nil
+        }
+        let r = Float(components[0])
+        let g = Float(components[1])
+        let b = Float(components[2])
+        var a = Float(1.0)
+
+        if components.count >= 4 {
+            a = Float(components[3])
+        }
+
+        if a != Float(1.0) {
+            return String(format: "#%02lX%02lX%02lX%02lX", lroundf(r * 255), lroundf(g * 255), lroundf(b * 255), lroundf(a * 255))
+        } else {
+            return String(format: "#%02lX%02lX%02lX", lroundf(r * 255), lroundf(g * 255), lroundf(b * 255))
+        }
+    }
+}
