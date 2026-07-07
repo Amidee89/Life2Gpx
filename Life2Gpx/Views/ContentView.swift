@@ -253,16 +253,23 @@ struct ContentView: View {
                         // Bottom action bar for edit mode
                         if isEditMode && !selectedEditItems.isEmpty {
                             HStack(spacing: 16) {
+                                let selectedItem = selectedEditItems.count == 1 ? timelineObjects.first(where: { $0.id == selectedEditItems.first }) : nil
+                                let canConvert = selectedItem?.type == .track
+
                                 Button(action: {
-                                    mergeItemsContiguous = MergeHelpers.areItemsContiguous(
-                                        selectedIDs: selectedEditItems,
-                                        allItems: timelineObjects
-                                    )
-                                    showMergeTypePicker = true
+                                    if canConvert {
+                                        showMergeVisitLocationPicker = true
+                                    } else {
+                                        mergeItemsContiguous = MergeHelpers.areItemsContiguous(
+                                            selectedIDs: selectedEditItems,
+                                            allItems: timelineObjects
+                                        )
+                                        showMergeTypePicker = true
+                                    }
                                 }) {
                                     HStack {
-                                        Image(systemName: "arrow.triangle.merge")
-                                        Text("Merge")
+                                        Image(systemName: canConvert ? "arrow.triangle.2.circlepath" : "arrow.triangle.merge")
+                                        Text(canConvert ? "Convert" : "Merge")
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -270,7 +277,7 @@ struct ContentView: View {
                                     .foregroundColor(.white)
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                                 }
-                                .disabled(selectedEditItems.count < 2)
+                                .disabled(selectedEditItems.count < 2 && !canConvert)
 
                                 Button(action: {
                                     showDeleteConfirmation = true
