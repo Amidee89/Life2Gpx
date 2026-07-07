@@ -12,6 +12,11 @@ enum TimelineObjectType {
     case waypoint, track
 }
 
+enum LocationUpdateType: String, Codable {
+    case moving = "Moving"
+    case stationary = "Stationary"
+}
+
 class TimelineObject: Identifiable, ObservableObject {
     let id = UUID()
     var type: TimelineObjectType

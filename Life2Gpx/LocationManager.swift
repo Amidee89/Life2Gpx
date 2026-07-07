@@ -86,8 +86,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
         currentDate = Date()
-        let updateType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? "Stationary"
-        FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType).", verbosity: 3)
+        let rawType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? ""
+        let updateType = LocationUpdateType(rawValue: rawType) ?? .stationary
+        FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType.rawValue).", verbosity: 3)
         appendLocationToFile(type: updateType, debug: "Midnight Update")
         scheduleMidnightUpdate()
     }
@@ -306,10 +307,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
                 self.previousSavedLocation = newLocation
-                appendLocationToFile(type: "Moving")
+                appendLocationToFile(type: .moving)
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
-                UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
+                UserDefaults.standard.set(LocationUpdateType.moving.rawValue, forKey: "lastUpdateType")
 
                 if !self.filteredByPositionQueue.isEmpty {
                     self.filteredByPositionQueue.removeAll()
@@ -334,10 +335,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) threshold met.", verbosity: 4)
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
-                appendLocationToFile(type: "Moving", debug: "No PreviousLocation")
+                appendLocationToFile(type: .moving, debug: "No PreviousLocation")
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
-                UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
+                UserDefaults.standard.set(LocationUpdateType.moving.rawValue, forKey: "lastUpdateType")
 
                 if !self.filteredByPositionQueue.isEmpty {
                     self.filteredByPositionQueue.removeAll()
@@ -376,22 +377,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func adjustSettingsForStationary() {
         customDistanceFilter = 60 // Reset custom distance filter for movement
         FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
-        appendLocationToFile(type: "Stationary")
-        UserDefaults.standard.set("Stationary", forKey: "lastUpdateType")
+        appendLocationToFile(type: .stationary)
+        UserDefaults.standard.set(LocationUpdateType.stationary.rawValue, forKey: "lastUpdateType")
         locationManager.stopUpdatingLocation()
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.startUpdatingLocation()
 
     }
     
-    private func appendLocationToFile(type: String, debug: String = "") {
+    private func appendLocationToFile(type: LocationUpdateType, debug: String = "") {
         guard var location = currentFilteredLocation else {
             print("No location to save")
-            FileManagerUtil.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type), Debug: '\(debug)'.", verbosity: 2)
+            FileManagerUtil.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type.rawValue), Debug: '\(debug)'.", verbosity: 2)
             return
         }
 
-        if type == "Stationary", !filteredByPositionQueue.isEmpty {
+        if type == .stationary, !filteredByPositionQueue.isEmpty {
             let queueSize = filteredByPositionQueue.count
             FileManagerUtil.logData(context: "GPXAppend", content: "Averaging location for stationary point from a queue of \(queueSize) points.", verbosity: 4)
             let count = Double(queueSize)
@@ -412,14 +413,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         let appendAttemptTime = Date()
         let appendId = UUID().uuidString.prefix(8)
-        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
+        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type.rawValue), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
 
         if lastAppendCall != nil {
             let timeSinceLastAppend = appendAttemptTime.timeIntervalSince(lastAppendCall!)
             FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounce check: Current time \(appendAttemptTime), lastAppendCall \(String(describing: lastAppendCall)), difference: \(timeSinceLastAppend) seconds.", verbosity: 5)
             if timeSinceLastAppend < 1 {
                 print ("Cowardly refusing to double append – debouncing.")
-                FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type).", verbosity: 4)
+                FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type.rawValue).", verbosity: 4)
                 return
             }
         }
@@ -476,7 +477,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                 }
 
-                if type == "Moving"
+                if type == .moving
                 {
                     self.cancelUnknownPlaceCheckInNotification()
                     let newTrackPoint = GPXTrackPoint(
@@ -571,7 +572,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         gpxTracks.append(newTrack)
                     }
                 }
-                else if type == "Stationary" {
+                else if type == .stationary {
                     if self.shouldFilterAsRoundTrip(
                         newLocation: location,
                         gpxWaypoints: &gpxWaypoints,
@@ -581,7 +582,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
                         if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                             userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
-                            userDefaults.set(type, forKey: "lastUpdateType")
+                            userDefaults.set(type.rawValue, forKey: "lastUpdateType")
                             userDefaults.synchronize()
                             self.dataHasBeenUpdated = true
                             self.lastUpdateTimestamp = Date.now
@@ -646,11 +647,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
                 if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                     userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
-                    userDefaults.set(type, forKey: "lastUpdateType")
+                    userDefaults.set(type.rawValue, forKey: "lastUpdateType")
                     userDefaults.synchronize()
                     self.dataHasBeenUpdated = true
                     self.lastUpdateTimestamp = Date.now
-                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
+                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type.rawValue). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
                 } else {
                     FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Failed to get UserDefaults.", verbosity: 2)
                 }
