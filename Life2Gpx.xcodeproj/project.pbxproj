@@ -10,6 +10,7 @@
 		7D8A21782FF425A5004EF5E1 /* BulkApplyPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */; };
 		7D8A21792FF425A6004EF5E1 /* MergeItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */; };
 		7DC64B372D905D6800E6ED1F /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 7DC64B362D905D6800E6ED1F /* SymbolPicker */; };
+		7DD610E62FFE614E003ACB3E /* ResourceUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD610E52FFE614E003ACB3E /* ResourceUsageView.swift */; };
 		7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */; };
 		8B3DC67109A35B10F54C9D97 /* PlaceIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD242B4DF275680F15CC17F /* PlaceIconView.swift */; };
 		A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */; };
@@ -86,6 +87,7 @@
 		2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
 		7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeItemsView.swift; sourceTree = "<group>"; };
 		7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkApplyPlaceView.swift; sourceTree = "<group>"; };
+		7DD610E52FFE614E003ACB3E /* ResourceUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceUsageView.swift; sourceTree = "<group>"; };
 		7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditVisitView.swift; sourceTree = "<group>"; };
 		8BD242B4DF275680F15CC17F /* PlaceIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIconView.swift; sourceTree = "<group>"; };
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
@@ -173,6 +175,7 @@
 		A93842392CEBCC8900004536 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7DD610E52FFE614E003ACB3E /* ResourceUsageView.swift */,
 				7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */,
 				A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */,
 				8BD242B4DF275680F15CC17F /* PlaceIconView.swift */,
@@ -472,6 +475,7 @@
 				A9D55E272BDADA09006B6316 /* TimelineView.swift in Sources */,
 				A9D55E272BDADA09006B6317 /* PhotoViews.swift in Sources */,
 				A9A3E9022DA5763400F8E32E /* EditTrackView.swift in Sources */,
+				7DD610E62FFE614E003ACB3E /* ResourceUsageView.swift in Sources */,
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
 				A9D55E252BDAD372006B6316 /* MapControlsView.swift in Sources */,
 				A93842382CEBCC5100004536 /* FindDuplicatesView.swift in Sources */,

@@ -20,6 +20,7 @@ struct SettingsView: View {
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
     @AppStorage("unknownPlaceNotificationMinutes") private var unknownPlaceNotificationMinutes: Int = 10
+    @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
 
     @FocusState private var valueFieldIsFocused: Bool
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
@@ -54,11 +55,25 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.gray)
                     .padding(.top, 5)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Track resource usage", isOn: $trackResourceUsage)
+                        
+                        Text("Record detailed battery, memory, and CPU usage during background activities over time.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        
+                        NavigationLink(destination: ResourceUsageView()) {
+                            Text("View Resource Usage")
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(.top, 10)
                 }
                 .padding(.vertical)
 
-                Button(action: dumpBadSituationLog) {
-                    Label("Dump bad situation log", systemImage: "doc.text.magnifyingglass")
+                Button(action: resourceLogDump) {
+                    Label("Resource log dump", systemImage: "doc.text.magnifyingglass")
                 }
             }
             
@@ -239,7 +254,7 @@ struct SettingsView: View {
         .sheet(item: $diagnosticReportShareItem) { item in
             TimelinePhotoActivityView(items: [item.url])
         }
-        .alert("Could not dump bad situation log", isPresented: $showDiagnosticReportError) {
+        .alert("Could not create resource log dump", isPresented: $showDiagnosticReportError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(diagnosticReportError ?? "Unknown error")
@@ -283,21 +298,21 @@ struct SettingsView: View {
         }
     }
 
-    private func dumpBadSituationLog() {
+    private func resourceLogDump() {
         ResourceDiagnostics.logRuntime(
             context: "Diagnostics",
-            detail: "Manual bad situation dump started from Settings."
+            detail: "Manual resource log dump started from Settings."
         )
 
         do {
-            let reportURL = try BadSituationReportBuilder.writeReport()
+            let reportURL = try ResourceLogDumpBuilder.writeReport()
             diagnosticReportShareItem = DiagnosticReportShareItem(url: reportURL)
         } catch {
             diagnosticReportError = error.localizedDescription
             showDiagnosticReportError = true
             FileManagerUtil.logData(
                 context: "Diagnostics",
-                content: "Failed to write bad situation report: \(error.localizedDescription)",
+                content: "Failed to write resource log report: \(error.localizedDescription)",
                 verbosity: 1
             )
         }

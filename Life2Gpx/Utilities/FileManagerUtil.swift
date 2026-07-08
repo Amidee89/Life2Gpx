@@ -21,7 +21,9 @@ class FileManagerUtil {
             "Backups",
             "Backups/GPX",
             "Backups/Places",
-            "Logs"
+            "Logs/App",
+            "Logs/Dumps",
+            "Logs/Resources"
         ]
         
         for folder in folders {
@@ -160,13 +162,13 @@ class FileManagerUtil {
         let fileName = formatter.string(from: Date()) + ".log"
 
         let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let logsDirectory = documentDirectory.appendingPathComponent("Logs")
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs/App")
         if !FileManager.default.fileExists(atPath: logsDirectory.path) {
             do {
                 try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
-                FileManagerUtil.logData(context: "LogSetup", content: "Created Logs directory via getLogFileURL (should not happen)", verbosity: 2)
+                FileManagerUtil.logData(context: "LogSetup", content: "Created Logs/App directory via getLogFileURL (should not happen)", verbosity: 2)
             } catch {
-                FileManagerUtil.logData(context: "LogSetup", content: "Failed to create Logs directory: \(error)", verbosity: 1)
+                FileManagerUtil.logData(context: "LogSetup", content: "Failed to create Logs/App directory: \(error)", verbosity: 1)
             }
         }
 

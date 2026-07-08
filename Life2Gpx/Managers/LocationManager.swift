@@ -356,6 +356,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let executionTimeString = String(format: "%.10f", executionTime)
         let logContent = "Execution time: \(executionTimeString) seconds - Call count: \(locationManagerCallCount)"
         FileManagerUtil.logData(context: "LocationUpdate", content: logContent, verbosity: 5)
+        
+        ResourceTracker.shared.logResourceEvent(
+            context: "LocationUpdate", 
+            executionTime: executionTime, 
+            extraInfo: ["Locations Received": String(locations.count)]
+        )
     }
     private func adjustSettingsForMovement() {
         self.cancelUnknownPlaceCheckInNotification()

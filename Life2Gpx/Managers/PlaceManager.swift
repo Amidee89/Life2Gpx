@@ -34,7 +34,13 @@ class PlaceManager {
     }
 
     private func loadPlaces() {
+        let startTime = Date()
         let fileURL = getPlacesFilePath()
+        
+        defer {
+            let executionTime = Date().timeIntervalSince(startTime)
+            ResourceTracker.shared.logResourceEvent(context: "PlacesLoad", executionTime: executionTime)
+        }
         
         guard let data = try? Data(contentsOf: fileURL) else {
             print("Failed to load places.json")

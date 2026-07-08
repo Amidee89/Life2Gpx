@@ -60,6 +60,7 @@ class SettingsManager {
     private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
     private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
     private let unknownPlaceNotificationMinutesKey = "unknownPlaceNotificationMinutes"
+    private let trackResourceUsageKey = "trackResourceUsage"
     
     private init() {
         registerDefaults()
@@ -86,7 +87,8 @@ class SettingsManager {
             suggestApplyToOtherPlacesKey: true,
             mergeVisitAddStepsKey: true,
             sendNotificationOnUnknownPlaceKey: true,
-            unknownPlaceNotificationMinutesKey: 10
+            unknownPlaceNotificationMinutesKey: 10,
+            trackResourceUsageKey: false
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -298,6 +300,11 @@ class SettingsManager {
     var unknownPlaceNotificationMinutes: Int {
         get { return max(1, defaults.integer(forKey: unknownPlaceNotificationMinutesKey)) }
         set { defaults.set(max(1, newValue), forKey: unknownPlaceNotificationMinutesKey) }
+    }
+
+    var trackResourceUsage: Bool {
+        get { return defaults.bool(forKey: trackResourceUsageKey) }
+        set { defaults.set(newValue, forKey: trackResourceUsageKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

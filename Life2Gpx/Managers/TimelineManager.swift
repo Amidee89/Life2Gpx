@@ -130,11 +130,13 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
             .filter { $0.type == .track }
             .flatMap(\.identifiableCoordinates)
             .reduce(0) { $0 + $1.coordinates.count }
+        let executionTime = Date().timeIntervalSince(startedAt)
         FileManagerUtil.logData(
             context: "TimelineManager",
-            content: "loadTimelineForDate finished for \(selectedDate) in \(String(format: "%.3f", Date().timeIntervalSince(startedAt)))s. objects=\(timelineObjects.count), totalTrackPoints=\(totalTrackPoints), \(ResourceDiagnostics.memorySnapshot())",
+            content: "loadTimelineForDate finished for \(selectedDate) in \(String(format: "%.3f", executionTime))s. objects=\(timelineObjects.count), totalTrackPoints=\(totalTrackPoints), \(ResourceDiagnostics.memorySnapshot())",
             verbosity: 4
         )
+        ResourceTracker.shared.logResourceEvent(context: "TimelineLoad", executionTime: executionTime)
         completion(timelineObjects)
         return
     }

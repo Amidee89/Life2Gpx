@@ -51,13 +51,18 @@ class GPXManager {
         let signpostID = diagnosticsSignposter.makeSignpostID()
         let state = diagnosticsSignposter.beginInterval("GPX parse", id: signpostID, "\(fileName)")
 
+        let startTime = Date()
         guard let gpx = GPXParser(withURL: fileURL)?.parsedData() else {
             diagnosticsSignposter.endInterval("GPX parse", state)
+            let executionTime = Date().timeIntervalSince(startTime)
+            ResourceTracker.shared.logResourceEvent(context: "GPXLoad", executionTime: executionTime)
             FileManagerUtil.logData(context: "GPXManager", content: "Failed to load or parse GPX file: \(fileName). Returning empty data.", verbosity: 2)
             completion([], [])
             return
         }
         diagnosticsSignposter.endInterval("GPX parse", state)
+        let executionTime = Date().timeIntervalSince(startTime)
+        ResourceTracker.shared.logResourceEvent(context: "GPXLoad", executionTime: executionTime)
         FileManagerUtil.logData(context: "GPXManager", content: "Successfully loaded and parsed GPX file: \(fileName). Waypoints: \(gpx.waypoints.count), Tracks: \(gpx.tracks.count)", verbosity: 3)
         completion(gpx.waypoints, gpx.tracks)
     }
