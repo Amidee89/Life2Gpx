@@ -453,7 +453,7 @@ class GPXUtils {
     }
 
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
-        FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name ?? "Unnamed").", verbosity: 4)
+        FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name).", verbosity: 4)
         updatedWaypoint.name = place.name
         
         var extensionData: [String: String] = [
@@ -474,6 +474,24 @@ class GPXUtils {
         }
         if let categoryId = place.foursquareCategoryId {
             extensionData["FoursquareCategoryId"] = categoryId
+        }
+        if let googleId = place.googlePlacesId {
+            extensionData["GooglePlacesId"] = googleId
+        }
+        if let yelpId = place.yelpId {
+            extensionData["YelpId"] = yelpId
+        }
+        if let appleId = place.applePlaceId {
+            extensionData["ApplePlaceId"] = appleId
+        }
+        if let osmId = place.osmNodeId {
+            extensionData["OsmNodeId"] = osmId
+        }
+        if let hereId = place.herePlaceId {
+            extensionData["HerePlaceId"] = hereId
+        }
+        if let gaodeId = place.gaodePlaceId {
+            extensionData["GaodePlaceId"] = gaodeId
         }
         
         if updatedWaypoint.extensions == nil {

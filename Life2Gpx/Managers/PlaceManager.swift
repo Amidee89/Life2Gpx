@@ -34,7 +34,13 @@ class PlaceManager {
     }
 
     private func loadPlaces() {
+        let startTime = Date()
         let fileURL = getPlacesFilePath()
+        
+        defer {
+            let executionTime = Date().timeIntervalSince(startTime)
+            ResourceTracker.shared.logResourceEvent(context: "PlacesLoad", executionTime: executionTime)
+        }
         
         guard let data = try? Data(contentsOf: fileURL) else {
             print("Failed to load places.json")
@@ -71,10 +77,6 @@ class PlaceManager {
         // Debug: Print cells with multiple places
         for (cell, count) in cellCounts where count > 1 {
             print("Cell \(cell) contains \(count) places")
-            if let placesInCell = gridIndex[cell] {
-                for place in placesInCell {
-                }
-            }
         }
     }
     

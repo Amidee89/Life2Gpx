@@ -85,15 +85,17 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
         }
-        let updateType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? "Stationary"
-        FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType).", verbosity: 3)
+        currentDate = Date()
+        let rawType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? ""
+        let updateType = LocationUpdateType(rawValue: rawType) ?? .stationary
+        FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType.rawValue).", verbosity: 3)
         appendLocationToFile(type: updateType, debug: "Midnight Update")
         scheduleMidnightUpdate()
     }
     
     private func scheduleDeadMansSwitchNotification() {
         let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests() // Clear any existing notifications
+        center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch"]) 
 
         let content = UNMutableNotificationContent()
         content.title = "Recording Stopped"
@@ -122,6 +124,50 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func stopNotificationResetTimer() {
         notificationResetTimer?.invalidate()
         notificationResetTimer = nil
+    }
+
+    private func cancelUnknownPlaceCheckInNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["UnknownPlaceCheckIn"])
+        FileManagerUtil.logData(context: "LocationManager", content: "Cancelled pending UnknownPlaceCheckIn notification.", verbosity: 4)
+    }
+
+    private func scheduleUnknownPlaceCheckInNotification(for waypoint: GPXWaypoint) {
+        guard SettingsManager.shared.sendNotificationOnUnknownPlace else {
+            FileManagerUtil.logData(context: "LocationManager", content: "Skip scheduling UnknownPlaceCheckIn: setting is disabled.", verbosity: 4)
+            return
+        }
+        
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["UnknownPlaceCheckIn"])
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Unknown Place Detected"
+        content.body = "Tap here to add a name to this unknown place"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        
+        let waypointTime = waypoint.time ?? Date()
+        let userInfo: [AnyHashable: Any] = [
+            "waypointTimestamp": waypointTime.timeIntervalSince1970,
+            "latitude": waypoint.latitude ?? 0.0,
+            "longitude": waypoint.longitude ?? 0.0
+        ]
+        content.userInfo = userInfo
+        
+        let minutes = SettingsManager.shared.unknownPlaceNotificationMinutes
+        let triggerSeconds = Double(minutes) * 60.0
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: triggerSeconds, repeats: false)
+        let request = UNNotificationRequest(identifier: "UnknownPlaceCheckIn", content: content, trigger: trigger)
+        
+        center.add(request) { error in
+            if let error = error {
+                FileManagerUtil.logData(context: "LocationManager", content: "Error scheduling UnknownPlaceCheckIn: \(error.localizedDescription)", verbosity: 2)
+            } else {
+                FileManagerUtil.logData(context: "LocationManager", content: "Scheduled UnknownPlaceCheckIn in \(minutes) minutes (\(triggerSeconds)s) for waypoint at \(waypointTime).", verbosity: 3)
+            }
+        }
     }
 
     private func setupMotionActivityManager() {
@@ -158,6 +204,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         //maybe it could be set to other values when the app is in the foreground. 
         locationManager.distanceFilter = kCLDistanceFilterNone
         locationManager.startUpdatingLocation()
+        if let location = locationManager.location {
+            CoordinateConverter.updateDeviceLocation(location.coordinate)
+        } else {
+            CoordinateConverter.restoreLastKnownDeviceLocation(from: nil)
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -168,6 +219,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
+        CoordinateConverter.updateDeviceLocation(newLocation.coordinate)
            
         var shouldProcessThisLocation: Bool
         locationHistoryLock.lock()
@@ -201,7 +253,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let newUpdateDate = Date()
         FileManagerUtil.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)
 
-        //forcing update if it's the new day and somehow midnight scheduler has screwed. TODO: add a grace period as this thing is making double updates now
+        //forcing update if it's the new day and somehow midnight scheduler has screwed.
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             let calendar = Calendar.current
             let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
@@ -255,10 +307,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
                 self.previousSavedLocation = newLocation
-                appendLocationToFile(type: "Moving")
+                appendLocationToFile(type: .moving)
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
-                UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
+                UserDefaults.standard.set(LocationUpdateType.moving.rawValue, forKey: "lastUpdateType")
 
                 if !self.filteredByPositionQueue.isEmpty {
                     self.filteredByPositionQueue.removeAll()
@@ -283,10 +335,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) threshold met.", verbosity: 4)
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
-                appendLocationToFile(type: "Moving", debug: "No PreviousLocation")
+                appendLocationToFile(type: .moving, debug: "No PreviousLocation")
                 lastUpdateTimestamp = newUpdateDate
                 UserDefaults.standard.set(lastUpdateTimestamp, forKey: "lastUpdateTimestamp")
-                UserDefaults.standard.set("Moving", forKey: "lastUpdateType")
+                UserDefaults.standard.set(LocationUpdateType.moving.rawValue, forKey: "lastUpdateType")
 
                 if !self.filteredByPositionQueue.isEmpty {
                     self.filteredByPositionQueue.removeAll()
@@ -304,10 +356,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let executionTimeString = String(format: "%.10f", executionTime)
         let logContent = "Execution time: \(executionTimeString) seconds - Call count: \(locationManagerCallCount)"
         FileManagerUtil.logData(context: "LocationUpdate", content: logContent, verbosity: 5)
+        
+        ResourceTracker.shared.logResourceEvent(
+            context: "LocationUpdate", 
+            executionTime: executionTime, 
+            extraInfo: ["Locations Received": String(locations.count)]
+        )
     }
     private func adjustSettingsForMovement() {
+        self.cancelUnknownPlaceCheckInNotification()
+        locationManager.stopUpdatingLocation()
         FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.startUpdatingLocation()
         customDistanceFilter = 20
         resetLocationUpdateTimer()
     }
@@ -320,22 +381,24 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func adjustSettingsForStationary() {
-
         customDistanceFilter = 60 // Reset custom distance filter for movement
         FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
-        appendLocationToFile(type: "Stationary")
-        UserDefaults.standard.set("Stationary", forKey: "lastUpdateType")
+        appendLocationToFile(type: .stationary)
+        UserDefaults.standard.set(LocationUpdateType.stationary.rawValue, forKey: "lastUpdateType")
+        locationManager.stopUpdatingLocation()
+        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.startUpdatingLocation()
 
     }
     
-    private func appendLocationToFile(type: String, debug: String = "") {
+    private func appendLocationToFile(type: LocationUpdateType, debug: String = "") {
         guard var location = currentFilteredLocation else {
             print("No location to save")
-            FileManagerUtil.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type), Debug: '\(debug)'.", verbosity: 2)
+            FileManagerUtil.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type.rawValue), Debug: '\(debug)'.", verbosity: 2)
             return
         }
 
-        if type == "Stationary", !filteredByPositionQueue.isEmpty {
+        if type == .stationary, !filteredByPositionQueue.isEmpty {
             let queueSize = filteredByPositionQueue.count
             FileManagerUtil.logData(context: "GPXAppend", content: "Averaging location for stationary point from a queue of \(queueSize) points.", verbosity: 4)
             let count = Double(queueSize)
@@ -356,14 +419,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         let appendAttemptTime = Date()
         let appendId = UUID().uuidString.prefix(8)
-        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
+        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type.rawValue), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
 
         if lastAppendCall != nil {
             let timeSinceLastAppend = appendAttemptTime.timeIntervalSince(lastAppendCall!)
             FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounce check: Current time \(appendAttemptTime), lastAppendCall \(String(describing: lastAppendCall)), difference: \(timeSinceLastAppend) seconds.", verbosity: 5)
             if timeSinceLastAppend < 1 {
                 print ("Cowardly refusing to double append – debouncing.")
-                FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type).", verbosity: 4)
+                FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type.rawValue).", verbosity: 4)
                 return
             }
         }
@@ -420,8 +483,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                 }
 
-                if type == "Moving"
+                if type == .moving
                 {
+                    self.cancelUnknownPlaceCheckInNotification()
                     let newTrackPoint = GPXTrackPoint(
                         latitude: location.coordinate.latitude,
                         longitude: location.coordinate.longitude
@@ -514,7 +578,24 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         gpxTracks.append(newTrack)
                     }
                 }
-                else if type == "Stationary" {
+                else if type == .stationary {
+                    if self.shouldFilterAsRoundTrip(
+                        newLocation: location,
+                        gpxWaypoints: &gpxWaypoints,
+                        gpxTracks: &gpxTracks,
+                        appendId: String(appendId)
+                    ) {
+                        GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
+                        if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
+                            userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
+                            userDefaults.set(type.rawValue, forKey: "lastUpdateType")
+                            userDefaults.synchronize()
+                            self.dataHasBeenUpdated = true
+                            self.lastUpdateTimestamp = Date.now
+                        }
+                        return
+                    }
+
                     let newWaypoint = GPXWaypoint(
                         latitude: location.coordinate.latitude,
                         longitude: location.coordinate.longitude
@@ -523,6 +604,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     newWaypoint.elevation = location.altitude
                     
                     if let matchingPlace = PlaceManager.shared.findPlaceAtCoordinates(for: location.coordinate) {
+                        self.cancelUnknownPlaceCheckInNotification()
                         newWaypoint.name = matchingPlace.name
                         
                         var customExtensionData: [String: String] = [
@@ -562,6 +644,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         let extensions = GPXExtensions()
                         extensions.append(at: nil, contents: customExtensionData)
                         newWaypoint.extensions = extensions
+                        self.scheduleUnknownPlaceCheckInNotification(for: newWaypoint)
                     }
                     
                     gpxWaypoints.append(newWaypoint)
@@ -570,17 +653,91 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
                 if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                     userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
-                    userDefaults.set(type, forKey: "lastUpdateType")
+                    userDefaults.set(type.rawValue, forKey: "lastUpdateType")
                     userDefaults.synchronize()
                     self.dataHasBeenUpdated = true
                     self.lastUpdateTimestamp = Date.now
-                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
+                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type.rawValue). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
                 } else {
                     FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Failed to get UserDefaults.", verbosity: 2)
                 }
             }
         }
     }
+    private func shouldFilterAsRoundTrip(
+        newLocation: CLLocation,
+        gpxWaypoints: inout [GPXWaypoint],
+        gpxTracks: inout [GPXTrack],
+        appendId: String
+    ) -> Bool {
+        let settings = SettingsManager.shared
+        guard settings.filterSmallRoundTrips else { return false }
+
+        guard let lastTrack = gpxTracks.last,
+              let firstSegment = lastTrack.segments.first,
+              let firstPointTime = firstSegment.points.first?.time,
+              lastTrack.segments.last?.points.last?.time ?? Date.distantPast > gpxWaypoints.last?.time ?? Date.distantFuture
+        else {
+            return false
+        }
+
+        let totalTrackPoints = lastTrack.segments.reduce(0) { $0 + $1.points.count }
+        guard totalTrackPoints <= settings.roundTripMaxPoints else {
+            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] Track has \(totalTrackPoints) points, exceeds max \(settings.roundTripMaxPoints). Not filtering.", verbosity: 4)
+            return false
+        }
+
+        guard let previousWaypoint = gpxWaypoints.last,
+              let previousWaypointTime = previousWaypoint.time,
+              previousWaypointTime < firstPointTime
+        else {
+            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] No preceding waypoint found before the track. Not filtering.", verbosity: 4)
+            return false
+        }
+
+        let previousPlaceId = previousWaypoint.extensions?["PlaceId"].text
+        let radius: Double
+        if let placeId = previousPlaceId,
+           let place = PlaceManager.shared.getAllPlaces().first(where: { $0.placeId == placeId }) {
+            radius = place.radius
+        } else {
+            radius = Double(settings.roundTripUnknownRadius)
+        }
+
+        guard let prevLat = previousWaypoint.latitude, let prevLon = previousWaypoint.longitude else {
+            return false
+        }
+        let previousLocation = CLLocation(latitude: prevLat, longitude: prevLon)
+        let distance = newLocation.distance(from: previousLocation)
+
+        guard distance <= radius else {
+            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] New point is \(String(format: "%.1f", distance))m from previous waypoint, exceeds radius \(String(format: "%.1f", radius))m. Not filtering.", verbosity: 4)
+            return false
+        }
+
+        var trackSteps = 0
+        for segment in lastTrack.segments {
+            for point in segment.points {
+                trackSteps += Int(point.extensions?["Steps"].text ?? "0") ?? 0
+            }
+        }
+
+        let existingSteps = Int(previousWaypoint.extensions?["Steps"].text ?? "0") ?? 0
+        let combinedSteps = existingSteps + trackSteps
+        if combinedSteps > 0 {
+            if previousWaypoint.extensions == nil {
+                previousWaypoint.extensions = GPXExtensions()
+            }
+            previousWaypoint.extensions?.append(at: nil, contents: ["Steps": String(combinedSteps)])
+        }
+
+        gpxTracks.removeLast()
+
+        FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] Round trip track filtered: \(totalTrackPoints) points, \(String(format: "%.1f", distance))m from previous waypoint (radius: \(String(format: "%.1f", radius))m). Transferred \(trackSteps) steps to previous waypoint (total: \(combinedSteps)). Track removed, new point not saved.", verbosity: 3)
+
+        return true
+    }
+
     func getMostRecentGPXElement(waypoints: [GPXWaypoint], tracks: [GPXTrack]) -> (GPXWaypoint?) {
         let lastWaypoint = waypoints.last
         let lastTrackPoint = tracks.last?.segments.last?.points.last

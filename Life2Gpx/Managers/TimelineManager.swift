@@ -5,9 +5,25 @@ import CoreLocation
 
 
 func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineObject]) -> Void) {
+    let startedAt = Date()
+    FileManagerUtil.logData(
+        context: "TimelineManager",
+        content: "loadTimelineForDate started for \(selectedDate). \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
+        verbosity: 5
+    )
     GPXManager.shared.loadFile(forDate: selectedDate) { gpxWaypoints, gpxTracks in
         var timelineObjects = [TimelineObject]()
+        FileManagerUtil.logData(
+            context: "TimelineManager",
+            content: "GPX loaded for \(selectedDate). waypoints=\(gpxWaypoints.count), tracks=\(gpxTracks.count), trackSegments=\(gpxTracks.reduce(0) { $0 + $1.segments.count }), trackPoints=\(gpxTracks.flatMap(\.segments).reduce(0) { $0 + $1.points.count })",
+            verbosity: 5
+        )
         if gpxWaypoints.isEmpty && gpxTracks.isEmpty {
+            FileManagerUtil.logData(
+                context: "TimelineManager",
+                content: "loadTimelineForDate finished empty for \(selectedDate) in \(String(format: "%.3f", Date().timeIntervalSince(startedAt)))s.",
+                verbosity: 4
+            )
             completion([])
             return
         }
@@ -110,6 +126,17 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
                 item.duration = calculateDuration(from: item.startDate!, to: item.endDate!)
             }
         }
+        let totalTrackPoints = timelineObjects
+            .filter { $0.type == .track }
+            .flatMap(\.identifiableCoordinates)
+            .reduce(0) { $0 + $1.coordinates.count }
+        let executionTime = Date().timeIntervalSince(startedAt)
+        FileManagerUtil.logData(
+            context: "TimelineManager",
+            content: "loadTimelineForDate finished for \(selectedDate) in \(String(format: "%.3f", executionTime))s. objects=\(timelineObjects.count), totalTrackPoints=\(totalTrackPoints), \(ResourceDiagnostics.memorySnapshot())",
+            verbosity: 4
+        )
+        ResourceTracker.shared.logResourceEvent(context: "TimelineLoad", executionTime: executionTime)
         completion(timelineObjects)
         return
     }

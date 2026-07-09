@@ -1,6 +1,5 @@
 import SwiftUI
 import MapKit
-import SymbolPicker
 
 struct EditPlaceView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -21,6 +20,12 @@ struct EditPlaceView: View {
     @State private var mapboxPlaceId: String
     @State private var foursquareVenueId: String
     @State private var foursquareCategoryId: String
+    @State private var googlePlacesId: String
+    @State private var yelpId: String
+    @State private var applePlaceId: String
+    @State private var osmNodeId: String
+    @State private var herePlaceId: String
+    @State private var gaodePlaceId: String
     @State private var latitudeString: String
     @State private var longitudeString: String
     @State private var newPreviousId: String = ""
@@ -36,6 +41,7 @@ struct EditPlaceView: View {
     @State private var isIdentifiersSectionExpanded = false
 
     @State private var showingIconPicker = false
+    @State private var showingPlaceSearch = false
 
     @State private var isOneTimeVisit: Bool = false
     let isFromEditVisit: Bool
@@ -60,11 +66,11 @@ struct EditPlaceView: View {
         let span = max(radiusInDegrees, minimumSpan)
         
         _currentRegion = State(initialValue: MKCoordinateRegion(
-            center: place.centerCoordinate,
+            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
         ))
         _cameraPosition = State(initialValue: .region(MKCoordinateRegion(
-            center: place.centerCoordinate,
+            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
         )))
         
@@ -72,6 +78,12 @@ struct EditPlaceView: View {
         _mapboxPlaceId = State(initialValue: place.mapboxPlaceId ?? "")
         _foursquareVenueId = State(initialValue: place.foursquareVenueId ?? "")
         _foursquareCategoryId = State(initialValue: place.foursquareCategoryId ?? "")
+        _googlePlacesId = State(initialValue: place.googlePlacesId ?? "")
+        _yelpId = State(initialValue: place.yelpId ?? "")
+        _applePlaceId = State(initialValue: place.applePlaceId ?? "")
+        _osmNodeId = State(initialValue: place.osmNodeId ?? "")
+        _herePlaceId = State(initialValue: place.herePlaceId ?? "")
+        _gaodePlaceId = State(initialValue: place.gaodePlaceId ?? "")
         
         _latitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.latitude))
         _longitudeString = State(initialValue: String(format: "%.6f", place.centerCoordinate.longitude))
@@ -85,6 +97,20 @@ struct EditPlaceView: View {
         _isFavorite = State(initialValue: place.isFavorite ?? false)
         _customIcon = State(initialValue: place.customIcon ?? "")
         _lastVisited = State(initialValue: place.lastVisited ?? Date())
+        _isOneTimeVisit = State(initialValue: place.placeId == "-1")
+    }
+
+    private var selectedPlaceSearchIds: [PlaceProvider: String] {
+        var ids = [PlaceProvider: String]()
+        if !googlePlacesId.isEmpty { ids[.google] = googlePlacesId }
+        if !foursquareVenueId.isEmpty { ids[.foursquare] = foursquareVenueId }
+        if !yelpId.isEmpty { ids[.yelp] = yelpId }
+        if !mapboxPlaceId.isEmpty { ids[.mapbox] = mapboxPlaceId }
+        if !applePlaceId.isEmpty { ids[.apple] = applePlaceId }
+        if !osmNodeId.isEmpty { ids[.openStreetMap] = osmNodeId }
+        if !herePlaceId.isEmpty { ids[.here] = herePlaceId }
+        if !gaodePlaceId.isEmpty { ids[.gaode] = gaodePlaceId }
+        return ids
     }
 
     private func logSliderValue(from radius: Int) -> Double {
@@ -113,18 +139,19 @@ struct EditPlaceView: View {
                     ZStack(alignment: .bottomTrailing) {
                         MapReader { reader in
                             Map(position: $cameraPosition, interactionModes: .all) {
-                                Annotation(editablePlace.name, coordinate: center) {
+                                Annotation(editablePlace.name, coordinate: CoordinateConverter.forMapDisplay(center)) {
                                     Circle()
                                         .fill(Color.red)
                                         .frame(width: 10, height: 10)
                                 }
-                                MapCircle(center: center, radius: Double(radius))
+                                MapCircle(center: CoordinateConverter.forMapDisplay(center), radius: Double(radius))
                                     .stroke(Color.blue.opacity(0.5), lineWidth: 2)
                                     .foregroundStyle(Color.orange.opacity(0.5))
                             }
                             .frame(height: 300)
                             .onTapGesture { screenCoord in
-                                if let coordinate = reader.convert(screenCoord, from: .local) {
+                                if let mapCoordinate = reader.convert(screenCoord, from: .local) {
+                                    let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
                                     center = coordinate
                                     latitudeString = String(format: "%.6f", coordinate.latitude)
                                     longitudeString = String(format: "%.6f", coordinate.longitude)
@@ -150,7 +177,7 @@ struct EditPlaceView: View {
                                         let span = max(radiusInDegrees, minimumSpan)
                                         
                                         currentRegion = MKCoordinateRegion(
-                                            center: center,
+                                            center: CoordinateConverter.forMapDisplay(center),
                                             span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                                         )
                                         cameraPosition = .region(currentRegion)
@@ -186,7 +213,7 @@ struct EditPlaceView: View {
                     
                     TextField("Latitude", text: $latitudeString)
                         .keyboardType(.decimalPad)
-                        .onChange(of: latitudeString) { newValue in
+                        .onChange(of: latitudeString) { _, newValue in
                             if let lat = Double(newValue), lat >= -90, lat <= 90 {
                                 center = CLLocationCoordinate2D(
                                     latitude: lat,
@@ -197,7 +224,7 @@ struct EditPlaceView: View {
                     
                     TextField("Longitude", text: $longitudeString)
                         .keyboardType(.decimalPad)
-                        .onChange(of: longitudeString) { newValue in
+                        .onChange(of: longitudeString) { _, newValue in
                             if let lon = Double(newValue), lon >= -180, lon <= 180 {
                                 center = CLLocationCoordinate2D(
                                     latitude: center.latitude,
@@ -221,7 +248,7 @@ struct EditPlaceView: View {
                     }
                 }
                 
-                if isFromEditVisit && isNewPlace {
+                if isFromEditVisit && (isNewPlace || originalPlace.placeId == "-1") {
                     Section {
                         Toggle(isOn: $isOneTimeVisit) {
                             VStack(alignment: .leading) {
@@ -240,8 +267,7 @@ struct EditPlaceView: View {
                 
                 Section(header: Text("Icon")) {
                     HStack {
-                        Image(systemName: customIcon.isEmpty ? "smallcircle.filled.circle" : customIcon)
-                            .font(.title2)
+                        PlaceIconView(icon: customIcon.isEmpty ? nil : customIcon, font: .title2)
                         Spacer()
                         Button("Choose Icon") {
                             showingIconPicker = true
@@ -258,20 +284,22 @@ struct EditPlaceView: View {
                 }
                 
                 Section(header: Text("External IDs")) {
+                    HStack {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                        Text("Find Place IDs")
+                    }
+                    .foregroundColor(.purple)
+                    .onTapGesture {
+                        showingPlaceSearch = true
+                    }
+
                     VStack(alignment: .leading) {
-                        Text("Facebook Place ID")
+                        Text("Google Places ID")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        TextField("Enter Facebook Place ID", text: $facebookPlaceId)
+                        TextField("Enter Google Places ID", text: $googlePlacesId)
                     }
-                    
-                    VStack(alignment: .leading) {
-                        Text("Mapbox Place ID")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        TextField("Enter Mapbox Place ID", text: $mapboxPlaceId)
-                    }
-                    
+
                     VStack(alignment: .leading) {
                         Text("Foursquare Venue ID")
                             .font(.caption)
@@ -284,6 +312,48 @@ struct EditPlaceView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         TextField("Enter Foursquare Category ID", text: $foursquareCategoryId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Yelp ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Yelp ID", text: $yelpId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Mapbox Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Mapbox Place ID", text: $mapboxPlaceId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Apple Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Apple Place ID", text: $applePlaceId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("OpenStreetMap ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter OSM ID (e.g. node/12345)", text: $osmNodeId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("HERE Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter HERE Place ID", text: $herePlaceId)
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text("Gaode Place ID")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("Enter Gaode Place ID", text: $gaodePlaceId)
                     }
                 }
                 
@@ -386,14 +456,67 @@ struct EditPlaceView: View {
                 Text("This action cannot be undone.")
             }
             .sheet(isPresented: $showingIconPicker) {
-                SymbolPicker(symbol: $customIcon)
+                IconPickerView(selectedIcon: $customIcon)
+            }
+            .sheet(isPresented: $showingPlaceSearch) {
+                NavigationView {
+                    PlaceSearchView(
+                        coordinate: center,
+                        selectedIds: selectedPlaceSearchIds,
+                        onSelect: { result in
+                            switch result.provider {
+                            case .google:
+                                googlePlacesId = result.id
+                            case .foursquare:
+                                foursquareVenueId = result.id
+                                if let catId = result.foursquareCategoryId {
+                                    foursquareCategoryId = catId
+                                }
+                            case .yelp:
+                                yelpId = result.id
+                            case .mapbox:
+                                mapboxPlaceId = result.id
+                            case .apple:
+                                applePlaceId = result.id
+                            case .openStreetMap:
+                                osmNodeId = result.id
+                            case .here:
+                                herePlaceId = result.id
+                            case .gaode:
+                                gaodePlaceId = result.id
+                            }
+                            if name.isEmpty {
+                                name = result.name
+                            }
+                            if streetAddress.isEmpty, let addr = result.address {
+                                streetAddress = addr
+                            }
+                            if customIcon.isEmpty, let icon = result.resolvedIcon {
+                                customIcon = icon
+                            }
+                        },
+                        onDone: {
+                            showingPlaceSearch = false
+                        }
+                    )
+                    .navigationTitle("Find Place IDs")
+                    .navigationBarTitleDisplayMode(.inline)
+                }
             }
         }
     }
 
     private func savePlace() {
+        var finalPlaceId = editedPlaceId.trim()
+        if isOneTimeVisit {
+            finalPlaceId = "-1"
+        } else if finalPlaceId == "-1" {
+            // Toggled from one-time to permanent: generate a new ID
+            finalPlaceId = UUID().uuidString
+        }
+        
         let updatedPlace = Place(
-            placeId: isOneTimeVisit ? "-1" : editedPlaceId.trim(),
+            placeId: finalPlaceId,
             name: name.trim(),
             center: Center(latitude: Double(latitudeString.trim()) ?? 0,
                           longitude: Double(longitudeString.trim()) ?? 0),
@@ -405,6 +528,12 @@ struct EditPlaceView: View {
             mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId.trim(),
             foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId.trim(),
             foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId.trim(),
+            googlePlacesId: googlePlacesId.isEmpty ? nil : googlePlacesId.trim(),
+            yelpId: yelpId.isEmpty ? nil : yelpId.trim(),
+            applePlaceId: applePlaceId.isEmpty ? nil : applePlaceId.trim(),
+            osmNodeId: osmNodeId.isEmpty ? nil : osmNodeId.trim(),
+            herePlaceId: herePlaceId.isEmpty ? nil : herePlaceId.trim(),
+            gaodePlaceId: gaodePlaceId.isEmpty ? nil : gaodePlaceId.trim(),
             previousIds: editablePlace.previousIds,
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,
@@ -413,10 +542,14 @@ struct EditPlaceView: View {
         )
         
         do {
-            if isNewPlace {
-                if !isOneTimeVisit {
-                    try PlaceManager.shared.addPlace(updatedPlace)
-                }
+            if isOneTimeVisit {
+                onSave?(updatedPlace)
+            } else if originalPlace.placeId == "-1" {
+                // Toggled from one-time to permanent: add it to the database
+                try PlaceManager.shared.addPlace(updatedPlace)
+                onSave?(updatedPlace)
+            } else if isNewPlace {
+                try PlaceManager.shared.addPlace(updatedPlace)
                 onSave?(updatedPlace)
             } else {
                 try PlaceManager.shared.editPlace(original: originalPlace, edited: updatedPlace)

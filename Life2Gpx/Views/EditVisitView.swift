@@ -6,7 +6,8 @@ import CoreGPX
 struct EditVisitView: View {
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
-    var onSave: (Place?) -> Void
+    var onSave: (Place?, Bool) -> Void
+    var customSaveAction: ((_ updatedWaypoint: GPXWaypoint, _ place: Place?, _ wasUnknown: Bool) -> Void)? = nil
     let fileDate: Date
     
     @State private var selectedPlace: Place?
@@ -22,6 +23,12 @@ struct EditVisitView: View {
     @State private var stepsString: String = ""
     @State private var showingDeleteConfirmation = false
     @State private var workingWaypoint: GPXWaypoint?
+    @State private var showingPlaceSearch = false
+    @State private var showingNewPlaceFromSearch = false
+    @State private var pendingSearchResult: PlaceSearchResult?
+    @State private var wasOriginallyUnknown: Bool = false
+    @State private var showingSecondsPicker = false
+    @FocusState private var isInputActive: Bool
     
     private var originalLatitude: Double?
     private var originalLongitude: Double?
@@ -29,21 +36,24 @@ struct EditVisitView: View {
     private var originalTime: Date?
     private var originalWaypoint: GPXWaypoint?
     
-    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?) -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?, Bool) -> Void, customSaveAction: ((_ updatedWaypoint: GPXWaypoint, _ place: Place?, _ wasUnknown: Bool) -> Void)? = nil) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
         self.onSave = onSave
+        self.customSaveAction = customSaveAction
         
         // Store the original waypoint and its values
         if let firstPoint = timelineObject.points.first {
             self.originalWaypoint = firstPoint
         }
         
+        _wasOriginallyUnknown = State(initialValue: timelineObject.isUnknownPlace)
+        
         _visitDate = State(initialValue: timelineObject.startDate ?? Date())
         _latitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.latitude ?? 0))
         _longitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.longitude ?? 0))
         _elevationString = State(initialValue: String(format: "%.1f", self.originalWaypoint?.elevation ?? 0))
-        _stepsString = State(initialValue: self.originalWaypoint?.extensions?.get(from: nil)?["Steps"] ?? "0")
+        _stepsString = State(initialValue: self.originalWaypoint?.extensions?["Steps"].text ?? "0")
         
         // Create a working copy of the waypoint (but need to assign it in onAppear)
         _workingWaypoint = State(initialValue: nil)
@@ -97,23 +107,29 @@ struct EditVisitView: View {
                                      displayedComponents: [.date])
                             }
                             
-                            // Time and seconds picker combined
                             HStack {
-                                // Hour:minute picker
                                 DatePicker("Time", 
                                      selection: $visitDate,
                                      displayedComponents: [.hourAndMinute])
                                 
-                                // Seconds component
-                                let calendar = Calendar.current
                                 let seconds = calendar.component(.second, from: visitDate)
                                 Text(":")
                                     .font(.system(size: 17, weight: .regular))
-                                Menu {
-                                    Picker("", selection: Binding(
+                                
+                                Button(action: {
+                                    showingSecondsPicker = true
+                                }) {
+                                    Text(String(format: "%02d", seconds))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Color(UIColor.tertiarySystemFill))
+                                        .cornerRadius(6)
+                                        .foregroundColor(.primary)
+                                }
+                                .popover(isPresented: $showingSecondsPicker) {
+                                    Picker("Seconds", selection: Binding(
                                         get: { seconds },
                                         set: { newSeconds in
-                                            // Preserve date and hour/minute while changing seconds
                                             var components = calendar.dateComponents(
                                                 [.year, .month, .day, .hour, .minute],
                                                 from: visitDate
@@ -122,8 +138,6 @@ struct EditVisitView: View {
                                             
                                             if let newDate = calendar.date(from: components) {
                                                 visitDate = newDate
-                                                
-                                                // Update the waypoint time
                                                 if let waypoint = workingWaypoint {
                                                     waypoint.time = newDate
                                                 }
@@ -131,36 +145,43 @@ struct EditVisitView: View {
                                         }
                                     )) {
                                         ForEach(0..<60) { second in
-                                            Text("\(second)").tag(second)
+                                            Text(String(format: "%02d", second)).tag(second)
                                         }
                                     }
-                                } label: {
-                                    Text(String(format: "%02d", seconds))
-                                        .foregroundColor(.blue)
+                                    .pickerStyle(.wheel)
+                                    .labelsHidden()
+                                    .frame(width: 80, height: 120)
+                                    .padding(.vertical, 16)
+                                    .padding(.horizontal, 8)
+                                    .presentationCompactAdaptation(.popover)
                                 }
                             }
                             
                             LabeledContent("Latitude:") {
                                 TextField("", text: $latitudeString)
                                     .keyboardType(.decimalPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
                             LabeledContent("Longitude:") {
                                 TextField("", text: $longitudeString)
                                     .keyboardType(.decimalPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
                             LabeledContent("Elevation (m):") {
                                 TextField("", text: $elevationString)
                                     .keyboardType(.decimalPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
                             LabeledContent("Steps:") {
                                 TextField("", text: $stepsString)
                                     .keyboardType(.numberPad)
+                                    .focused($isInputActive)
                                     .multilineTextAlignment(.trailing)
                             }
                             
@@ -179,7 +200,7 @@ struct EditVisitView: View {
                                     // Update the map region to center on the place
                                     withAnimation {
                                         region = MKCoordinateRegion(
-                                            center: place.centerCoordinate,
+                                            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
                                             span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
                                         )
                                     }
@@ -191,156 +212,9 @@ struct EditVisitView: View {
                             }
                         }
                         
-                        Section("Place Details") {
-                            ZStack(alignment: .bottomTrailing) {
-                                MapReader { reader in
-                                    Map(position: .constant(.region(region))) {
-                                        if let coordinate = currentCoordinate {
-                                            Annotation("Visit Location", coordinate: coordinate) {
-                                                ZStack {
-                                                    Circle()
-                                                        .fill(Color.white)
-                                                    Circle()
-                                                        .fill(Color.black)
-                                                        .padding(4)
-                                                }
-                                                .frame(width: 24, height: 24)
-                                            }
-                                        }
-                                        
-                                        if let place = selectedPlace {
-                                            Annotation(place.name, coordinate: place.centerCoordinate) {
-                                                ZStack {
-                                                    Circle()
-                                                        .fill(Color.white)
-                                                    Circle()
-                                                        .fill(Color.orange)
-                                                        .padding(4)
-                                                }
-                                                .frame(width: 24, height: 24)
-                                            }
-                                            
-                                            MapCircle(center: place.centerCoordinate, radius: place.radius)
-                                                .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                                                .foregroundStyle(Color.orange.opacity(0.5))
-                                        }
-                                    }
-                                    .onTapGesture { screenCoord in
-                                        if let coordinate = reader.convert(screenCoord, from: .local) {
-                                            if let waypoint = workingWaypoint {
-                                                waypoint.latitude = coordinate.latitude
-                                                waypoint.longitude = coordinate.longitude
-                                                latitudeString = String(format: "%.6f", coordinate.latitude)
-                                                longitudeString = String(format: "%.6f", coordinate.longitude)
-                                            }
-                                        }
-                                    }
-                                }
-                                .frame(height: 200)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                                Image(systemName: "location.viewfinder")
-                                    .font(.title)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .clipShape(Circle())
-                                    .shadow(radius: 3)
-                                    .scaleEffect(0.8)
-                                    .contentShape(Circle())
-                                    .onTapGesture {
-                                        withAnimation {
-                                            region = MKCoordinateRegion(
-                                                center: currentCoordinate ?? CLLocationCoordinate2D(),
-                                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                                            )
-                                        }
-                                    }
-                                    .padding(.trailing, 16)
-                                    .padding(.bottom, 16)
-                            }
-
+                        placeDetailsSection
                         
-                            if let place = selectedPlace {
-                                HStack {
-                                    Image(systemName: place.customIcon ?? "smallcircle.filled.circle")
-                                        .font(.title2)
-                                        .foregroundColor(.blue)
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text(place.name)
-                                            .font(.headline)
-                                        if let address = place.streetAddress {
-                                            Text(address)
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Text("Radius: \(Int(place.radius))m")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        showingEditPlaceSheet = true
-                                    }) {
-                                        Image(systemName: "square.and.pencil")
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                        
-                        Section("Change Place") {
-                            HStack {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("Add New Place")
-                                }
-                                .foregroundColor(.blue)
-                                .onTapGesture {
-                                    showingNewPlaceSheet = true
-                                }
-                                
-                                Spacer()
-                                
-                                if selectedPlace != nil {
-                                    Text("Clear Place")
-                                        .foregroundColor(.red)
-                                        .onTapGesture {
-                                            selectedPlace = nil
-                                        }
-                                }
-                            }
-
-                            TextField("Search places", text: $searchText)
-                            
-                            ForEach(filteredPlaces) { place in
-                                Button(action: {
-                                    selectedPlace = place
-                                }) {
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            Text(place.name)
-                                                .foregroundColor(.primary)
-                                            if let address = place.streetAddress {
-                                                Text(address)
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        }
-                                        Spacer()
-                                        Text(formattedDistance(to: place))
-                                            .foregroundColor(.secondary)
-                                            .font(.caption)
-                                    }
-                                }
-                                .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
-                            }
-                        }
+                        changePlaceSection(coordinate: coordinate)
                     }
 
                     // Add this new section at the end of the List
@@ -365,41 +239,81 @@ struct EditVisitView: View {
                     dismiss()
                 },
                 trailing: Button("Save") {
-                    // First, backup the current GPX file
-                    do {
-                        try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                    } catch {
-                        print("Error backing up GPX file: \(error)")
-                        return
+                    // Update the working waypoint with the latest values
+                    guard let waypoint = workingWaypoint else { return }
+                    waypoint.latitude = Double(latitudeString) ?? 0
+                    waypoint.longitude = Double(longitudeString) ?? 0
+                    waypoint.time = visitDate
+                    waypoint.elevation = Double(elevationString) ?? 0
+                    
+                    if let steps = Int(stepsString), steps > 0 {
+                        if waypoint.extensions == nil {
+                            waypoint.extensions = GPXExtensions()
+                        }
+                        waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
                     }
                     
-                    timelineObject.startDate = visitDate
-                    
-                    // Update the working waypoint with the latest values
-                    if let waypoint = workingWaypoint {
-                        waypoint.latitude = Double(latitudeString) ?? 0
-                        waypoint.longitude = Double(longitudeString) ?? 0
-                        waypoint.time = visitDate
-                        waypoint.elevation = Double(elevationString) ?? 0
-                        
-                        if let steps = Int(stepsString), steps > 0 {
-                            if waypoint.extensions == nil {
-                                waypoint.extensions = GPXExtensions()
+                    let finalWaypoint: GPXWaypoint
+                    if let selectedPlace {
+                        finalWaypoint = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
+                    } else {
+                        waypoint.name = nil
+                        let placeKeys: Set<String> = [
+                            "PlaceId", "Address", "FacebookPlaceId", "MapboxPlaceId",
+                            "FoursquareVenueId", "FoursquareCategoryId", "GooglePlacesId",
+                            "YelpId", "ApplePlaceId", "OsmNodeId", "HerePlaceId", "GaodePlaceId"
+                        ]
+                        if let existingExtensions = waypoint.extensions {
+                            var remainingData = [String: String]()
+                            for child in existingExtensions.children {
+                                if !placeKeys.contains(child.name), let value = child.text, !child.name.isEmpty {
+                                    remainingData[child.name] = value
+                                }
                             }
-                            waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
+                            if remainingData.isEmpty {
+                                waypoint.extensions = nil
+                            } else {
+                                let newExtensions = GPXExtensions()
+                                newExtensions.append(at: nil, contents: remainingData)
+                                waypoint.extensions = newExtensions
+                            }
+                        }
+                        finalWaypoint = waypoint
+                    }
+                    
+                    if let customSave = customSaveAction {
+                        customSave(finalWaypoint, selectedPlace, wasOriginallyUnknown)
+                    } else {
+                        // First, backup the current GPX file
+                        do {
+                            try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                        } catch {
+                            print("Error backing up GPX file: \(error)")
+                            return
                         }
                         
-                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace!)
+                        timelineObject.startDate = visitDate
                         
                         if let originalWaypoint = self.originalWaypoint {
-                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: visitDate)
+                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: fileDate)
                         }
+                        
+                        onSave(selectedPlace, wasOriginallyUnknown)
                     }
-                    
-                    onSave(selectedPlace)
                     dismiss()
                 }
             )
+            .toolbar {
+                ToolbarItem(placement: .keyboard) {
+                    HStack {
+                        Spacer()
+                        Button("Done") {
+                            isInputActive = false
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
             .sheet(isPresented: $showingNewPlaceSheet) {
                 if let coordinate = currentCoordinate {
                     let initialElevation = timelineObject.points.first?.elevation
@@ -412,7 +326,7 @@ struct EditVisitView: View {
                                 latitude: coordinate.latitude,
                                 longitude: coordinate.longitude
                             ),
-                            radius: 40,
+                            radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
                             streetAddress: nil,
                             secondsFromGMT: TimeZone.current.secondsFromGMT(),
                             lastSaved: ISO8601DateFormatter().string(from: Date()),
@@ -454,13 +368,52 @@ struct EditVisitView: View {
                     )
                 }
             }
+            .sheet(isPresented: $showingNewPlaceFromSearch) {
+                if let result = pendingSearchResult, currentCoordinate != nil {
+                    let initialElevation = timelineObject.points.first?.elevation
+                    EditPlaceView(
+                        place: Place(
+                            placeId: UUID().uuidString,
+                            name: result.name,
+                            center: Center(latitude: result.latitude, longitude: result.longitude),
+                            radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
+                            streetAddress: result.address,
+                            secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                            lastSaved: ISO8601DateFormatter().string(from: Date()),
+                            facebookPlaceId: nil,
+                            mapboxPlaceId: result.provider == .mapbox ? result.id : nil,
+                            foursquareVenueId: result.provider == .foursquare ? result.id : nil,
+                            foursquareCategoryId: result.foursquareCategoryId,
+                            googlePlacesId: result.provider == .google ? result.id : nil,
+                            yelpId: result.provider == .yelp ? result.id : nil,
+                            applePlaceId: result.provider == .apple ? result.id : nil,
+                            osmNodeId: result.provider == .openStreetMap ? result.id : nil,
+                            herePlaceId: result.provider == .here ? result.id : nil,
+                            gaodePlaceId: result.provider == .gaode ? result.id : nil,
+                            previousIds: nil,
+                            lastVisited: nil,
+                            isFavorite: nil,
+                            customIcon: result.resolvedIcon,
+                            elevation: initialElevation
+                        ),
+                        isNewPlace: true,
+                        isFromEditVisit: true,
+                        onSave: { newPlace in
+                            self.selectedPlace = newPlace
+                            if let coord = self.currentCoordinate {
+                                self.nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coord)
+                            }
+                            self.showingNewPlaceFromSearch = false
+                        }
+                    )
+                }
+            }
         }
-        .confirmationDialog(
+        .alert(
             "Are you sure you want to delete this visit?",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showingDeleteConfirmation
         ) {
-            Button("Delete", role: .destructive) {
+            Button("Delete Visit", role: .destructive) {
                 // First, backup the current GPX file
                 do {
                     try FileManagerUtil.shared.backupFile(forDate: fileDate)
@@ -471,10 +424,10 @@ struct EditVisitView: View {
                 
                 // Delete the waypoint using the original waypoint
                 if let originalWaypoint = self.originalWaypoint {
-                    GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: visitDate)
+                    GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: fileDate)
                 }
                 
-                onSave(nil)
+                onSave(nil, false)
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
@@ -487,36 +440,69 @@ struct EditVisitView: View {
             
             if let coordinate = currentCoordinate {
                 region = MKCoordinateRegion(
-                    center: coordinate,
+                    center: CoordinateConverter.forMapDisplay(coordinate),
                     span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                 )
                 
                 nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
                 
-                if let visitName = timelineObject.name {
+                let allPlaces = PlaceManager.shared.getAllPlaces()
+                let waypointPlaceId = self.originalWaypoint?.extensions?["PlaceId"].text
+                
+                if let waypointPlaceId = waypointPlaceId, let matchingPlace = allPlaces.first(where: { $0.placeId == waypointPlaceId }) {
+                    selectedPlace = matchingPlace
+                } else if waypointPlaceId == "-1" {
+                    // Reconstruct the one-time place metadata from GPX extensions
+                    selectedPlace = Place(
+                        placeId: "-1",
+                        name: timelineObject.name ?? self.originalWaypoint?.name ?? "",
+                        center: Center(latitude: coordinate.latitude, longitude: coordinate.longitude),
+                        radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
+                        streetAddress: self.originalWaypoint?.extensions?["Address"].text,
+                        secondsFromGMT: TimeZone.current.secondsFromGMT(),
+                        lastSaved: nil,
+                        facebookPlaceId: self.originalWaypoint?.extensions?["FacebookPlaceId"].text,
+                        mapboxPlaceId: self.originalWaypoint?.extensions?["MapboxPlaceId"].text,
+                        foursquareVenueId: self.originalWaypoint?.extensions?["FoursquareVenueId"].text,
+                        foursquareCategoryId: self.originalWaypoint?.extensions?["FoursquareCategoryId"].text,
+                        googlePlacesId: self.originalWaypoint?.extensions?["GooglePlacesId"].text,
+                        yelpId: self.originalWaypoint?.extensions?["YelpId"].text,
+                        applePlaceId: self.originalWaypoint?.extensions?["ApplePlaceId"].text,
+                        osmNodeId: self.originalWaypoint?.extensions?["OsmNodeId"].text,
+                        herePlaceId: self.originalWaypoint?.extensions?["HerePlaceId"].text,
+                        gaodePlaceId: self.originalWaypoint?.extensions?["GaodePlaceId"].text,
+                        previousIds: nil,
+                        lastVisited: nil,
+                        isFavorite: nil,
+                        customIcon: nil,
+                        elevation: self.originalWaypoint?.elevation
+                    )
+                } else if let visitName = timelineObject.name {
                     selectedPlace = nearbyPlaces.first { $0.name == visitName }
                 }
             }
         }
-        .onChange(of: selectedPlace) { newPlace in
+        .onChange(of: selectedPlace) { _, newPlace in
             if let place = newPlace, let coordinate = currentCoordinate {
+                let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
+                let displayPlace = CoordinateConverter.forMapDisplay(place.centerCoordinate)
                 let radiusInDegrees = (place.radius * 2.2) / 111000.0
                 let minimumSpan = 0.005 
                 
                 let latDelta = max(
-                    abs(coordinate.latitude - place.centerCoordinate.latitude) * 2.2,
+                    abs(displayCoord.latitude - displayPlace.latitude) * 2.2,
                     radiusInDegrees,
                     minimumSpan
                 )
                 let lonDelta = max(
-                    abs(coordinate.longitude - place.centerCoordinate.longitude) * 2.2,
+                    abs(displayCoord.longitude - displayPlace.longitude) * 2.2,
                     radiusInDegrees,
                     minimumSpan
                 )
                 
                 let center = CLLocationCoordinate2D(
-                    latitude: (coordinate.latitude + place.centerCoordinate.latitude) / 2,
-                    longitude: (coordinate.longitude + place.centerCoordinate.longitude) / 2
+                    latitude: (displayCoord.latitude + displayPlace.latitude) / 2,
+                    longitude: (displayCoord.longitude + displayPlace.longitude) / 2
                 )
                 
                 region = MKCoordinateRegion(
@@ -528,6 +514,211 @@ struct EditVisitView: View {
                 )
             }
         }
+    }
+
+    // MARK: - Extracted Subviews
+
+    private var placeDetailsSection: some View {
+        Section("Place Details") {
+            ZStack(alignment: .bottomTrailing) {
+                MapReader { reader in
+                    Map(position: .constant(.region(region))) {
+                        if let coordinate = currentCoordinate {
+                            Annotation("Visit Location", coordinate: CoordinateConverter.forMapDisplay(coordinate)) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.black)
+                                        .padding(4)
+                                }
+                                .frame(width: 24, height: 24)
+                            }
+                        }
+
+                        if let place = selectedPlace {
+                            let placeDisplayCoord = CoordinateConverter.forMapDisplay(place.centerCoordinate)
+                            Annotation(place.name, coordinate: placeDisplayCoord) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white)
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .padding(4)
+                                }
+                                .frame(width: 24, height: 24)
+                            }
+
+                            MapCircle(center: placeDisplayCoord, radius: place.radius)
+                                .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                                .foregroundStyle(Color.orange.opacity(0.5))
+                        }
+                    }
+                    .onTapGesture { screenCoord in
+                        if let mapCoordinate = reader.convert(screenCoord, from: .local) {
+                            let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
+                            if let waypoint = workingWaypoint {
+                                waypoint.latitude = coordinate.latitude
+                                waypoint.longitude = coordinate.longitude
+                                latitudeString = String(format: "%.6f", coordinate.latitude)
+                                longitudeString = String(format: "%.6f", coordinate.longitude)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Image(systemName: "location.viewfinder")
+                    .font(.title)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .clipShape(Circle())
+                    .shadow(radius: 3)
+                    .scaleEffect(0.8)
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        withAnimation {
+                            region = MKCoordinateRegion(
+                                center: CoordinateConverter.forMapDisplay(currentCoordinate ?? CLLocationCoordinate2D()),
+                                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                            )
+                        }
+                    }
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 16)
+            }
+
+            if let place = selectedPlace {
+                selectedPlaceRow(place: place)
+            }
+        }
+    }
+
+    private func selectedPlaceRow(place: Place) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                PlaceIconView(icon: place.customIcon, font: .title2, fallbackColor: .blue)
+
+                VStack(alignment: .leading) {
+                    Text(place.name)
+                        .font(.headline)
+                    if let address = place.streetAddress {
+                        Text(address)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Text("Radius: \(Int(place.radius))m")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Button(action: {
+                    showingEditPlaceSheet = true
+                }) {
+                    Image(systemName: "square.and.pencil")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.borderless)
+            }
+
+            Button(action: { selectedPlace = nil }) {
+                Text("Clear Place")
+                    .font(.subheadline)
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 8)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func changePlaceSection(coordinate: CLLocationCoordinate2D) -> some View {
+        Section("Change Place") {
+            changePlaceButtons
+
+            if showingPlaceSearch {
+                PlaceSearchView(
+                    coordinate: coordinate,
+                    selectedIds: [:],
+                    onSelect: { result in
+                        if let existingPlace = PlaceSearchService.shared.findExistingPlace(for: result) {
+                            selectedPlace = existingPlace
+                            showingPlaceSearch = false
+                        } else {
+                            pendingSearchResult = result
+                            showingPlaceSearch = false
+                            showingNewPlaceFromSearch = true
+                        }
+                    },
+                    onDone: {
+                        showingPlaceSearch = false
+                    }
+                )
+                .frame(height: UIScreen.main.bounds.height * 0.5)
+            } else {
+                TextField("Search places", text: $searchText)
+                    .focused($isInputActive)
+
+                ForEach(filteredPlaces) { place in
+                    placeRow(place: place)
+                }
+            }
+        }
+    }
+
+    private var changePlaceButtons: some View {
+        HStack {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                Text("Add New Place")
+            }
+            .foregroundColor(.blue)
+            .onTapGesture {
+                showingPlaceSearch = false
+                showingNewPlaceSheet = true
+            }
+
+            Spacer()
+
+            HStack {
+                Image(systemName: "magnifyingglass.circle.fill")
+                Text("Find Place")
+            }
+            .foregroundColor(.purple)
+            .onTapGesture {
+                showingPlaceSearch.toggle()
+            }
+        }
+    }
+
+    private func placeRow(place: Place) -> some View {
+        Button(action: {
+            selectedPlace = place
+        }) {
+            HStack {
+                PlaceIconView(icon: place.customIcon, font: .body, fallbackColor: .gray)
+                    .frame(width: 24)
+                VStack(alignment: .leading) {
+                    Text(place.name)
+                        .foregroundColor(.primary)
+                    if let address = place.streetAddress {
+                        Text(address)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                Text(formattedDistance(to: place))
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+            }
+        }
+        .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
     }
 }
 
@@ -552,7 +743,7 @@ struct EditVisitView_Previews: PreviewProvider {
             EditVisitView(
                 timelineObject: previewTimelineObject,
                 fileDate: Date(),
-                onSave: { _ in }
+                onSave: { _, _ in }
             )
         }
     }

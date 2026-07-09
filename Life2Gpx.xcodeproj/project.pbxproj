@@ -3,38 +3,33 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7D8A21782FF425A5004EF5E1 /* BulkApplyPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */; };
+		7D8A21792FF425A6004EF5E1 /* MergeItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */; };
 		7DC64B372D905D6800E6ED1F /* SymbolPicker in Frameworks */ = {isa = PBXBuildFile; productRef = 7DC64B362D905D6800E6ED1F /* SymbolPicker */; };
+		7DD610E62FFE614E003ACB3E /* ResourceUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD610E52FFE614E003ACB3E /* ResourceUsageView.swift */; };
 		7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */; };
+		8B3DC67109A35B10F54C9D97 /* PlaceIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD242B4DF275680F15CC17F /* PlaceIconView.swift */; };
 		A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */; };
 		A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */; };
 		A937C4B22D870738009BC131 /* TimingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A937C4B12D870738009BC131 /* TimingReportView.swift */; };
 		A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93842352CEBCBDE00004536 /* ManagePlaceView.swift */; };
 		A93842382CEBCC5100004536 /* FindDuplicatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93842372CEBCC4300004536 /* FindDuplicatesView.swift */; };
 		A9492B472B8A7FD10059DAB6 /* CoreGPX in Frameworks */ = {isa = PBXBuildFile; productRef = A9492B462B8A7FD10059DAB6 /* CoreGPX */; };
-		A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */; };
 		A95FDABB2B810CC100097276 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABA2B810CC100097276 /* Models.swift */; };
-		A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95FDABC2B82257A00097276 /* GPXManager.swift */; };
-		A96B279E2DC65660002B2D2B /* SignificantLocationChangeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B279D2DC65660002B2D2B /* SignificantLocationChangeManager.swift */; };
 		A96B27A02DC67BB9002B2D2B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */; };
-		A96B27A22DC7C811002B2D2B /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B27A12DC7C811002B2D2B /* SettingsManager.swift */; };
 		A96B27A42DC7DD45002B2D2B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B27A32DC7DD45002B2D2B /* SettingsView.swift */; };
 		A98A65412CC1944200061903 /* ManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98A65402CC1943F00061903 /* ManagementView.swift */; };
-		A98A65432CC2DCEC00061903 /* PlaceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98A65422CC2DCE800061903 /* PlaceManager.swift */; };
 		A9A3E9022DA5763400F8E32E /* EditTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A3E9012DA5763400F8E32E /* EditTrackView.swift */; };
-		A9A3E9042DAE871400F8E32E /* FileManagerUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A3E9032DAE871400F8E32E /* FileManagerUtil.swift */; };
-		A9A3E9062DAE874300F8E32E /* GPXUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A3E9052DAE874300F8E32E /* GPXUtils.swift */; };
 		A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA52B66E692004A010E /* Life2GpxApp.swift */; };
 		A9B62FA82B66E692004A010E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FA72B66E692004A010E /* ContentView.swift */; };
-		A9B62FAA2B66E694004A010E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9B62FA92B66E694004A010E /* Assets.xcassets */; };
 		A9B62FAD2B66E694004A010E /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9B62FAC2B66E694004A010E /* Preview Assets.xcassets */; };
 		A9B62FB72B66E694004A010E /* Life2GpxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FB62B66E694004A010E /* Life2GpxTests.swift */; };
 		A9B62FC12B66E694004A010E /* Life2GpxUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */; };
 		A9B62FC32B66E694004A010E /* Life2GpxUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */; };
-		A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B62FD02B682E99004A010E /* LocationManager.swift */; };
 		A9C5E5732BEBDDB100110A3A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */; };
 		A9C5E5752BEBDDB100110A3A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */; };
 		A9C5E5782BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C5E5772BEBDDB100110A3A /* Lockscreen_WidgetsBundle.swift */; };
@@ -44,8 +39,10 @@
 		A9D55E232BDABE4B006B6316 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E222BDABE4B006B6316 /* MapView.swift */; };
 		A9D55E252BDAD372006B6316 /* MapControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E242BDAD372006B6316 /* MapControlsView.swift */; };
 		A9D55E272BDADA09006B6316 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E262BDADA09006B6316 /* TimelineView.swift */; };
-		A9D55E2F2BDED8CC006B6316 /* splash.png in Resources */ = {isa = PBXBuildFile; fileRef = A9D55E2E2BDED8CC006B6316 /* splash.png */; };
-		A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F47B8D2BAB735D001355A9 /* Preview.swift */; };
+		A9D55E272BDADA09006B6317 /* PhotoViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D55E262BDADA09006B6317 /* PhotoViews.swift */; };
+		D2F87813CE5EBEE6D58BE91B /* IconPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */; };
+		E1A2B3C403D5E6F7A8B9C0D3 /* PlaceSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */; };
+		E1A2B3C407D5E6F7A8B9C0D7 /* CategoryIconsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C408D5E6F7A8B9C0D8 /* CategoryIconsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,28 +84,25 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPickerView.swift; sourceTree = "<group>"; };
+		7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeItemsView.swift; sourceTree = "<group>"; };
+		7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkApplyPlaceView.swift; sourceTree = "<group>"; };
+		7DD610E52FFE614E003ACB3E /* ResourceUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceUsageView.swift; sourceTree = "<group>"; };
 		7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditVisitView.swift; sourceTree = "<group>"; };
+		8BD242B4DF275680F15CC17F /* PlaceIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIconView.swift; sourceTree = "<group>"; };
 		A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaceView.swift; sourceTree = "<group>"; };
 		A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPlacesView.swift; sourceTree = "<group>"; };
 		A937C4B12D870738009BC131 /* TimingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingReportView.swift; sourceTree = "<group>"; };
 		A93842352CEBCBDE00004536 /* ManagePlaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagePlaceView.swift; sourceTree = "<group>"; };
 		A93842372CEBCC4300004536 /* FindDuplicatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindDuplicatesView.swift; sourceTree = "<group>"; };
-		A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineManager.swift; sourceTree = "<group>"; };
 		A95FDABA2B810CC100097276 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
-		A95FDABC2B82257A00097276 /* GPXManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPXManager.swift; sourceTree = "<group>"; };
-		A96B279D2DC65660002B2D2B /* SignificantLocationChangeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignificantLocationChangeManager.swift; sourceTree = "<group>"; };
 		A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		A96B27A12DC7C811002B2D2B /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		A96B27A32DC7DD45002B2D2B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A98A65402CC1943F00061903 /* ManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementView.swift; sourceTree = "<group>"; };
-		A98A65422CC2DCE800061903 /* PlaceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceManager.swift; sourceTree = "<group>"; };
 		A9A3E9012DA5763400F8E32E /* EditTrackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTrackView.swift; sourceTree = "<group>"; };
-		A9A3E9032DAE871400F8E32E /* FileManagerUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerUtil.swift; sourceTree = "<group>"; };
-		A9A3E9052DAE874300F8E32E /* GPXUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPXUtils.swift; sourceTree = "<group>"; };
 		A9B62FA22B66E692004A010E /* Life2Gpx.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Life2Gpx.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9B62FA52B66E692004A010E /* Life2GpxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxApp.swift; sourceTree = "<group>"; };
 		A9B62FA72B66E692004A010E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A9B62FA92B66E694004A010E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A9B62FAC2B66E694004A010E /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		A9B62FB22B66E694004A010E /* Life2GpxTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Life2GpxTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9B62FB62B66E694004A010E /* Life2GpxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxTests.swift; sourceTree = "<group>"; };
@@ -116,7 +110,6 @@
 		A9B62FC02B66E694004A010E /* Life2GpxUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITests.swift; sourceTree = "<group>"; };
 		A9B62FC22B66E694004A010E /* Life2GpxUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Life2GpxUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		A9B62FCF2B682E1B004A010E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		A9B62FD02B682E99004A010E /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
 		A9C5E5702BEBDDB100110A3A /* Lockscreen WidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Lockscreen WidgetsExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9C5E5722BEBDDB100110A3A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		A9C5E5742BEBDDB100110A3A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -129,10 +122,19 @@
 		A9D55E222BDABE4B006B6316 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		A9D55E242BDAD372006B6316 /* MapControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapControlsView.swift; sourceTree = "<group>"; };
 		A9D55E262BDADA09006B6316 /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
+		A9D55E262BDADA09006B6317 /* PhotoViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoViews.swift; sourceTree = "<group>"; };
 		A9D55E2B2BDED12D006B6316 /* Life2Gpx.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Life2Gpx.entitlements; sourceTree = "<group>"; };
-		A9D55E2E2BDED8CC006B6316 /* splash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = splash.png; sourceTree = "<group>"; };
-		A9F47B8D2BAB735D001355A9 /* Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preview.swift; sourceTree = "<group>"; };
+		E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchView.swift; sourceTree = "<group>"; };
+		E1A2B3C408D5E6F7A8B9C0D8 /* CategoryIconsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryIconsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7DD610E02FFE32B8003ACB3E /* Managers */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Managers; sourceTree = "<group>"; };
+		7DD610E12FFE32F0003ACB3E /* Utilities */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Utilities; sourceTree = "<group>"; };
+		7DD610E42FFE4099003ACB3E /* Media */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Media; sourceTree = "<group>"; };
+		A9BC2D602FAFBB6200B8A78E /* External Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "External Models"; sourceTree = "<group>"; };
+		A9BC2D792FBA3B7B00B8A78E /* Place Provider Icons */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Place Provider Icons"; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A9B62F9F2B66E692004A010E /* Frameworks */ = {
@@ -173,19 +175,27 @@
 		A93842392CEBCC8900004536 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				7DD610E52FFE614E003ACB3E /* ResourceUsageView.swift */,
 				7DFE81BA2D8EECAC0068CBF8 /* EditVisitView.swift */,
 				A9297D922CEE6E8F00688D77 /* EditPlaceView.swift */,
+				8BD242B4DF275680F15CC17F /* PlaceIconView.swift */,
+				2C9F863C33F017B0E7ADE5B5 /* IconPickerView.swift */,
 				A93842372CEBCC4300004536 /* FindDuplicatesView.swift */,
 				A93842352CEBCBDE00004536 /* ManagePlaceView.swift */,
+				7D8A21772FF425A5004EF5E1 /* BulkApplyPlaceView.swift */,
+				7D8A21762FF425A6004EF5E1 /* MergeItemsView.swift */,
 				A98A65402CC1943F00061903 /* ManagementView.swift */,
 				A9B62FA72B66E692004A010E /* ContentView.swift */,
 				A9D55E262BDADA09006B6316 /* TimelineView.swift */,
+				A9D55E262BDADA09006B6317 /* PhotoViews.swift */,
 				A9D55E222BDABE4B006B6316 /* MapView.swift */,
 				A9D55E242BDAD372006B6316 /* MapControlsView.swift */,
 				A937C4AD2D6BBFD8009BC131 /* ImportPlacesView.swift */,
 				A937C4B12D870738009BC131 /* TimingReportView.swift */,
 				A9A3E9012DA5763400F8E32E /* EditTrackView.swift */,
 				A96B27A32DC7DD45002B2D2B /* SettingsView.swift */,
+				E1A2B3C404D5E6F7A8B9C0D4 /* PlaceSearchView.swift */,
+				E1A2B3C408D5E6F7A8B9C0D8 /* CategoryIconsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -217,25 +227,19 @@
 		A9B62FA42B66E692004A010E /* Life2Gpx */ = {
 			isa = PBXGroup;
 			children = (
+				A9BC2D792FBA3B7B00B8A78E /* Place Provider Icons */,
+				A9BC2D602FAFBB6200B8A78E /* External Models */,
 				A93842392CEBCC8900004536 /* Views */,
-				A98A65422CC2DCE800061903 /* PlaceManager.swift */,
+				7DD610E02FFE32B8003ACB3E /* Managers */,
 				A9C5E5892BED3EDB00110A3A /* Life2GpxDebug.entitlements */,
 				A9D55E2B2BDED12D006B6316 /* Life2Gpx.entitlements */,
 				A9B62FCF2B682E1B004A010E /* Info.plist */,
-				A9B62FD02B682E99004A010E /* LocationManager.swift */,
-				A9D55E2E2BDED8CC006B6316 /* splash.png */,
 				A9B62FA52B66E692004A010E /* Life2GpxApp.swift */,
-				A9B62FA92B66E694004A010E /* Assets.xcassets */,
+				7DD610E42FFE4099003ACB3E /* Media */,
 				A9B62FAB2B66E694004A010E /* Preview Content */,
 				A95FDABA2B810CC100097276 /* Models.swift */,
-				A95FDABC2B82257A00097276 /* GPXManager.swift */,
-				A9F47B8D2BAB735D001355A9 /* Preview.swift */,
-				A959A32A2BB56FD30095CCE4 /* TimelineManager.swift */,
-				A9A3E9032DAE871400F8E32E /* FileManagerUtil.swift */,
-				A9A3E9052DAE874300F8E32E /* GPXUtils.swift */,
-				A96B279D2DC65660002B2D2B /* SignificantLocationChangeManager.swift */,
 				A96B279F2DC67BB9002B2D2B /* AppDelegate.swift */,
-				A96B27A12DC7C811002B2D2B /* SettingsManager.swift */,
+				7DD610E12FFE32F0003ACB3E /* Utilities */,
 			);
 			path = Life2Gpx;
 			sourceTree = "<group>";
@@ -301,6 +305,13 @@
 			);
 			dependencies = (
 				A9C5E5832BEBDDB500110A3A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7DD610E02FFE32B8003ACB3E /* Managers */,
+				7DD610E12FFE32F0003ACB3E /* Utilities */,
+				7DD610E42FFE4099003ACB3E /* Media */,
+				A9BC2D602FAFBB6200B8A78E /* External Models */,
+				A9BC2D792FBA3B7B00B8A78E /* Place Provider Icons */,
 			);
 			name = Life2Gpx;
 			packageProductDependencies = (
@@ -372,7 +383,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1530;
-				LastUpgradeCheck = 1520;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					A9B62FA12B66E692004A010E = {
 						CreatedOnToolsVersion = 15.2;
@@ -421,8 +432,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A9B62FAD2B66E694004A010E /* Preview Assets.xcassets in Resources */,
-				A9D55E2F2BDED8CC006B6316 /* splash.png in Resources */,
-				A9B62FAA2B66E694004A010E /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,27 +468,26 @@
 				A937C4B22D870738009BC131 /* TimingReportView.swift in Sources */,
 				A93842362CEBCBE400004536 /* ManagePlaceView.swift in Sources */,
 				7DFE81BB2D8EECAC0068CBF8 /* EditVisitView.swift in Sources */,
-				A9A3E9062DAE874300F8E32E /* GPXUtils.swift in Sources */,
-				A959A32B2BB56FD30095CCE4 /* TimelineManager.swift in Sources */,
 				A9D55E232BDABE4B006B6316 /* MapView.swift in Sources */,
 				A9B62FA82B66E692004A010E /* ContentView.swift in Sources */,
-				A96B279E2DC65660002B2D2B /* SignificantLocationChangeManager.swift in Sources */,
+				7D8A21782FF425A5004EF5E1 /* BulkApplyPlaceView.swift in Sources */,
+				7D8A21792FF425A6004EF5E1 /* MergeItemsView.swift in Sources */,
 				A9D55E272BDADA09006B6316 /* TimelineView.swift in Sources */,
+				A9D55E272BDADA09006B6317 /* PhotoViews.swift in Sources */,
 				A9A3E9022DA5763400F8E32E /* EditTrackView.swift in Sources */,
+				7DD610E62FFE614E003ACB3E /* ResourceUsageView.swift in Sources */,
 				A9B62FA62B66E692004A010E /* Life2GpxApp.swift in Sources */,
-				A98A65432CC2DCEC00061903 /* PlaceManager.swift in Sources */,
-				A9B62FD12B682E99004A010E /* LocationManager.swift in Sources */,
-				A95FDABD2B82257A00097276 /* GPXManager.swift in Sources */,
-				A9F47B8E2BAB735D001355A9 /* Preview.swift in Sources */,
 				A9D55E252BDAD372006B6316 /* MapControlsView.swift in Sources */,
 				A93842382CEBCC5100004536 /* FindDuplicatesView.swift in Sources */,
 				A95FDABB2B810CC100097276 /* Models.swift in Sources */,
 				A9297D932CEE6E9700688D77 /* EditPlaceView.swift in Sources */,
-				A96B27A22DC7C811002B2D2B /* SettingsManager.swift in Sources */,
+				8B3DC67109A35B10F54C9D97 /* PlaceIconView.swift in Sources */,
+				D2F87813CE5EBEE6D58BE91B /* IconPickerView.swift in Sources */,
 				A98A65412CC1944200061903 /* ManagementView.swift in Sources */,
 				A937C4AE2D6BBFD8009BC131 /* ImportPlacesView.swift in Sources */,
-				A9A3E9042DAE871400F8E32E /* FileManagerUtil.swift in Sources */,
 				A96B27A42DC7DD45002B2D2B /* SettingsView.swift in Sources */,
+				E1A2B3C407D5E6F7A8B9C0D7 /* CategoryIconsView.swift in Sources */,
+				E1A2B3C403D5E6F7A8B9C0D3 /* PlaceSearchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -565,6 +573,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -588,6 +597,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -628,6 +638,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -644,6 +655,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -652,14 +664,12 @@
 		A9B62FC72B66E694004A010E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Life2Gpx/Life2GpxDebug.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Life2Gpx/Preview Content\"";
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Life2Gpx/Info.plist;
@@ -676,7 +686,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1;
+				MARKETING_VERSION = 0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.DeltaCygniLabs.Life2Gpx;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -688,14 +698,12 @@
 		A9B62FC82B66E694004A010E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Life2Gpx/Life2Gpx.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Life2Gpx/Preview Content\"";
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Life2Gpx/Info.plist;
@@ -712,7 +720,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1;
+				MARKETING_VERSION = 0.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.DeltaCygniLabs.Life2Gpx;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -724,11 +732,9 @@
 		A9B62FCA2B66E694004A010E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				MARKETING_VERSION = 1.0;
@@ -744,11 +750,9 @@
 		A9B62FCB2B66E694004A010E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				MARKETING_VERSION = 1.0;
@@ -764,10 +768,8 @@
 		A9B62FCD2B66E694004A010E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.DeltaCygniLabs.Life2GpxUITests;
@@ -782,10 +784,8 @@
 		A9B62FCE2B66E694004A010E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.DeltaCygniLabs.Life2GpxUITests;
@@ -804,8 +804,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = "Lockscreen WidgetsExtensionDebug.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Lockscreen Widgets/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Lockscreen Widgets";
@@ -816,7 +815,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.DeltaCygniLabs.Life2Gpx.Lockscreen-Widgets";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -832,8 +831,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ABJ999AJQ2;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Lockscreen Widgets/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Lockscreen Widgets";
@@ -844,7 +842,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.DeltaCygniLabs.Life2Gpx.Lockscreen-Widgets";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

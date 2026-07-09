@@ -18,14 +18,14 @@ struct FindDuplicatesView: View {
             VStack {
                 if let selectedPair = selectedPair {
                     Map(position: $cameraPosition, interactionModes: .all) {
-                        Annotation(selectedPair.0.name, coordinate: selectedPair.0.coordinate) {
+                        Annotation(selectedPair.0.name, coordinate: CoordinateConverter.forMapDisplay(selectedPair.0.coordinate)) {
                             ZStack {
                                 Circle()
                                     .fill(Color.blue)
                                     .frame(width: 10, height: 10)
                             }
                         }
-                        Annotation(selectedPair.1.name, coordinate: selectedPair.1.coordinate) {
+                        Annotation(selectedPair.1.name, coordinate: CoordinateConverter.forMapDisplay(selectedPair.1.coordinate)) {
                             ZStack {
                                 Circle()
                                     .fill(Color.green)

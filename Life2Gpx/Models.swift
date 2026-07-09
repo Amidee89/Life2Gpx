@@ -8,16 +8,13 @@ import SwiftUI
 import CoreLocation
 import CoreGPX
 
-let trackTypeColorMapping: [String: Color] = [
-    "walking": .green,
-    "running": .orange,
-    "cycling": .red,
-    "automotive": .blue,
-    "unknown": .purple
-]
-
 enum TimelineObjectType {
     case waypoint, track
+}
+
+enum LocationUpdateType: String, Codable {
+    case moving = "Moving"
+    case stationary = "Stationary"
 }
 
 class TimelineObject: Identifiable, ObservableObject {
@@ -37,6 +34,17 @@ class TimelineObject: Identifiable, ObservableObject {
     var selected: Bool
     var customIcon: String?
     var track: GPXTrack?
+    
+    var durationInMinutes: Double {
+        guard let start = startDate, let end = endDate else { return 0 }
+        return max(0, end.timeIntervalSince(start) / 60.0)
+    }
+    
+    var isUnknownPlace: Bool {
+        guard type == .waypoint, let point = points.first else { return false }
+        let placeId = point.extensions?["PlaceId"].text
+        return placeId == nil || placeId!.isEmpty
+    }
     
     init(type: TimelineObjectType, 
          startDate: Date?, 
@@ -152,6 +160,29 @@ class TimelineObject: Identifiable, ObservableObject {
             track: track
         )
     }()
+    
+    static let previewWaypoint: TimelineObject = {
+        let startTime = Date().addingTimeInterval(-7200) // 2 hours ago
+        let endTime = Date().addingTimeInterval(-3600) // 1 hour ago
+        let coord = CLLocationCoordinate2D(latitude: 40.785091, longitude: -73.968285)
+        let waypoint = GPXWaypoint(latitude: coord.latitude, longitude: coord.longitude)
+        waypoint.time = startTime
+        waypoint.name = "Central Park"
+        
+        return TimelineObject(
+            type: .waypoint,
+            startDate: startTime,
+            endDate: endTime,
+            name: "Central Park Visit",
+            duration: "1:00:00",
+            steps: 0,
+            meters: 0,
+            numberOfPoints: 1,
+            averageSpeed: 0,
+            coordinates: [IdentifiableCoordinates(coordinates: [coord])],
+            points: [waypoint]
+        )
+    }()
 }
 
 struct IdentifiableCoordinates: Identifiable {
@@ -172,6 +203,12 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let mapboxPlaceId: String?
     let foursquareVenueId: String?
     let foursquareCategoryId: String?
+    var googlePlacesId: String? = nil
+    var yelpId: String? = nil
+    var applePlaceId: String? = nil
+    var osmNodeId: String? = nil
+    var herePlaceId: String? = nil
+    var gaodePlaceId: String? = nil
     let previousIds: [String?]?
     let lastVisited: Date?
     let isFavorite: Bool?
@@ -181,6 +218,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
     }
+
 
     struct EditableCopy {
         var placeId: String
@@ -194,6 +232,12 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var mapboxPlaceId: String?
         var foursquareVenueId: String?
         var foursquareCategoryId: String?
+        var googlePlacesId: String?
+        var yelpId: String?
+        var applePlaceId: String?
+        var osmNodeId: String?
+        var herePlaceId: String?
+        var gaodePlaceId: String?
         var previousIds: [String?]?
         var lastVisited: Date?
         var isFavorite: Bool?
@@ -212,6 +256,12 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.mapboxPlaceId = place.mapboxPlaceId
             self.foursquareVenueId = place.foursquareVenueId
             self.foursquareCategoryId = place.foursquareCategoryId
+            self.googlePlacesId = place.googlePlacesId
+            self.yelpId = place.yelpId
+            self.applePlaceId = place.applePlaceId
+            self.osmNodeId = place.osmNodeId
+            self.herePlaceId = place.herePlaceId
+            self.gaodePlaceId = place.gaodePlaceId
             self.previousIds = place.previousIds
             self.lastVisited = place.lastVisited
             self.isFavorite = place.isFavorite
@@ -232,6 +282,12 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 mapboxPlaceId: mapboxPlaceId,
                 foursquareVenueId: foursquareVenueId,
                 foursquareCategoryId: foursquareCategoryId,
+                googlePlacesId: googlePlacesId,
+                yelpId: yelpId,
+                applePlaceId: applePlaceId,
+                osmNodeId: osmNodeId,
+                herePlaceId: herePlaceId,
+                gaodePlaceId: gaodePlaceId,
                 previousIds: previousIds,
                 lastVisited: lastVisited,
                 isFavorite: isFavorite,
@@ -280,7 +336,6 @@ protocol GPXPointProtocol {
 }
 
 extension GPXWaypoint: GPXPointProtocol {}
-extension GPXTrackPoint: GPXPointProtocol {}
 
 class ManagePlacesViewModel: ObservableObject {
     @Published var places: [Place] = []
@@ -407,3 +462,87 @@ extension Place {
     
     static let previewPlace: Place = previewPlaces[0]
 }
+
+extension TimelineObject {
+    var stableId: String {
+        let typeStr = type == .waypoint ? "w" : "t"
+        let timeStr = startDate != nil ? "\(Int(startDate!.timeIntervalSince1970))" : "nil"
+        let coordStr: String
+        if let firstCoord = identifiableCoordinates.first?.coordinates.first {
+            coordStr = String(format: "-%.5f_%.5f", firstCoord.latitude, firstCoord.longitude)
+        } else {
+            coordStr = ""
+        }
+        return "\(typeStr)-\(timeStr)\(coordStr)"
+    }
+}
+
+enum TimelineDisplayItem: Identifiable {
+    case single(TimelineObject)
+    case groupHeader(id: String, uuid: UUID, items: [TimelineObject], isExpanded: Bool)
+    case groupChild(TimelineObject)
+
+    var id: String {
+        switch self {
+        case .single(let obj): return "s-\(obj.stableId)"
+        case .groupHeader(let id, _, _, _): return "g-\(id)"
+        case .groupChild(let obj): return "c-\(obj.stableId)"
+        }
+    }
+}
+
+struct TimelinePhoto: Identifiable, Sendable {
+    let id: String
+    let pixelWidth: Int
+    let pixelHeight: Int
+    let isVideo: Bool
+    let duration: TimeInterval
+    let creationDate: Date
+
+    var aspectRatio: CGFloat {
+        CGFloat(max(pixelWidth, 1)) / CGFloat(max(pixelHeight, 1))
+    }
+
+    init(id: String, pixelWidth: Int, pixelHeight: Int, isVideo: Bool = false, duration: TimeInterval = 0, creationDate: Date = Date()) {
+        self.id = id
+        self.pixelWidth = pixelWidth
+        self.pixelHeight = pixelHeight
+        self.isVideo = isVideo
+        self.duration = duration
+        self.creationDate = creationDate
+    }
+}
+
+struct TimelinePhotoSheet: Identifiable {
+    let id = UUID()
+    let photos: [TimelinePhoto]
+    let initialPhotoID: String?
+
+    init(photos: [TimelinePhoto], initialPhotoID: String? = nil) {
+        self.photos = photos
+        self.initialPhotoID = initialPhotoID
+    }
+}
+
+enum TimelinePhotoLog {
+    static let context = "TimelinePhotos"
+
+    static func dateString(_ date: Date) -> String {
+        dateFormatter.string(from: date)
+    }
+
+    static func intervalString(_ interval: DateInterval) -> String {
+        "\(dateString(interval.start)) -> \(dateString(interval.end)) (\(Int(interval.duration))s)"
+    }
+
+    static func shortKey(_ key: String) -> String {
+        String(key.prefix(18))
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss ZZZZZ"
+        return formatter
+    }()
+}
+

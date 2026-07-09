@@ -487,7 +487,7 @@ struct ImportProgressView: View {
         return nil
     }
     
-    private func handleDuplicate(place: Place, duplicate: Place, timer: PerformanceTimer) async throws -> Bool {
+    private func handleDuplicate(place: Place, duplicate: Place, timer: PerformanceTimer) throws -> Bool {
         let startHandleDuplicate = Date()
         var updatedPlace = duplicate
         var needsUpdate = false
@@ -509,6 +509,12 @@ struct ImportProgressView: View {
                 mapboxPlaceId: duplicate.mapboxPlaceId,
                 foursquareVenueId: duplicate.foursquareVenueId,
                 foursquareCategoryId: duplicate.foursquareCategoryId,
+                googlePlacesId: duplicate.googlePlacesId,
+                yelpId: duplicate.yelpId,
+                applePlaceId: duplicate.applePlaceId,
+                osmNodeId: duplicate.osmNodeId,
+                herePlaceId: duplicate.herePlaceId,
+                gaodePlaceId: duplicate.gaodePlaceId,
                 previousIds: previousIds,
                 lastVisited: duplicate.lastVisited,
                 isFavorite: duplicate.isFavorite,
@@ -543,6 +549,12 @@ struct ImportProgressView: View {
                 mapboxPlaceId: updatedPlace.mapboxPlaceId,
                 foursquareVenueId: updatedPlace.foursquareVenueId,
                 foursquareCategoryId: updatedPlace.foursquareCategoryId,
+                googlePlacesId: updatedPlace.googlePlacesId,
+                yelpId: updatedPlace.yelpId,
+                applePlaceId: updatedPlace.applePlaceId,
+                osmNodeId: updatedPlace.osmNodeId,
+                herePlaceId: updatedPlace.herePlaceId,
+                gaodePlaceId: updatedPlace.gaodePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: updatedPlace.lastVisited,
                 isFavorite: updatedPlace.isFavorite,
@@ -565,6 +577,12 @@ struct ImportProgressView: View {
                 mapboxPlaceId: place.mapboxPlaceId,
                 foursquareVenueId: place.foursquareVenueId,
                 foursquareCategoryId: place.foursquareCategoryId,
+                googlePlacesId: place.googlePlacesId,
+                yelpId: place.yelpId,
+                applePlaceId: place.applePlaceId,
+                osmNodeId: place.osmNodeId,
+                herePlaceId: place.herePlaceId,
+                gaodePlaceId: place.gaodePlaceId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: place.lastVisited,
                 isFavorite: place.isFavorite,
@@ -579,6 +597,12 @@ struct ImportProgressView: View {
             let mergedMapboxId = updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId
             let mergedFoursquareId = updatedPlace.foursquareVenueId ?? place.foursquareVenueId
             let mergedFoursquareCatId = updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId
+            let mergedGoogleId = updatedPlace.googlePlacesId ?? place.googlePlacesId
+            let mergedYelpId = updatedPlace.yelpId ?? place.yelpId
+            let mergedAppleId = updatedPlace.applePlaceId ?? place.applePlaceId
+            let mergedOsmId = updatedPlace.osmNodeId ?? place.osmNodeId
+            let mergedHereId = updatedPlace.herePlaceId ?? place.herePlaceId
+            let mergedGaodeId = updatedPlace.gaodePlaceId ?? place.gaodePlaceId
             let mergedLastVisited = updatedPlace.lastVisited ?? place.lastVisited
             let mergedIsFavorite = updatedPlace.isFavorite ?? place.isFavorite
             let mergedCustomIcon = updatedPlace.customIcon ?? place.customIcon
@@ -590,6 +614,12 @@ struct ImportProgressView: View {
                mergedMapboxId != updatedPlace.mapboxPlaceId ||
                mergedFoursquareId != updatedPlace.foursquareVenueId ||
                mergedFoursquareCatId != updatedPlace.foursquareCategoryId ||
+               mergedGoogleId != updatedPlace.googlePlacesId ||
+               mergedYelpId != updatedPlace.yelpId ||
+               mergedAppleId != updatedPlace.applePlaceId ||
+               mergedOsmId != updatedPlace.osmNodeId ||
+               mergedHereId != updatedPlace.herePlaceId ||
+               mergedGaodeId != updatedPlace.gaodePlaceId ||
                mergedLastVisited != updatedPlace.lastVisited ||
                mergedIsFavorite != updatedPlace.isFavorite ||
                mergedCustomIcon != updatedPlace.customIcon ||
@@ -607,6 +637,12 @@ struct ImportProgressView: View {
                     mapboxPlaceId: mergedMapboxId,
                     foursquareVenueId: mergedFoursquareId,
                     foursquareCategoryId: mergedFoursquareCatId,
+                    googlePlacesId: mergedGoogleId,
+                    yelpId: mergedYelpId,
+                    applePlaceId: mergedAppleId,
+                    osmNodeId: mergedOsmId,
+                    herePlaceId: mergedHereId,
+                    gaodePlaceId: mergedGaodeId,
                     previousIds: updatedPlace.previousIds,
                     lastVisited: mergedLastVisited,
                     isFavorite: mergedIsFavorite,
@@ -618,7 +654,7 @@ struct ImportProgressView: View {
         }
         
         if needsUpdate {
-            try await PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
+            try PlaceManager.shared.editPlace(original: duplicate, edited: updatedPlace, batch: true)
             mergedCount += 1
         }
         timer.addTime("Handle Duplicate", Date().timeIntervalSince(startHandleDuplicate), parent: "Process Place")
@@ -667,7 +703,6 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
-        let startProcessing = Date()
         let batchSize = 50
         var batchCounter = 0
         
@@ -740,11 +775,11 @@ struct ImportProgressView: View {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
                         } else {
-                            _ = try await handleDuplicate(place: place, duplicate: duplicate, timer: timer)
+                            _ = try handleDuplicate(place: place, duplicate: duplicate, timer: timer)
                         }
                     } else {
                         let startAddPlace = Date()
-                        try await PlaceManager.shared.addPlace(place, batch: true)
+                        try PlaceManager.shared.addPlace(place, batch: true)
                         timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
                         addedCount += 1
                     }
@@ -797,7 +832,7 @@ struct ImportProgressView: View {
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
         
         let startFinalize = Date()
-        try await PlaceManager.shared.finalizeBatchOperations()
+        try PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
         timer.addTime("Main Processing", Date().timeIntervalSince(startImport))
     }
@@ -871,11 +906,11 @@ struct ImportProgressView: View {
                             print("Skipping duplicate: \(place.name) (ID: \(place.placeId))")
                             continue
                         } else {
-                            _ = try await handleDuplicate(place: place, duplicate: duplicate, timer: timer)
+                            _ = try handleDuplicate(place: place, duplicate: duplicate, timer: timer)
                         }
                     } else {
                         let startAddPlace = Date()
-                        try await PlaceManager.shared.addPlace(place, batch: true)
+                        try PlaceManager.shared.addPlace(place, batch: true)
                         timer.addTime("Add New Place", Date().timeIntervalSince(startAddPlace), parent: "Process Place")
                         addedCount += 1
                     }
@@ -928,7 +963,7 @@ struct ImportProgressView: View {
         progress = "Completed: Imported \(addedCount) places, found \(duplicateCount) duplicates"
         
         let startFinalize = Date()
-        try await PlaceManager.shared.finalizeBatchOperations()
+        try PlaceManager.shared.finalizeBatchOperations()
         timer.addTime("Finalize Batch", Date().timeIntervalSince(startFinalize))
         
         timer.addTime("Main Processing", Date().timeIntervalSince(startImport))

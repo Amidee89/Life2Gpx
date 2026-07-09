@@ -88,14 +88,14 @@ struct ManagePlacesView: View {
                 Map(position: $cameraPosition, interactionModes: .all) {
                     if isMapLoaded {
                         ForEach(visiblePlaces) { place in
-                            Annotation(place.name, coordinate: place.coordinate) {
+                            Annotation(place.name, coordinate: CoordinateConverter.forMapDisplay(place.coordinate)) {
                                 ZStack {
                                     Circle()
                                         .fill(selectedPlace == place ? Color.purple : Color.red)
                                         .frame(width: 10, height: 10)
                                 }
                             }
-                            MapCircle(center: place.coordinate, radius: place.radius)
+                            MapCircle(center: CoordinateConverter.forMapDisplay(place.coordinate), radius: place.radius)
                                 .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
                                 .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
                         }
@@ -165,6 +165,8 @@ struct ManagePlacesView: View {
                 List {
                     ForEach(filteredPlaces) { place in
                         HStack {
+                            PlaceIconView(icon: place.customIcon, font: .title3, fallbackColor: .gray)
+                                .frame(width: 30)
                             VStack(alignment: .leading) {
                                 Text("\(place.name)")
                                 if let streetAddress = place.streetAddress {
@@ -180,7 +182,7 @@ struct ManagePlacesView: View {
                                 let span = max(radiusInDegrees, minimumSpan)
                                 
                                 cameraPosition = .region(MKCoordinateRegion(
-                                    center: place.coordinate,
+                                    center: CoordinateConverter.forMapDisplay(place.coordinate),
                                     span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                                 ))
                             }
@@ -241,7 +243,7 @@ struct ManagePlacesView: View {
                     name: "",
                     center: Center(latitude: userLocation?.latitude ?? 37.7749,
                                   longitude: userLocation?.longitude ?? -122.4194),
-                    radius: 40,
+                    radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
                     streetAddress: nil,
                     secondsFromGMT: TimeZone.current.secondsFromGMT(),
                     lastSaved: ISO8601DateFormatter().string(from: Date()),
@@ -259,12 +261,17 @@ struct ManagePlacesView: View {
                     viewModel.loadPlaces()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+                isEditingPlace = false
+                isCreatingPlace = false
+                selectedPlace = nil
+            }
         }
     }
 
     private func setRegion(_ coordinate: CLLocationCoordinate2D) {
         let region = MKCoordinateRegion(
-            center: coordinate,
+            center: CoordinateConverter.forMapDisplay(coordinate),
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
         cameraPosition = .region(region)

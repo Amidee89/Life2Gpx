@@ -7,6 +7,7 @@ struct EditTrackView: View {
     let timelineObject: TimelineObject
     let fileDate: Date
     var onSaveChanges: () -> Void
+    var customSaveAction: ((_ updatedTrack: GPXTrack) -> Void)? = nil
     
     @State private var cameraPosition: MapCameraPosition = .automatic
     @StateObject var workingCopy: TimelineObject
@@ -27,11 +28,15 @@ struct EditTrackView: View {
     @State private var editedExtensions: [String: String] = [:]
     
     @State private var showingDeleteConfirmation = false
+    @State private var showingSecondsPicker = false
+    @FocusState private var isInputActive: Bool
+    @State private var scrollTarget: String? = nil
     
-    init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void) {
+    init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void, customSaveAction: ((_ updatedTrack: GPXTrack) -> Void)? = nil) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
         self.onSaveChanges = onSaveChanges
+        self.customSaveAction = customSaveAction
         
         let copy = TimelineObject(
             type: timelineObject.type,
@@ -55,19 +60,27 @@ struct EditTrackView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                editTrackMapView
-                    .frame(height: 300)
+            ScrollViewReader { proxy in
+                VStack(spacing: 0) {
+                if !isEditing {
+                    editTrackMapView
+                        .frame(height: 300)
+                }
                 
                 List {
+                    if isEditing {
+                        editTrackMapView
+                            .frame(height: 300)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                    }
+
                     if !isEditing {
                         Section("Track Info") {
                             Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
-                                Text("Walking").tag("walking")
-                                Text("Running").tag("running")
-                                Text("Cycling").tag("cycling")
-                                Text("Automotive").tag("automotive")
-                                Text("Unknown").tag("unknown")
+                                ForEach(PreferencesManager.shared.trackTypes) { trackType in
+                                    Text(trackType.name).tag(trackType.id)
+                                }
                             }
                             .onChange(of: workingCopy.trackType) { oldValue, newValue in
                                 print("[EditTrackView] Picker selection changed: workingCopy.trackType is now \(newValue ?? "nil") (was \(oldValue ?? "nil"))")
@@ -143,7 +156,6 @@ struct EditTrackView: View {
                                                 
                                                 if let pointTime = point.time {
                                                     let calendar = Calendar.current
-                                                    let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: pointTime)
                                                     
                                                     DatePicker("Date", selection: Binding(
                                                         get: { pointTime },
@@ -166,52 +178,68 @@ struct EditTrackView: View {
                                                     ), displayedComponents: .date)
                                                     
                                                     HStack {
-                                                        DatePicker("Time", selection: Binding(
-                                                            get: { pointTime },
-                                                            set: { newTime in
-                                                                let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
-                                                                let timeComponents = calendar.dateComponents([.hour, .minute], from: newTime)
-                                                                let seconds = calendar.component(.second, from: pointTime)
-                                                                
-                                                                var mergedComponents = DateComponents()
-                                                                mergedComponents.year = dateComponents.year
-                                                                mergedComponents.month = dateComponents.month
-                                                                mergedComponents.day = dateComponents.day
-                                                                mergedComponents.hour = timeComponents.hour
-                                                                mergedComponents.minute = timeComponents.minute
-                                                                mergedComponents.second = seconds
-                                                                
-                                                                if let mergedDate = calendar.date(from: mergedComponents) {
-                                                                    segment.points[pointIndex].time = mergedDate
-                                                                }
-                                                            }
-                                                        ), displayedComponents: .hourAndMinute)
-                                                        
-                                                        let seconds = calendar.component(.second, from: pointTime)
-                                                        Text(":")
-                                                            .font(.system(size: 17, weight: .regular))
-                                                        Menu {
-                                                            Picker("", selection: Binding(
-                                                                get: { seconds },
-                                                                set: { newSeconds in
-                                                                    var components = calendar.dateComponents(
-                                                                        [.year, .month, .day, .hour, .minute],
-                                                                        from: pointTime
-                                                                    )
-                                                                    components.second = newSeconds
+                                                        HStack {
+                                                            DatePicker("Time", selection: Binding(
+                                                                get: { pointTime },
+                                                                set: { newTime in
+                                                                    let dateComponents = calendar.dateComponents([.year, .month, .day], from: pointTime)
+                                                                    let timeComponents = calendar.dateComponents([.hour, .minute], from: newTime)
+                                                                    let seconds = calendar.component(.second, from: pointTime)
                                                                     
-                                                                    if let newDate = calendar.date(from: components) {
-                                                                        segment.points[pointIndex].time = newDate
+                                                                    var mergedComponents = DateComponents()
+                                                                    mergedComponents.year = dateComponents.year
+                                                                    mergedComponents.month = dateComponents.month
+                                                                    mergedComponents.day = dateComponents.day
+                                                                    mergedComponents.hour = timeComponents.hour
+                                                                    mergedComponents.minute = timeComponents.minute
+                                                                    mergedComponents.second = seconds
+                                                                    
+                                                                    if let mergedDate = calendar.date(from: mergedComponents) {
+                                                                        segment.points[pointIndex].time = mergedDate
                                                                     }
                                                                 }
-                                                            )) {
-                                                                ForEach(0..<60) { second in
-                                                                    Text("\(second)").tag(second)
-                                                                }
+                                                            ), displayedComponents: .hourAndMinute)
+                                                            
+                                                            let seconds = calendar.component(.second, from: pointTime)
+                                                            Text(":")
+                                                                .font(.system(size: 17, weight: .regular))
+                                                            
+                                                            Button(action: {
+                                                                showingSecondsPicker = true
+                                                            }) {
+                                                                Text(String(format: "%02d", seconds))
+                                                                    .padding(.horizontal, 10)
+                                                                    .padding(.vertical, 6)
+                                                                    .background(Color(UIColor.tertiarySystemFill))
+                                                                    .cornerRadius(6)
+                                                                    .foregroundColor(.primary)
                                                             }
-                                                        } label: {
-                                                            Text(String(format: "%02d", seconds))
-                                                                .foregroundColor(.blue)
+                                                            .popover(isPresented: $showingSecondsPicker) {
+                                                                Picker("Seconds", selection: Binding(
+                                                                    get: { seconds },
+                                                                    set: { newSeconds in
+                                                                        var components = calendar.dateComponents(
+                                                                            [.year, .month, .day, .hour, .minute],
+                                                                            from: pointTime
+                                                                        )
+                                                                        components.second = newSeconds
+                                                                        
+                                                                        if let newDate = calendar.date(from: components) {
+                                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex].time = newDate
+                                                                        }
+                                                                    }
+                                                                )) {
+                                                                    ForEach(0..<60) { second in
+                                                                        Text(String(format: "%02d", second)).tag(second)
+                                                                    }
+                                                                }
+                                                                .pickerStyle(.wheel)
+                                                                .labelsHidden()
+                                                                .frame(width: 80, height: 120)
+                                                                .padding(.vertical, 16)
+                                                                .padding(.horizontal, 8)
+                                                                .presentationCompactAdaptation(.popover)
+                                                            }
                                                         }
                                                     }
                                                     .padding(.bottom, 8)
@@ -224,8 +252,9 @@ struct EditTrackView: View {
                                                     LabeledContent("Latitude:") {
                                                         TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(6)))
                                                             .keyboardType(.decimalPad)
+                                                            .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
-                                                            .onChange(of: selectedPointLatitude) { newValue in
+                                                            .onChange(of: selectedPointLatitude) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -238,8 +267,9 @@ struct EditTrackView: View {
                                                     LabeledContent("Longitude:") {
                                                         TextField("", value: $selectedPointLongitude, format: .number.precision(.fractionLength(6)))
                                                             .keyboardType(.decimalPad)
+                                                            .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
-                                                            .onChange(of: selectedPointLongitude) { newValue in
+                                                            .onChange(of: selectedPointLongitude) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -252,8 +282,9 @@ struct EditTrackView: View {
                                                     LabeledContent("Elevation:") {
                                                         TextField("", value: $selectedPointElevation, format: .number.precision(.fractionLength(1)))
                                                             .keyboardType(.decimalPad)
+                                                            .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
-                                                            .onChange(of: selectedPointElevation) { newValue in
+                                                            .onChange(of: selectedPointElevation) { _, newValue in
                                                                 if let segmentIndex = selectedSegmentIndex, 
                                                                    let pointIndex = selectedPointIndex,
                                                                    workingCopy.track?.segments.indices.contains(segmentIndex) == true,
@@ -273,6 +304,7 @@ struct EditTrackView: View {
                                                             )
                                                             LabeledContent(key) {
                                                                 TextField("Value", text: binding)
+                                                                    .focused($isInputActive)
                                                                     .multilineTextAlignment(.trailing)
                                                                     .foregroundColor(.secondary)
                                                             }
@@ -378,6 +410,7 @@ struct EditTrackView: View {
                                                 }
                                             }
                                             .listRowBackground(selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
+                                            .id("segment_\(segmentIndex)_point_\(pointIndex)")
                                         }
                                     }
                                 }
@@ -401,7 +434,16 @@ struct EditTrackView: View {
                     }
                 }
                 .listStyle(InsetGroupedListStyle())
-            }
+                .onChange(of: scrollTarget) { _, newTarget in
+                    if let target = newTarget {
+                        withAnimation {
+                            proxy.scrollTo(target, anchor: .center)
+                        }
+                        scrollTarget = nil
+                    }
+                }
+            } // closes VStack
+            } // closes ScrollViewReader
             .navigationTitle("Edit Track")
             .navigationBarItems(
                 leading: Button("Cancel") {
@@ -415,24 +457,40 @@ struct EditTrackView: View {
                         return
                     }
 
-                    do {
-                        try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                    } catch {
-
-                        return
+                    if workingCopy.trackType == "unknown" {
+                        workingCopy.track?.type = nil
+                    } else {
+                        workingCopy.track?.type = workingCopy.trackType
                     }
 
-                    workingCopy.track?.type = workingCopy.trackType
-
-                    GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
-
-                    onSaveChanges()
+                    if let customSave = customSaveAction {
+                        customSave(updatedTrack)
+                    } else {
+                        do {
+                            try FileManagerUtil.shared.backupFile(forDate: fileDate)
+                        } catch {
+                            return
+                        }
+                        GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
+                        onSaveChanges()
+                    }
 
                     dismiss()
                 }
             )
+            .toolbar {
+                ToolbarItem(placement: .keyboard) {
+                    HStack {
+                        Spacer()
+                        Button("Done") {
+                            isInputActive = false
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
             .onAppear {
-                let coordinates = workingCopy.identifiableCoordinates.flatMap { $0.coordinates }
+                let coordinates = CoordinateConverter.forMapDisplay(workingCopy.identifiableCoordinates.flatMap { $0.coordinates })
                 if !coordinates.isEmpty {
                     let span = calculateSpan(for: coordinates)
                     let center = coordinates[coordinates.count / 2]
@@ -442,7 +500,7 @@ struct EditTrackView: View {
                     ))
                 }
             }
-            .onChange(of: shouldUpdateCamera) { _ in
+            .onChange(of: shouldUpdateCamera) {
                 if shouldUpdateCamera, 
                    let segmentIndex = selectedSegmentIndex, 
                    let pointIndex = selectedPointIndex,
@@ -470,8 +528,9 @@ struct EditTrackView: View {
                     }
                     
                     if !coordinates.isEmpty {
-                        let span = calculateSpan(for: coordinates, withPadding: 1.5)
-                        let center = coordinates[0] 
+                        let displayCoords = CoordinateConverter.forMapDisplay(coordinates)
+                        let span = calculateSpan(for: displayCoords, withPadding: 1.5)
+                        let center = displayCoords[0] 
                         
                         withAnimation {
                             cameraPosition = .region(MKCoordinateRegion(
@@ -485,10 +544,9 @@ struct EditTrackView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             "Are you sure you want to delete this track?",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showingDeleteConfirmation
         ) {
             Button("Delete Track", role: .destructive) {
                 guard let originalTrack = timelineObject.track else {
@@ -537,10 +595,10 @@ struct EditTrackView: View {
             Map(position: $cameraPosition) {
                 if let track = workingCopy.track {
                     ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
-                        let coordinates = segment.points.compactMap { point in
+                        let coordinates = CoordinateConverter.forMapDisplay(segment.points.compactMap { point in
                             point.latitude != nil && point.longitude != nil ?
                                 CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
-                        }
+                        })
                         MapPolyline(coordinates: coordinates)
                             .stroke(.white,
                                    style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
@@ -548,7 +606,7 @@ struct EditTrackView: View {
                             .stroke(.black,
                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         MapPolyline(coordinates: coordinates)
-                            .stroke(trackTypeColorMapping[workingCopy.trackType ?? "unknown"] ?? .purple,
+                            .stroke(PreferencesManager.shared.color(for: workingCopy.trackType),
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         
                         ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
@@ -565,7 +623,7 @@ struct EditTrackView: View {
                                     )
                                 
                                 if !shouldSkip {
-                                    let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                                    let coordinate = CoordinateConverter.forMapDisplay(CLLocationCoordinate2D(latitude: lat, longitude: lon))
                                     let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                                     
                                     Annotation(timeLabel, coordinate: coordinate) {
@@ -576,6 +634,39 @@ struct EditTrackView: View {
                                             Circle()
                                                 .fill(Color.blue)
                                                 .frame(width: 10, height: 10)
+                                        }
+                                        .onTapGesture {
+                                            if !isEditing {
+                                                withAnimation {
+                                                    selectedSegmentIndex = segmentIndex
+                                                    selectedPointIndex = index
+                                                    
+                                                    if let point = track.segments[segmentIndex].points[safe: index] {
+                                                        originalPointLatitude = point.latitude ?? 0.0
+                                                        originalPointLongitude = point.longitude ?? 0.0
+                                                        originalPointElevation = point.elevation ?? 0.0
+                                                        originalPointTime = point.time
+                                                        
+                                                        originalExtensionsDict = [:]
+                                                        if let extensions = point.extensions {
+                                                            for child in extensions.children {
+                                                                if let value = child.text {
+                                                                    originalExtensionsDict[child.name] = value
+                                                                }
+                                                            }
+                                                        }
+                                                        editedExtensions = originalExtensionsDict
+
+                                                        selectedPointLatitude = point.latitude ?? 0.0
+                                                        selectedPointLongitude = point.longitude ?? 0.0
+                                                        selectedPointElevation = point.elevation ?? 0.0
+                                                        print("Map Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
+                                                        shouldUpdateCamera = true
+                                                    }
+                                                }
+                                                // Trigger scroll slightly after selecting, or right away
+                                                scrollTarget = "segment_\(segmentIndex)_point_\(index)"
+                                            }
                                         }
                                     }
                                 }
@@ -590,7 +681,7 @@ struct EditTrackView: View {
                         
                         let point = track.segments[selectedSegmentIndex].points[selectedPointIndex]
                         if let lat = point.latitude, let lon = point.longitude {
-                            let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                            let coordinate = CoordinateConverter.forMapDisplay(CLLocationCoordinate2D(latitude: lat, longitude: lon))
                             let timeLabel = point.time?.formatted(date: .omitted, time: .shortened) ?? "No time"
                             
                             Annotation(timeLabel, coordinate: coordinate) {
@@ -614,8 +705,9 @@ struct EditTrackView: View {
                    let track = workingCopy.track,
                    track.segments.indices.contains(selectedSegmentIndex),
                    track.segments[selectedSegmentIndex].points.indices.contains(selectedPointIndex),
-                   let coordinate = reader.convert(screenCoord, from: .local) {
+                   let mapCoordinate = reader.convert(screenCoord, from: .local) {
                     
+                    let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
                     track.segments[selectedSegmentIndex].points[selectedPointIndex].latitude = coordinate.latitude
                     track.segments[selectedSegmentIndex].points[selectedPointIndex].longitude = coordinate.longitude
                     

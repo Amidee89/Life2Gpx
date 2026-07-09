@@ -12,14 +12,18 @@ class FileManagerUtil {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         
         let folders = [
+            "Gpx",
             "Import",
             "Import/Arc",
             "Import/Done",
             "Places",
+            "Preferences",
             "Backups",
             "Backups/GPX",
             "Backups/Places",
-            "Logs"
+            "Logs/App",
+            "Logs/Dumps",
+            "Logs/Resources"
         ]
         
         for folder in folders {
@@ -93,13 +97,7 @@ class FileManagerUtil {
     }
     
     func backupFile(forDate date: Date) throws {
-        let fileManager = FileManager.default
-        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let fileName = "\(dateFormatter.string(from: date)).gpx"
-        let fileUrl = documentsUrl.appendingPathComponent(fileName)
-
+        let fileUrl = GPXManager.shared.resolvedFileURL(forDate: date)
         try backupFile(fileUrl)
     }
     
@@ -164,19 +162,150 @@ class FileManagerUtil {
         let fileName = formatter.string(from: Date()) + ".log"
 
         let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let logsDirectory = documentDirectory.appendingPathComponent("Logs")
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs/App")
         if !FileManager.default.fileExists(atPath: logsDirectory.path) {
             do {
                 try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
-                FileManagerUtil.logData(context: "LogSetup", content: "Created Logs directory via getLogFileURL (should not happen)", verbosity: 2)
+                FileManagerUtil.logData(context: "LogSetup", content: "Created Logs/App directory via getLogFileURL (should not happen)", verbosity: 2)
             } catch {
-                FileManagerUtil.logData(context: "LogSetup", content: "Failed to create Logs directory: \(error)", verbosity: 1)
+                FileManagerUtil.logData(context: "LogSetup", content: "Failed to create Logs/App directory: \(error)", verbosity: 1)
             }
         }
 
         return logsDirectory.appendingPathComponent(fileName)
     }
 
+    /// Returns GPX files found directly in the Documents root (not in Gpx/ subfolders).
+    /// Includes both normal ".gpx" files and duplicate variants like ".gpx 2" created by Files app.
+    func gpxFilesInRoot() -> [URL] {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        guard let contents = try? fileManager.contentsOfDirectory(
+            at: documentsUrl,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        ) else { return [] }
+        
+        return contents.filter { url in
+            let name = url.lastPathComponent.lowercased()
+            return name.hasSuffix(".gpx") || name.range(of: #"\.gpx \d+$"#, options: .regularExpression) != nil
+        }
+    }
+    
+    enum ConflictResolution: Hashable {
+        case overwrite
+        case keepExisting   // incoming file goes to Duplicates
+        case replaceExisting // existing file goes to Duplicates, incoming takes its place
+    }
+    
+    /// Moves a file into the Duplicates folder without overwriting anything already there.
+    /// Appends " 2", " 3", etc. if the name already exists in Duplicates.
+    private func moveToDuplicates(_ fileUrl: URL) throws {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let duplicatesFolder = documentsUrl.appendingPathComponent("Gpx/Duplicates")
+        
+        if !fileManager.fileExists(atPath: duplicatesFolder.path) {
+            try fileManager.createDirectory(at: duplicatesFolder, withIntermediateDirectories: true)
+        }
+        
+        let originalName = fileUrl.lastPathComponent
+        var destination = duplicatesFolder.appendingPathComponent(originalName)
+        
+        if fileManager.fileExists(atPath: destination.path) {
+            let nameWithoutExt = fileUrl.deletingPathExtension().lastPathComponent
+            let ext = fileUrl.pathExtension
+            var counter = 2
+            repeat {
+                let numberedName = ext.isEmpty ? "\(nameWithoutExt) \(counter)" : "\(nameWithoutExt) \(counter).\(ext)"
+                destination = duplicatesFolder.appendingPathComponent(numberedName)
+                counter += 1
+            } while fileManager.fileExists(atPath: destination.path)
+        }
+        
+        try fileManager.moveItem(at: fileUrl, to: destination)
+        FileManagerUtil.logData(context: "OrganizeGPX", content: "Moved \(originalName) to Duplicates as \(destination.lastPathComponent)", verbosity: 3)
+    }
+    
+    /// Moves GPX files from the Documents root into Gpx/year/ subfolders based on filename date.
+    /// Files with duplicate suffixes (e.g. "2024-05-27.gpx 2") are moved to Gpx/Duplicates/.
+    func organizeGpxFiles(conflictResolution: ConflictResolution = .keepExisting) -> (moved: Int, duplicates: Int, failed: Int) {
+        let fileManager = FileManager.default
+        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let gpxBaseUrl = documentsUrl.appendingPathComponent("Gpx")
+        let rootFiles = gpxFilesInRoot()
+        
+        var moved = 0
+        var duplicates = 0
+        var failed = 0
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        // Matches "yyyy-MM-dd.gpx N" (Files app duplicate naming, e.g. "2024-05-27.gpx 2")
+        let duplicateSuffixPattern = try! NSRegularExpression(pattern: #"\.gpx \d+$"#, options: .caseInsensitive)
+        
+        for fileUrl in rootFiles {
+            let fileName = fileUrl.lastPathComponent
+            let fileNameRange = NSRange(fileName.startIndex..., in: fileName)
+            let isDuplicate = duplicateSuffixPattern.firstMatch(in: fileName, range: fileNameRange) != nil
+            
+            if isDuplicate {
+                do {
+                    try moveToDuplicates(fileUrl)
+                    duplicates += 1
+                } catch {
+                    failed += 1
+                    FileManagerUtil.logData(context: "OrganizeGPX", content: "Failed to move duplicate \(fileUrl.lastPathComponent): \(error.localizedDescription)", verbosity: 1)
+                }
+            } else {
+                let baseName = fileUrl.deletingPathExtension().lastPathComponent
+                if let date = dateFormatter.date(from: baseName) {
+                    let calendar = Calendar.current
+                    let year = String(calendar.component(.year, from: date))
+                    let yearFolder = gpxBaseUrl.appendingPathComponent(year)
+                    
+                    do {
+                        if !fileManager.fileExists(atPath: yearFolder.path) {
+                            try fileManager.createDirectory(at: yearFolder, withIntermediateDirectories: true)
+                        }
+                        let destination = yearFolder.appendingPathComponent(fileUrl.lastPathComponent)
+                        
+                        if fileManager.fileExists(atPath: destination.path) {
+                            switch conflictResolution {
+                            case .overwrite:
+                                try fileManager.removeItem(at: destination)
+                                try fileManager.moveItem(at: fileUrl, to: destination)
+                            case .keepExisting:
+                                try moveToDuplicates(fileUrl)
+                                duplicates += 1
+                                continue
+                            case .replaceExisting:
+                                try moveToDuplicates(destination)
+                                duplicates += 1
+                                try fileManager.moveItem(at: fileUrl, to: destination)
+                            }
+                        } else {
+                            try fileManager.moveItem(at: fileUrl, to: destination)
+                        }
+                        moved += 1
+                        FileManagerUtil.logData(context: "OrganizeGPX", content: "Moved \(fileUrl.lastPathComponent) to Gpx/\(year)/", verbosity: 3)
+                    } catch {
+                        failed += 1
+                        FileManagerUtil.logData(context: "OrganizeGPX", content: "Failed to move \(fileUrl.lastPathComponent): \(error.localizedDescription)", verbosity: 1)
+                    }
+                } else {
+                    failed += 1
+                    FileManagerUtil.logData(context: "OrganizeGPX", content: "Could not parse date from filename: \(baseName)", verbosity: 2)
+                }
+            }
+        }
+        
+        FileManagerUtil.logData(context: "OrganizeGPX", content: "Organization complete. Moved: \(moved), Duplicates: \(duplicates), Failed: \(failed)", verbosity: 2)
+        return (moved, duplicates, failed)
+    }
+    
     static func logData(context: String, content: String, verbosity: Int) {
         guard SettingsManager.shared.debugLogVerbosity > 0, 
               verbosity <= SettingsManager.shared.debugLogVerbosity else {
