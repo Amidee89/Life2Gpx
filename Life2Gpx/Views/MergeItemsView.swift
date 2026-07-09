@@ -302,9 +302,10 @@ struct MergeHelpers {
 
         track.add(trackSegment: segment)
 
-        // Use the track type from the first track item if available
-        if let firstTrack = items.first(where: { $0.type == .track }) {
-            track.type = firstTrack.trackType
+        // Use the track type of the track with the most points
+        let trackItems = items.filter { $0.type == .track }
+        if let largestTrack = trackItems.max(by: { $0.points.count < $1.points.count }) {
+            track.type = largestTrack.trackType
         } else {
             track.type = "walking"
         }
