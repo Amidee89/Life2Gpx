@@ -43,6 +43,43 @@ private func timelinePhotoKitInfoSummary(_ info: [AnyHashable: Any]?) -> String 
     return "cancelled=\(cancelled) degraded=\(degraded) inCloud=\(inCloud) error=\(errorDescription)"
 }
 
+private actor PhotoFetchActor {
+    static let shared = PhotoFetchActor()
+
+    func fetchPhotoRecords(from startDate: Date, to endDate: Date) -> [TimelinePhoto] {
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+        options.predicate = NSPredicate(
+            format: "(mediaType == %d OR mediaType == %d) AND creationDate >= %@ AND creationDate < %@",
+            PHAssetMediaType.image.rawValue,
+            PHAssetMediaType.video.rawValue,
+            startDate as NSDate,
+            endDate as NSDate
+        )
+
+        let result = PHAsset.fetchAssets(with: options)
+        var photos: [TimelinePhoto] = []
+        photos.reserveCapacity(result.count)
+        result.enumerateObjects { asset, _, stop in
+            if Task.isCancelled {
+                stop.pointee = true
+                return
+            }
+            photos.append(
+                TimelinePhoto(
+                    id: asset.localIdentifier,
+                    pixelWidth: asset.pixelWidth,
+                    pixelHeight: asset.pixelHeight,
+                    isVideo: asset.mediaType == .video,
+                    duration: asset.duration,
+                    creationDate: asset.creationDate ?? Date()
+                )
+            )
+        }
+        return photos
+    }
+}
+
 @MainActor
 final class TimelinePhotoStore: ObservableObject {
     @Published private var photosByKey: [String: [TimelinePhoto]] = [:]
@@ -51,6 +88,8 @@ final class TimelinePhotoStore: ObservableObject {
     private var loadingKeys: Set<String> = []
     private var loadingImageKeys: Set<String> = []
     private var loadingFullImageIDs: Set<String> = []
+    private var dayPhotos: [Date: [TimelinePhoto]] = [:]
+    private var loadingDayTasks: [Date: Task<[TimelinePhoto], Never>] = [:]
     private var imageRequestStartedAt: [String: Date] = [:]
     private var inFlightRequestIDs: [String: PHImageRequestID] = [:]
     private var authorizationRequestTask: Task<PHAuthorizationStatus, Never>?
@@ -123,6 +162,14 @@ final class TimelinePhotoStore: ObservableObject {
             )
         }
 
+        if suspended {
+            for task in loadingDayTasks.values {
+                task.cancel()
+            }
+            loadingDayTasks.removeAll()
+            loadingKeys.removeAll()
+        }
+
         if stateChanged || suspended {
             FileManagerUtil.logData(
                 context: TimelinePhotoLog.context,
@@ -160,6 +207,11 @@ final class TimelinePhotoStore: ObservableObject {
         )
         photosByKey.removeAll()
         loadingKeys.removeAll()
+        for task in loadingDayTasks.values {
+            task.cancel()
+        }
+        loadingDayTasks.removeAll()
+        dayPhotos.removeAll()
         loadingImageKeys.removeAll()
         loadingFullImageIDs.removeAll()
         imageRequestStartedAt.removeAll()
@@ -445,21 +497,11 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         let shortKey = TimelinePhotoLog.shortKey(key)
-        if let cachedPhotos = photosByKey[key] {
-            FileManagerUtil.logData(
-                context: TimelinePhotoLog.context,
-                content: "Skipping load for \(shortKey): cache hit with \(cachedPhotos.count) photos. Interval: \(TimelinePhotoLog.intervalString(interval))",
-                verbosity: 5
-            )
+        if photosByKey[key] != nil {
             return
         }
 
         guard !loadingKeys.contains(key) else {
-            FileManagerUtil.logData(
-                context: TimelinePhotoLog.context,
-                content: "Skipping load for \(shortKey): already loading. Interval: \(TimelinePhotoLog.intervalString(interval))",
-                verbosity: 5
-            )
             return
         }
 
@@ -470,37 +512,45 @@ final class TimelinePhotoStore: ObservableObject {
             recordDiagnostics(reason: "Photo metadata load finished \(shortKey)")
         }
 
-        FileManagerUtil.logData(
-            context: TimelinePhotoLog.context,
-            content: "Loading photos for \(shortKey). Interval: \(TimelinePhotoLog.intervalString(interval))",
-            verbosity: 4
-        )
         let authorizationStatus = await requestAuthorizationIfNeeded()
         guard authorizationStatus == .authorized || authorizationStatus == .limited else {
-            FileManagerUtil.logData(
-                context: TimelinePhotoLog.context,
-                content: "Cannot load photos for \(shortKey): authorization status is \(authorizationStatus.timelineLogDescription)",
-                verbosity: 4
-            )
             photosByKey[key] = []
             return
         }
 
-        let photos = await fetchPhotoRecords(from: interval.start, to: interval.end)
-        guard !photos.isEmpty else {
-            FileManagerUtil.logData(
-                context: TimelinePhotoLog.context,
-                content: "No PhotoKit assets found for \(shortKey). Interval: \(TimelinePhotoLog.intervalString(interval))",
-                verbosity: 4
-            )
-            photosByKey[key] = []
+        let dayStart = Calendar.current.startOfDay(for: interval.start)
+        let allDayPhotos: [TimelinePhoto]
+
+        if let cachedDay = dayPhotos[dayStart] {
+            allDayPhotos = cachedDay
+        } else if let existingTask = loadingDayTasks[dayStart] {
+            allDayPhotos = await existingTask.value
+        } else {
+            let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? interval.end
+            let task = Task<[TimelinePhoto], Never>(priority: .utility) {
+                await fetchPhotoRecords(from: dayStart, to: nextDay)
+            }
+            loadingDayTasks[dayStart] = task
+            allDayPhotos = await task.value
+            
+            if !Task.isCancelled {
+                dayPhotos[dayStart] = allDayPhotos
+            }
+            loadingDayTasks[dayStart] = nil
+        }
+
+        guard !Task.isCancelled else {
             return
         }
 
-        photosByKey[key] = photos
+        let filteredPhotos = allDayPhotos.filter { photo in
+            photo.creationDate >= interval.start && photo.creationDate < interval.end
+        }
+
+        photosByKey[key] = filteredPhotos
         FileManagerUtil.logData(
             context: TimelinePhotoLog.context,
-            content: "Finished loading photo metadata for \(shortKey). Records: \(photos.count)",
+            content: "Finished loading photo metadata for \(shortKey). Records: \(filteredPhotos.count)",
             verbosity: 4
         )
     }
@@ -552,33 +602,7 @@ final class TimelinePhotoStore: ObservableObject {
     }
 
     private func fetchPhotoRecords(from startDate: Date, to endDate: Date) async -> [TimelinePhoto] {
-        await Task.detached(priority: .utility) {
-            let options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
-            options.predicate = NSPredicate(
-                format: "(mediaType == %d OR mediaType == %d) AND creationDate >= %@ AND creationDate < %@",
-                PHAssetMediaType.image.rawValue,
-                PHAssetMediaType.video.rawValue,
-                startDate as NSDate,
-                endDate as NSDate
-            )
-
-            let result = PHAsset.fetchAssets(with: options)
-            var photos: [TimelinePhoto] = []
-            photos.reserveCapacity(result.count)
-            result.enumerateObjects { asset, _, _ in
-                photos.append(
-                    TimelinePhoto(
-                        id: asset.localIdentifier,
-                        pixelWidth: asset.pixelWidth,
-                        pixelHeight: asset.pixelHeight,
-                        isVideo: asset.mediaType == .video,
-                        duration: asset.duration
-                    )
-                )
-            }
-            return photos
-        }.value
+        await PhotoFetchActor.shared.fetchPhotoRecords(from: startDate, to: endDate)
     }
 
     private func fetchAsset(localIdentifier: String) -> PHAsset? {
