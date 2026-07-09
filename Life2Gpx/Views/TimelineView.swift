@@ -1626,6 +1626,23 @@ struct TimelineView: View {
 }
 
 #if DEBUG
+#Preview {
+    TimelineView(
+        timelineObjects: .constant([TimelineObject.previewWaypoint, TimelineObject.previewTrack]),
+        selectedTimelineObjectID: .constant(nil),
+        scrollPositions: .constant([:]),
+        groupingMinutes: 5,
+        onRefresh: {},
+        onSelectItem: { _ in },
+        onSelectGroup: { _ in },
+        selectedDate: Date(),
+        onEditVisit: { _, _, _ in },
+        onRecenter: {},
+        isEditMode: false,
+        selectedEditItems: .constant([])
+    )
+}
+
 extension TimelinePhotoStore {
     func setPreviewPhotos(_ photos: [TimelinePhoto], for key: String) {
         self.photosByKey[key] = photos

@@ -160,6 +160,29 @@ class TimelineObject: Identifiable, ObservableObject {
             track: track
         )
     }()
+    
+    static let previewWaypoint: TimelineObject = {
+        let startTime = Date().addingTimeInterval(-7200) // 2 hours ago
+        let endTime = Date().addingTimeInterval(-3600) // 1 hour ago
+        let coord = CLLocationCoordinate2D(latitude: 40.785091, longitude: -73.968285)
+        let waypoint = GPXWaypoint(latitude: coord.latitude, longitude: coord.longitude)
+        waypoint.time = startTime
+        waypoint.name = "Central Park"
+        
+        return TimelineObject(
+            type: .waypoint,
+            startDate: startTime,
+            endDate: endTime,
+            name: "Central Park Visit",
+            duration: "1:00:00",
+            steps: 0,
+            meters: 0,
+            numberOfPoints: 1,
+            averageSpeed: 0,
+            coordinates: [IdentifiableCoordinates(coordinates: [coord])],
+            points: [waypoint]
+        )
+    }()
 }
 
 struct IdentifiableCoordinates: Identifiable {

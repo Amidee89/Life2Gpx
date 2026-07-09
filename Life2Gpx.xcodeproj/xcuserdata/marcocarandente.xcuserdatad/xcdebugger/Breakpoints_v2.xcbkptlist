@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "153"
             endingLineNumber = "153"
-            landmarkName = "loadThumbnail(for:displaySize:contentMode:allowsNetworkAccess:)"
+            landmarkName = "setSceneSuspended(_:reason:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

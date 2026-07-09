@@ -125,89 +125,87 @@ struct ContentView: View {
 
                     VStack(spacing: 0) {
                         
-                        ZStack {
-                            HStack {
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.25)) {
-                                        showGroupingSlider.toggle()
+                        HStack {
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    showGroupingSlider.toggle()
+                                }
+                            }) {
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .padding(8)
+                                    .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
+                            }
+                            .disabled(isEditMode)
+                            .opacity(isEditMode ? 0.4 : 1)
+
+                            Button(action: {
+                                toggleEditMode()
+                            }) {
+                                Image(systemName: "square.and.pencil")
+                                    .padding(8)
+                                    .foregroundColor(isEditMode ? .orange : .blue)
+                            }
+                            
+                            Button(action: {
+                                self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .padding(8)
+                                    .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) ? .gray : .blue)
+                            }
+                            .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) || isEditMode)
+                            .opacity(isEditMode ? 0.4 : 1)
+                            
+                            if isEditMode {
+                                Text("\(selectedEditItems.count) selected")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .frame(minWidth: 100)
+                                    .multilineTextAlignment(.center)
+                            } else {
+                                DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
+                                    .onChange(of: selectedDate) {
+                                        refreshData()
+                                        centerAllData()
                                     }
-                                }) {
-                                    Image(systemName: "line.3.horizontal.decrease")
-                                        .padding(8)
-                                        .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
-                                }
-                                .disabled(isEditMode)
-                                .opacity(isEditMode ? 0.4 : 1)
-
-                                Button(action: {
-                                    toggleEditMode()
-                                }) {
-                                    Image(systemName: "square.and.pencil")
-                                        .padding(8)
-                                        .foregroundColor(isEditMode ? .orange : .blue)
-                                }
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    self.showSettings = true
-                                }) {
-                                    Image(systemName: "gearshape")
-                                        .padding(8)
-                                        .foregroundColor(.blue)
-                                }
-                                .disabled(isEditMode)
-                                .opacity(isEditMode ? 0.4 : 1)
-                                
-                                Button(action: {
-                                    shareCurrentGpx()
-                                }) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .padding(8)
-                                        .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
-                                }
-                                .disabled(currentGpxShareURL == nil || isEditMode)
-                                .opacity(isEditMode ? 0.4 : 1)
-                                .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
+                                    .fixedSize()
+                                    .labelsHidden()
                             }
-
-                            HStack {
-                                Button(action: {
-                                    self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
-                                }) {
-                                    Image(systemName: "chevron.left")
-                                        .padding(8)
-                                        .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) ? .gray : .blue)
-                                }
-                                .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) || isEditMode)
-                                .opacity(isEditMode ? 0.4 : 1)
-                                
-                                if isEditMode {
-                                    Text("\(selectedEditItems.count) selected")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .frame(minWidth: 100)
-                                        .multilineTextAlignment(.center)
-                                } else {
-                                    DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
-                                        .onChange(of: selectedDate) {
-                                            refreshData()
-                                            centerAllData()
-                                        }
-                                        .fixedSize()
-                                        .labelsHidden()
-                                }
-                                
-                                Button(action: {
-                                    self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
-                                }) {
-                                    Image(systemName: "chevron.right")
-                                        .padding(8)
-                                        .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) ? .gray : .blue)
-                                }
-                                .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) || isEditMode)
-                                .opacity(isEditMode ? 0.4 : 1)
+                            
+                            Button(action: {
+                                self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
+                            }) {
+                                Image(systemName: "chevron.right")
+                                    .padding(8)
+                                    .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) ? .gray : .blue)
                             }
+                            .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) || isEditMode)
+                            .opacity(isEditMode ? 0.4 : 1)
+
+                            Button(action: {
+                                self.showSettings = true
+                            }) {
+                                Image(systemName: "gearshape")
+                                    .padding(8)
+                                    .foregroundColor(.blue)
+                            }
+                            .disabled(isEditMode)
+                            .opacity(isEditMode ? 0.4 : 1)
+                            
+                            Button(action: {
+                                shareCurrentGpx()
+                            }) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .padding(8)
+                                    .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
+                            }
+                            .disabled(currentGpxShareURL == nil || isEditMode)
+                            .opacity(isEditMode ? 0.4 : 1)
+                            .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
+                            
+                            Spacer()
                         } .padding(5)
                         if showGroupingSlider && !isEditMode {
                             HStack(spacing: 8) {
