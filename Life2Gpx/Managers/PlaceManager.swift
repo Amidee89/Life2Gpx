@@ -60,24 +60,23 @@ class PlaceManager {
     }
     
     private func buildGridIndex() {
+        let startTime = Date()
         // Clear the existing index first
         gridIndex = [:]
         
-        print("\nBuilding grid index for \(places.count) places")
-        var cellCounts: [GridCell: Int] = [:]
-        
+        var activeCount = 0
         for place in places {
+            if !(place.isActive ?? true) { continue }
+            activeCount += 1
+            
             let gridCells = gridCellsFor(boundingRect: place.boundingRect)
             for cell in gridCells {
                 gridIndex[cell, default: []].append(place)
-                cellCounts[cell, default: 0] += 1
             }
         }
         
-        // Debug: Print cells with multiple places
-        for (cell, count) in cellCounts where count > 1 {
-            print("Cell \(cell) contains \(count) places")
-        }
+        let executionTime = Date().timeIntervalSince(startTime)
+        print("Loaded \(activeCount) active places into grid in \(String(format: "%.3f", executionTime))s")
     }
     
     private func gridCellsFor(boundingRect: BoundingRect) -> [GridCell] {

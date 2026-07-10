@@ -32,6 +32,7 @@ struct EditPlaceView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var elevationString: String
+    @State private var isActive: Bool
     private let originalPlace: Place
 
     @State private var editedPlaceId: String
@@ -94,6 +95,7 @@ struct EditPlaceView: View {
             _elevationString = State(initialValue: "")
         }
 
+        _isActive = State(initialValue: place.isActive ?? true)
         _isFavorite = State(initialValue: place.isFavorite ?? false)
         _customIcon = State(initialValue: place.customIcon ?? "")
         _lastVisited = State(initialValue: place.lastVisited ?? Date())
@@ -135,6 +137,19 @@ struct EditPlaceView: View {
     var body: some View {
         NavigationView {
             Form {
+                if !isActive {
+                    Section {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Place is not active – it will not be automatically assigned to visits")
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                    .listRowBackground(Color.blue.opacity(0.1))
+                }
+                
                 Section {
                     ZStack(alignment: .bottomTrailing) {
                         MapReader { reader in
@@ -402,6 +417,9 @@ struct EditPlaceView: View {
                 
                 if !isNewPlace {
                     Section {
+                        Toggle("Active Place", isOn: $isActive)
+                            .tint(.blue)
+
                         Button(action: {
                             showingDeleteConfirmation = true
                         }) {
@@ -417,6 +435,8 @@ struct EditPlaceView: View {
                     }
                 }
             }
+            .scrollContentBackground(isActive ? .visible : .hidden)
+            .background(isActive ? Color.clear : Color.blue.opacity(0.2))
             .navigationTitle(isNewPlace ? "New Place" : "Edit Place")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -538,7 +558,8 @@ struct EditPlaceView: View {
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,
             customIcon: customIcon.isEmpty ? nil : customIcon.trim(),
-            elevation: Double(elevationString.trim())
+            elevation: Double(elevationString.trim()),
+            isActive: isActive
         )
         
         do {

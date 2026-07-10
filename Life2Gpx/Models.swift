@@ -214,6 +214,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let isFavorite: Bool?
     let customIcon: String?
     let elevation: Double?
+    var isActive: Bool? = true
     var id: String { placeId }
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
@@ -243,6 +244,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var isFavorite: Bool?
         var customIcon: String?
         var elevation: Double?
+        var isActive: Bool?
 
         init(from place: Place) {
             self.placeId = place.placeId
@@ -267,6 +269,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.isFavorite = place.isFavorite
             self.customIcon = place.customIcon
             self.elevation = place.elevation
+            self.isActive = place.isActive ?? true
         }
         
         func toPlace() -> Place {
@@ -292,7 +295,8 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 lastVisited: lastVisited,
                 isFavorite: isFavorite,
                 customIcon: customIcon,
-                elevation: elevation
+                elevation: elevation,
+                isActive: isActive
             )
         }
     }
