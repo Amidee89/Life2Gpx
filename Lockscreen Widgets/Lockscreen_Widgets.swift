@@ -8,34 +8,42 @@
 import WidgetKit
 import SwiftUI
 
+enum LocationUpdateType: String, Codable {
+    case moving = "Moving"
+    case stationary = "Stationary"
+}
+
 struct Provider: TimelineProvider {
     let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), lastUpdateTimestamp: userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date, lastUpdateType: userDefaults?.string(forKey: "lastUpdateType"))
-
+        let rawType = userDefaults?.string(forKey: "lastUpdateType") ?? ""
+        let updateType = LocationUpdateType(rawValue: rawType)
+        return SimpleEntry(date: Date(), lastUpdateTimestamp: userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date, lastUpdateType: updateType)
     }
     
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
-        let entry = SimpleEntry(date: Date(), lastUpdateTimestamp: userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date, lastUpdateType: userDefaults?.string(forKey: "lastUpdateType"))
-           completion(entry)
+        let rawType = userDefaults?.string(forKey: "lastUpdateType") ?? ""
+        let updateType = LocationUpdateType(rawValue: rawType)
+        let entry = SimpleEntry(date: Date(), lastUpdateTimestamp: userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date, lastUpdateType: updateType)
+        completion(entry)
     }
     
-    
-     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
-         let currentDate = Date()
-         let refreshDate = Calendar.current.date(byAdding: .minute, value: 3, to: currentDate)!
-         let entry = SimpleEntry(date: currentDate, lastUpdateTimestamp: userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date, lastUpdateType: userDefaults?.string(forKey: "lastUpdateType"))
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> Void) {
+        let currentDate = Date()
+        let refreshDate = Calendar.current.date(byAdding: .minute, value: 3, to: currentDate)!
+        let rawType = userDefaults?.string(forKey: "lastUpdateType") ?? ""
+        let updateType = LocationUpdateType(rawValue: rawType)
+        let entry = SimpleEntry(date: currentDate, lastUpdateTimestamp: userDefaults?.object(forKey: "lastUpdateTimestamp") as? Date, lastUpdateType: updateType)
 
-         let timeline = Timeline(entries: [entry], policy: .after(refreshDate))
-         completion(timeline)
-     }
-
+        let timeline = Timeline(entries: [entry], policy: .after(refreshDate))
+        completion(timeline)
+    }
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let lastUpdateTimestamp: Date?
-    let lastUpdateType: String?
+    let lastUpdateType: LocationUpdateType?
 }
 
 struct Lockscreen_WidgetsEntryView : View {
@@ -49,7 +57,7 @@ struct Lockscreen_WidgetsEntryView : View {
             VStack {
                if let timestamp = entry.lastUpdateTimestamp {
                    if let lastUpdateType = entry.lastUpdateType{
-                       Text("\(lastUpdateType)")
+                       Text(lastUpdateType.rawValue)
                            .font(.caption)
                    }
                    Text("\(timestamp, formatter: dateFormatter)")
@@ -84,5 +92,5 @@ private let dateFormatter: DateFormatter = {
 #Preview(as: .accessoryRectangular) {
     Lockscreen_Widgets()
 } timeline: {
-    SimpleEntry(date: .now, lastUpdateTimestamp: .now, lastUpdateType: "Cycling")
+    SimpleEntry(date: .now, lastUpdateTimestamp: .now, lastUpdateType: .moving)
 }
