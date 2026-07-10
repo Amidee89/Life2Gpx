@@ -5,7 +5,27 @@ import CoreMotion
 import UserNotifications
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    private var locationManager = CLLocationManager()
+    private let activeLocationManager: CLLocationManager = {
+        let manager = CLLocationManager()
+        manager.distanceFilter = 3
+        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        manager.pausesLocationUpdatesAutomatically = false
+        manager.allowsBackgroundLocationUpdates = true
+        return manager
+    }()
+
+    private let stationaryLocationManager: CLLocationManager = {
+        let manager = CLLocationManager()
+        manager.distanceFilter = kCLLocationAccuracyThreeKilometers
+        manager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        manager.pausesLocationUpdatesAutomatically = false
+        manager.allowsBackgroundLocationUpdates = true
+        return manager
+    }()
+    
+    // private var backgroundSession: CLBackgroundActivitySession? // Commented out to avoid constant location indicator
+    private var appLifetimeWatchdogTimer: Timer?
+
     @Published var currentFilteredLocation: CLLocation?
     @Published var dataHasBeenUpdated: Bool = false
 
@@ -76,7 +96,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
     @objc private func forceMidnightUpdate() {
         if currentFilteredLocation == nil {
-            if let location = locationManager.location {
+            if let location = activeLocationManager.location ?? stationaryLocationManager.location {
                 currentFilteredLocation = location
                 FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Using last known locationmanager location.", verbosity: 4)
             } else {
@@ -119,6 +139,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         notificationResetTimer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in
             self?.scheduleDeadMansSwitchNotification()
         }
+    }
+
+    private func cancelDeadMansSwitchNotification() {
+        notificationResetTimer?.invalidate()
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch"]) 
+        center.removeDeliveredNotifications(withIdentifiers: ["DeadMansSwitch"])
     }
 
     private func stopNotificationResetTimer() {
@@ -193,29 +220,41 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func setupLocationManager() {
-        FileManagerUtil.logData(context: "LocationManager", content: "Setting up location manager.", verbosity: 5)
-        locationManager.delegate = self
-        locationManager.requestAlwaysAuthorization()
-        locationManager.allowsBackgroundLocationUpdates = true
-        locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        //if the filter is set, the background location updates will be absolutely unreliable. 
-        //https://developer.apple.com/forums/thread/776698?answerId=829420022#829420022
-        //maybe it could be set to other values when the app is in the foreground. 
-        locationManager.distanceFilter = kCLDistanceFilterNone
-        locationManager.startUpdatingLocation()
-        if let location = locationManager.location {
+        FileManagerUtil.logData(context: "LocationManager", content: "Setting up dual location managers.", verbosity: 5)
+        
+        activeLocationManager.delegate = self
+        stationaryLocationManager.delegate = self
+        
+        activeLocationManager.requestAlwaysAuthorization()
+        
+        if #available(iOS 17.0, *) {
+            // backgroundSession = CLBackgroundActivitySession() // Commented out to avoid constant location indicator
+        }
+        
+        activeLocationManager.startUpdatingLocation()
+        
+        if let location = activeLocationManager.location ?? stationaryLocationManager.location {
             CoordinateConverter.updateDeviceLocation(location.coordinate)
         } else {
             CoordinateConverter.restoreLastKnownDeviceLocation(from: nil)
         }
+        
+        startAppLifetimeWatchdog()
     }
     
+    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        FileManagerUtil.logData(context: "LocationManager", content: "Exited geofence region: \(region.identifier). Waking up.", verbosity: 3)
+        if region.identifier == "StationaryGeofence" {
+            adjustSettingsForMovement()
+        }
+    }
+
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let functionStartTime = Date()
         let currentTime = Date()
 
         locationManagerCallCount += 1
+        lastLocationManagerCallTimestamp = currentTime
         FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
@@ -365,10 +404,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     private func adjustSettingsForMovement() {
         self.cancelUnknownPlaceCheckInNotification()
-        locationManager.stopUpdatingLocation()
-        FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.startUpdatingLocation()
+        stationaryLocationManager.stopUpdatingLocation()
+        FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Starting activeLocationManager.", verbosity: 4)
+        
+        for region in stationaryLocationManager.monitoredRegions {
+            stationaryLocationManager.stopMonitoring(for: region)
+        }
+        startNotificationResetTimer()
+        
+        activeLocationManager.startUpdatingLocation()
         customDistanceFilter = 20
         resetLocationUpdateTimer()
     }
@@ -382,13 +426,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     private func adjustSettingsForStationary() {
         customDistanceFilter = 60 // Reset custom distance filter for movement
-        FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
+        FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m. Switching to sleep manager.", verbosity: 4)
         appendLocationToFile(type: .stationary)
         UserDefaults.standard.set(LocationUpdateType.stationary.rawValue, forKey: "lastUpdateType")
-        locationManager.stopUpdatingLocation()
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        locationManager.startUpdatingLocation()
-
+        
+        cancelDeadMansSwitchNotification()
+        
+        activeLocationManager.stopUpdatingLocation()
+        stationaryLocationManager.startUpdatingLocation()
+        
+        if let currentLoc = currentFilteredLocation {
+            let region = CLCircularRegion(center: currentLoc.coordinate, radius: 70.0, identifier: "StationaryGeofence")
+            region.notifyOnExit = true
+            region.notifyOnEntry = false
+            stationaryLocationManager.startMonitoring(for: region)
+            FileManagerUtil.logData(context: "LocationManager", content: "Started 70m geofence at \(currentLoc.coordinate).", verbosity: 4)
+        }
     }
     
     private func appendLocationToFile(type: LocationUpdateType, debug: String = "") {
@@ -767,5 +820,27 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         FileManagerUtil.logData(context: "GPXUtil", content: "getMostRecentGPXElement found: Type: \(elementType), Time: \(String(describing: mostRecentTime)).", verbosity: 5)
         return mostRecentElement
+    }
+
+    private func startAppLifetimeWatchdog() {
+        appLifetimeWatchdogTimer?.invalidate()
+        appLifetimeWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            let timeSinceLastUpdate = abs(self.lastLocationManagerCallTimestamp?.timeIntervalSinceNow ?? 0)
+            
+            // If it's been more than 180 seconds since the last update, we might be stalled
+            if timeSinceLastUpdate > 180 {
+                FileManagerUtil.logData(context: "LocationManager", content: "Watchdog: No location updates for \(Int(timeSinceLastUpdate))s. Nudging activeLocationManager.", verbosity: 2)
+                
+                // Only nudge if we are supposed to be active (we can guess based on distanceFilter)
+                if self.customDistanceFilter == 20 {
+                    self.activeLocationManager.stopUpdatingLocation()
+                    self.activeLocationManager.startUpdatingLocation()
+                }
+            } else {
+                FileManagerUtil.logData(context: "LocationManager", content: "Watchdog: Healthy. Last update was \(Int(timeSinceLastUpdate))s ago.", verbosity: 5)
+            }
+        }
     }
 }

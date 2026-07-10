@@ -13,13 +13,19 @@ class SignificantLocationChangeManager: NSObject, CLLocationManagerDelegate {
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.startMonitoringSignificantLocationChanges()
-        FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Started monitoring significant location changes.", verbosity: 3)
+        locationManager.startMonitoringVisits()
+        FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Started monitoring significant location changes and visits.", verbosity: 3)
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         let timestamp = Date()
         FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Received significant location update at \(timestamp): \(location.coordinate). Triggering app launch/resume.", verbosity: 4)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {
+        let timestamp = Date()
+        FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Received visit update at \(timestamp): \(visit.coordinate). Triggering app launch/resume.", verbosity: 4)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
