@@ -61,6 +61,9 @@ class SettingsManager {
     private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
     private let unknownPlaceNotificationMinutesKey = "unknownPlaceNotificationMinutes"
     private let trackResourceUsageKey = "trackResourceUsage"
+    private let minimumUpdateIntervalKey = "minimumUpdateInterval"
+    private let stationaryDetectionTimerKey = "stationaryDetectionTimer"
+    private let findClosePlacesLimitKey = "findClosePlacesLimit"
     
     private init() {
         registerDefaults()
@@ -88,7 +91,10 @@ class SettingsManager {
             mergeVisitAddStepsKey: true,
             sendNotificationOnUnknownPlaceKey: true,
             unknownPlaceNotificationMinutesKey: 10,
-            trackResourceUsageKey: false
+            trackResourceUsageKey: false,
+            minimumUpdateIntervalKey: 30,
+            stationaryDetectionTimerKey: 120,
+            findClosePlacesLimitKey: 10
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -305,6 +311,21 @@ class SettingsManager {
     var trackResourceUsage: Bool {
         get { return defaults.bool(forKey: trackResourceUsageKey) }
         set { defaults.set(newValue, forKey: trackResourceUsageKey) }
+    }
+
+    var minimumUpdateInterval: Int {
+        get { return defaults.integer(forKey: minimumUpdateIntervalKey) }
+        set { defaults.set(newValue, forKey: minimumUpdateIntervalKey) }
+    }
+
+    var stationaryDetectionTimer: Int {
+        get { return defaults.integer(forKey: stationaryDetectionTimerKey) }
+        set { defaults.set(newValue, forKey: stationaryDetectionTimerKey) }
+    }
+
+    var findClosePlacesLimit: Int {
+        get { return defaults.integer(forKey: findClosePlacesLimitKey) }
+        set { defaults.set(newValue, forKey: findClosePlacesLimitKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

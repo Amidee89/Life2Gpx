@@ -231,7 +231,7 @@ class PlaceManager {
         buildGridIndex()
     }
 
-    func findClosePlaces(to coordinate: CLLocationCoordinate2D, limit: Int = 10) -> [Place] {
+    func findClosePlaces(to coordinate: CLLocationCoordinate2D, limit: Int = SettingsManager.shared.findClosePlacesLimit) -> [Place] {
         // First, get the maximum radius among all places to determine search bounds
         let maxRadius = places.map { $0.radius }.max() ?? 1000
         

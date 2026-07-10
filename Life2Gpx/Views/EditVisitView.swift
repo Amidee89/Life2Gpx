@@ -79,7 +79,7 @@ struct EditVisitView: View {
                 if place2 == selectedPlace { return false }
                 return coordinate.distance(to: place1.centerCoordinate) < coordinate.distance(to: place2.centerCoordinate)
             }
-            .prefix(10)
+            .prefix(SettingsManager.shared.findClosePlacesLimit)
             .map { $0 }
     }
 

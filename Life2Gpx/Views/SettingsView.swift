@@ -21,6 +21,9 @@ struct SettingsView: View {
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
     @AppStorage("unknownPlaceNotificationMinutes") private var unknownPlaceNotificationMinutes: Int = 10
     @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
+    @AppStorage("minimumUpdateInterval") private var minimumUpdateInterval: Int = SettingsManager.shared.minimumUpdateInterval
+    @AppStorage("stationaryDetectionTimer") private var stationaryDetectionTimer: Int = SettingsManager.shared.stationaryDetectionTimer
+    @AppStorage("findClosePlacesLimit") private var findClosePlacesLimit: Int = SettingsManager.shared.findClosePlacesLimit
 
     @FocusState private var valueFieldIsFocused: Bool
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
@@ -77,6 +80,37 @@ struct SettingsView: View {
                 }
             }
             
+            Section(header: Text("Location Tracking")) {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Minimum Update Interval (seconds)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(minimumUpdateInterval)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(minimumUpdateInterval) },
+                            set: { minimumUpdateInterval = Int($0) }
+                        ), in: 10...120, step: 5)
+                    }
+
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Stationary Detection Timer (seconds)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(stationaryDetectionTimer)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(stationaryDetectionTimer) },
+                            set: { stationaryDetectionTimer = Int($0) }
+                        ), in: 30...300, step: 10)
+                    }
+                }
+                .padding(.vertical)
+            }
+            
             Section(header: Text("App Behaviour")) {
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading) {
@@ -119,6 +153,20 @@ struct SettingsView: View {
                             get: { Double(defaultNewPlaceRadius) },
                             set: { defaultNewPlaceRadius = Int($0) }
                         ), in: 10...1000, step: 10)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        Text("Find close places limit")
+                            .foregroundColor(.primary)
+                        
+                        HStack {
+                            Text("\(findClosePlacesLimit)")
+                            Spacer()
+                        }
+                        Slider(value: Binding(
+                            get: { Double(findClosePlacesLimit) },
+                            set: { findClosePlacesLimit = Int($0) }
+                        ), in: 1...50, step: 1)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {

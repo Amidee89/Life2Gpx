@@ -11,6 +11,8 @@ import os
 class GPXManager {
     static let shared = GPXManager()
 
+    private let comparisonConfidenceLevel = 5
+
     private init() {}
 
     func saveLocationData(_ waypoints: [GPXWaypoint], tracks: [GPXTrack], forDate date: Date) {
@@ -160,7 +162,7 @@ class GPXManager {
 
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
-                return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
+                return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: self.comparisonConfidenceLevel)
             }) {
                 fileWaypoints[index] = updatedWaypoint
                 FileManagerUtil.logData(context: "GPXManager", content: "Found waypoint at index \(index). Updating.", verbosity: 3)
@@ -181,7 +183,7 @@ class GPXManager {
 
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
-                return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: 5)
+                return GPXUtils.arePointsTheSame(currentFileWaypoint, originalWaypoint, confidenceLevel: self.comparisonConfidenceLevel)
             }) {
                 fileWaypoints.remove(at: index)
                 FileManagerUtil.logData(context: "GPXManager", content: "Found waypoint at index \(index). Deleting.", verbosity: 3)
@@ -202,7 +204,7 @@ class GPXManager {
 
             var fileTracks = tracks
             if let index = fileTracks.firstIndex(where: { currentFileTrack in
-                return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
+                return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: self.comparisonConfidenceLevel)
             }) {
                 fileTracks.remove(at: index)
                 FileManagerUtil.logData(context: "GPXManager", content: "Found track at index \(index). Deleting.", verbosity: 3)
@@ -223,7 +225,7 @@ class GPXManager {
 
             var fileTracks = tracks
             if let index = fileTracks.firstIndex(where: { currentFileTrack in
-                return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: 5)
+                return GPXUtils.areTracksTheSame(currentFileTrack, originalTrack, confidenceLevel: self.comparisonConfidenceLevel)
             }) {
                 fileTracks[index] = updatedTrack
                 FileManagerUtil.logData(context: "GPXManager", content: "Found track at index \(index). Updating.", verbosity: 3)
@@ -245,14 +247,14 @@ class GPXManager {
 
             var fileWaypoints = waypoints
             for wpToDelete in waypointsToDelete {
-                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: 5) }) {
+                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: self.comparisonConfidenceLevel) }) {
                     fileWaypoints.remove(at: index)
                 }
             }
 
             var fileTracks = tracks
             for trackToDelete in tracksToDelete {
-                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: 5) }) {
+                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: self.comparisonConfidenceLevel) }) {
                     fileTracks.remove(at: index)
                 }
             }
@@ -272,14 +274,14 @@ class GPXManager {
 
             var fileWaypoints = waypoints
             for wpToDelete in deleteWaypoints {
-                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: 5) }) {
+                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: self.comparisonConfidenceLevel) }) {
                     fileWaypoints.remove(at: index)
                 }
             }
 
             var fileTracks = tracks
             for trackToDelete in deleteTracks {
-                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: 5) }) {
+                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: self.comparisonConfidenceLevel) }) {
                     fileTracks.remove(at: index)
                 }
             }

@@ -13,7 +13,18 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationUpdateTimer: Timer?
     private var customDistanceFilter: CLLocationDistance = 20
     private var currentDate: Date?
-    private let minimumUpdateInterval: TimeInterval = 30
+    private var minimumUpdateInterval: TimeInterval { TimeInterval(SettingsManager.shared.minimumUpdateInterval) }
+    
+    // Constants for timers and thresholds
+    private let movingDistanceFilterConstant: CLLocationDistance = 20
+    private let stationaryDistanceFilterConstant: CLLocationDistance = 60
+    private let midnightUpdateGracePeriod: TimeInterval = 10
+    private let deadMansSwitchTriggerTime: TimeInterval = 300
+    private let notificationResetTimerInterval: TimeInterval = 180
+    private let locationUpdateDebounceInterval: TimeInterval = 1.0
+    private let locationHistoryMaxSize = 20
+    private let filteredPositionQueueMaxSize = 10
+    private let gpxAppendDebounceInterval: TimeInterval = 1.0
     private var lastUpdateTimestamp: Date?
     private let motionActivityManager = CMMotionActivityManager()
     private let motionManager = CMMotionManager()
@@ -68,8 +79,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             guard let midnight = calendar.date(from: midnightComponents) else { return }
             let timeIntervalUntilMidnight = midnight.timeIntervalSince(now)
-            //extra 10 seconds of grace in case clock ran a little bit too fast. It happened.
-            let adjustedInterval = (timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400) + 10
+            //extra grace period in case clock ran a little bit too fast. It happened.
+            let adjustedInterval = (timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400) + midnightUpdateGracePeriod
             FileManagerUtil.logData(context: "LocationManager", content: "Scheduling midnight update in \(adjustedInterval) seconds.", verbosity: 4)
             midnightTimer = Timer.scheduledTimer(timeInterval: adjustedInterval, target: self, selector: #selector(forceMidnightUpdate), userInfo: nil, repeats: false)
         }
@@ -103,7 +114,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         content.sound = .default
         content.interruptionLevel = .timeSensitive
 
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 300, repeats: false) // 5 minutes
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: deadMansSwitchTriggerTime, repeats: false) // configured switch time
 
         let request = UNNotificationRequest(identifier: "DeadMansSwitch", content: content, trigger: trigger)
 
@@ -116,7 +127,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     private func startNotificationResetTimer() {
         notificationResetTimer?.invalidate() // Invalidate any existing timer
-        notificationResetTimer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in
+        notificationResetTimer = Timer.scheduledTimer(withTimeInterval: notificationResetTimerInterval, repeats: true) { [weak self] _ in
             self?.scheduleDeadMansSwitchNotification()
         }
     }
@@ -224,12 +235,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         var shouldProcessThisLocation: Bool
         locationHistoryLock.lock()
         if let lastEntryInHistory = locationHistory.last {
-            if currentTime.timeIntervalSince(lastEntryInHistory.receivedAt) > 1.0 {
+            if currentTime.timeIntervalSince(lastEntryInHistory.receivedAt) > locationUpdateDebounceInterval {
                 shouldProcessThisLocation = true
-                FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: currentTime \(currentTime) > 1s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
+                FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: currentTime \(currentTime) > \(locationUpdateDebounceInterval)s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
             } else {
                 shouldProcessThisLocation = false
-                FileManagerUtil.logData(context: "LocationManager", content: "Debouncing: currentTime \(currentTime) NOT > 1s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
+                FileManagerUtil.logData(context: "LocationManager", content: "Debouncing: currentTime \(currentTime) NOT > \(locationUpdateDebounceInterval)s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
             }
         } else {
             shouldProcessThisLocation = true
@@ -238,7 +249,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
            
         if shouldProcessThisLocation {
             locationHistory.append((location: newLocation, receivedAt: currentTime))
-            if locationHistory.count > 20 {
+            if locationHistory.count > locationHistoryMaxSize {
                 locationHistory.removeFirst()
             }
             locationHistoryLock.unlock()
@@ -257,11 +268,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             let calendar = Calendar.current
             let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
-            if newUpdateDate.timeIntervalSince(startOfNewDay) >= 10 {
-                FileManagerUtil.logData(context: "LocationManager", content: "New day detected (after 10s grace period), forcing midnight update.", verbosity: 2)
+            if newUpdateDate.timeIntervalSince(startOfNewDay) >= midnightUpdateGracePeriod {
+                FileManagerUtil.logData(context: "LocationManager", content: "New day detected (after grace period), forcing midnight update.", verbosity: 2)
                 forceMidnightUpdate()
             } else {
-                FileManagerUtil.logData(context: "LocationManager", content: "New day detected, but within 10s grace period. Not forcing midnight update yet. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
+                FileManagerUtil.logData(context: "LocationManager", content: "New day detected, but within grace period. Not forcing midnight update yet. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
             }
         }
         // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval.
@@ -319,7 +330,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             } else {
                 if distanceFromPrevious < customDistanceFilter {
                     self.filteredByPositionQueue.append(newLocation)
-                    if self.filteredByPositionQueue.count > 10 {
+                    if self.filteredByPositionQueue.count > filteredPositionQueueMaxSize {
                         self.filteredByPositionQueue.removeFirst()
                     }
                     FileManagerUtil.logData(context: "LocationManager", content: "Added location to filteredByPositionQueue. Queue size: \(self.filteredByPositionQueue.count).", verbosity: 4)
@@ -369,19 +380,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.startUpdatingLocation()
-        customDistanceFilter = 20
+        customDistanceFilter = movingDistanceFilterConstant
         resetLocationUpdateTimer()
     }
     
     private func resetLocationUpdateTimer() {
         locationUpdateTimer?.invalidate()
-        locationUpdateTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: false) { [weak self] _ in
+        locationUpdateTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(SettingsManager.shared.stationaryDetectionTimer), repeats: false) { [weak self] _ in
             self?.adjustSettingsForStationary()
         }
     }
     
     private func adjustSettingsForStationary() {
-        customDistanceFilter = 60 // Reset custom distance filter for movement
+        customDistanceFilter = stationaryDistanceFilterConstant // Reset custom distance filter for stationary
         FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
         appendLocationToFile(type: .stationary)
         UserDefaults.standard.set(LocationUpdateType.stationary.rawValue, forKey: "lastUpdateType")
@@ -424,7 +435,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if lastAppendCall != nil {
             let timeSinceLastAppend = appendAttemptTime.timeIntervalSince(lastAppendCall!)
             FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounce check: Current time \(appendAttemptTime), lastAppendCall \(String(describing: lastAppendCall)), difference: \(timeSinceLastAppend) seconds.", verbosity: 5)
-            if timeSinceLastAppend < 1 {
+            if timeSinceLastAppend < gpxAppendDebounceInterval {
                 print ("Cowardly refusing to double append – debouncing.")
                 FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type.rawValue).", verbosity: 4)
                 return
