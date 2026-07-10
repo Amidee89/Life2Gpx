@@ -543,7 +543,7 @@ struct EditPlaceView: View {
             radius: Double(radius),
             streetAddress: streetAddress.isEmpty ? nil : streetAddress.trim(),
             secondsFromGMT: editablePlace.secondsFromGMT,
-            lastSaved: ISO8601DateFormatter().string(from: Date()),
+            lastSaved: editablePlace.lastSaved,
             facebookPlaceId: facebookPlaceId.isEmpty ? nil : facebookPlaceId.trim(),
             mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId.trim(),
             foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId.trim(),

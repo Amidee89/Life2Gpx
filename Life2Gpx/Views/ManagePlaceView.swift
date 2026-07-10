@@ -246,7 +246,7 @@ struct ManagePlacesView: View {
                     radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
                     streetAddress: nil,
                     secondsFromGMT: TimeZone.current.secondsFromGMT(),
-                    lastSaved: ISO8601DateFormatter().string(from: Date()),
+                    lastSaved: nil,
                     facebookPlaceId: nil,
                     mapboxPlaceId: nil,
                     foursquareVenueId: nil,

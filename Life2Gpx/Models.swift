@@ -198,7 +198,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let radius: Double
     let streetAddress: String?
     let secondsFromGMT: Int?
-    let lastSaved: String?
+    var lastSaved: String?
     let facebookPlaceId: String?
     let mapboxPlaceId: String?
     let foursquareVenueId: String?

@@ -171,13 +171,15 @@ class PlaceManager {
     }
     
     func editPlace(original: Place, edited: Place, batch: Bool = false) throws {
-        try checkPlaceValidity(edited)
+        var finalEdited = edited
+        finalEdited.lastSaved = ISO8601DateFormatter().string(from: Date())
+        try checkPlaceValidity(finalEdited)
         
         guard let index = places.firstIndex(where: { $0.placeId == original.placeId }) else {
             throw PlaceError.placeNotFound
         }
         
-        places[index] = edited
+        places[index] = finalEdited
         if !batch {
             try savePlaces()
             buildGridIndex()
@@ -201,14 +203,16 @@ class PlaceManager {
     }
     
     func addPlace(_ place: Place, batch: Bool = false) throws {
-        try checkPlaceValidity(place)
+        var finalPlace = place
+        finalPlace.lastSaved = ISO8601DateFormatter().string(from: Date())
+        try checkPlaceValidity(finalPlace)
         
         // Check for duplicate ID
-        if places.contains(where: { $0.placeId == place.placeId }) {
+        if places.contains(where: { $0.placeId == finalPlace.placeId }) {
             throw PlaceError.invalidPlaceId("Place ID already exists")
         }
         
-        places.append(place)
+        places.append(finalPlace)
         if !batch {
             try savePlaces()
             buildGridIndex()

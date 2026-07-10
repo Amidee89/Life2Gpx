@@ -370,7 +370,7 @@ struct MergeHelpers {
 
     /// Build a TimelineObject wrapping a merged waypoint for use with EditVisitView.
     static func buildMergedVisitTimelineObject(at point: GPXWaypoint, from items: [TimelineObject]) -> TimelineObject {
-        let mergedPoint = GPXUtils.deepCopyPoint(point)
+        let mergedPoint = GPXUtils.deepCopyAsWaypoint(point)
 
         let earliestTime = items.compactMap { $0.startDate }.min()
         if let earliestTime = earliestTime {

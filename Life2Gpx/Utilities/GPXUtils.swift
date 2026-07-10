@@ -36,6 +36,18 @@ class GPXUtils {
             copy = GPXWaypoint(latitude: point.latitude ?? 0, longitude: point.longitude ?? 0)
         }
         
+        populateCopy(copy, from: point)
+        return copy
+    }
+    
+    static func deepCopyAsWaypoint(_ point: GPXWaypoint) -> GPXWaypoint {
+        FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyAsWaypoint called for point at time \(point.time?.description ?? "N/A").", verbosity: 5)
+        let copy = GPXWaypoint(latitude: point.latitude ?? 0, longitude: point.longitude ?? 0)
+        populateCopy(copy, from: point)
+        return copy
+    }
+    
+    private static func populateCopy(_ copy: GPXWaypoint, from point: GPXWaypoint) {
         copy.elevation = point.elevation
         copy.time = point.time
         copy.magneticVariation = point.magneticVariation
@@ -66,7 +78,6 @@ class GPXUtils {
         copy.extensions = copyExtensions(point.extensions)
         
         FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyPoint finished copying point.", verbosity: 5)
-        return copy
     }
     
     static func deepCopyTrack(_ track: GPXTrack) -> GPXTrack {
