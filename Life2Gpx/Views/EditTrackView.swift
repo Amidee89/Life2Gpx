@@ -3,6 +3,8 @@ import MapKit
 import CoreGPX
 
 struct EditTrackView: View {
+    private let coordinateDisplayPrecision = 6
+    private let elevationDisplayPrecision = 1
     @Environment(\.dismiss) private var dismiss
     let timelineObject: TimelineObject
     let fileDate: Date
@@ -250,7 +252,7 @@ struct EditTrackView: View {
                                                 
                                                 Group {
                                                     LabeledContent("Latitude:") {
-                                                        TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(6)))
+                                                        TextField("", value: $selectedPointLatitude, format: .number.precision(.fractionLength(coordinateDisplayPrecision)))
                                                             .keyboardType(.decimalPad)
                                                             .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
@@ -265,7 +267,7 @@ struct EditTrackView: View {
                                                     }
                                                     
                                                     LabeledContent("Longitude:") {
-                                                        TextField("", value: $selectedPointLongitude, format: .number.precision(.fractionLength(6)))
+                                                        TextField("", value: $selectedPointLongitude, format: .number.precision(.fractionLength(coordinateDisplayPrecision)))
                                                             .keyboardType(.decimalPad)
                                                             .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)
@@ -280,7 +282,7 @@ struct EditTrackView: View {
                                                     }
                                                     
                                                     LabeledContent("Elevation:") {
-                                                        TextField("", value: $selectedPointElevation, format: .number.precision(.fractionLength(1)))
+                                                        TextField("", value: $selectedPointElevation, format: .number.precision(.fractionLength(elevationDisplayPrecision)))
                                                             .keyboardType(.decimalPad)
                                                             .focused($isInputActive)
                                                             .multilineTextAlignment(.trailing)

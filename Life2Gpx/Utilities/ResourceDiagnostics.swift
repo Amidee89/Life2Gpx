@@ -6,6 +6,17 @@ import Network
 let diagnosticsLog = OSLog(subsystem: "com.life2gpx.diagnostics", category: "performance")
 let diagnosticsSignposter = OSSignposter(logHandle: diagnosticsLog)
 
+private enum Constants {
+    static let maxDiagnosticEvents = 180
+    static let logTailMaxBytes: UInt64 = 750_000
+    static let recentLogsLimit = 4
+    
+    static let memoryWatchdogSampleInterval: TimeInterval = 10
+    static let memoryWatchdogTrendWindow = 5
+    static let memoryWatchdogWarningThresholdMB: Double = 100
+    static let memoryWatchdogCriticalThresholdMB: Double = 50
+}
+
 enum ResourceDiagnostics {
 
     static func residentMB() -> Double {
@@ -157,7 +168,7 @@ final class DiagnosticsStateStore {
     private let lock = NSLock()
     private var sections: [String: String] = [:]
     private var events: [String] = []
-    private let maxEvents = 180
+    private let maxEvents = Constants.maxDiagnosticEvents
     private let timestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -305,7 +316,7 @@ enum ResourceLogDumpBuilder {
         return lines.joined(separator: "\n")
     }
 
-    private static func recentLogURLs(limit: Int = 4) -> [URL] {
+    private static func recentLogURLs(limit: Int = Constants.recentLogsLimit) -> [URL] {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let logsDirectory = documentsURL.appendingPathComponent("Logs/App")
         guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -325,7 +336,7 @@ enum ResourceLogDumpBuilder {
             .map { $0 }
     }
 
-    private static func recentResourceURLs(limit: Int = 4) -> [URL] {
+    private static func recentResourceURLs(limit: Int = Constants.recentLogsLimit) -> [URL] {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let resourcesDirectory = documentsURL.appendingPathComponent("Logs/Resources")
         guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -352,7 +363,7 @@ enum ResourceLogDumpBuilder {
         return "\(url.lastPathComponent) size=\(size) modified=\(modified)"
     }
 
-    private static func logTail(_ url: URL, maxBytes: UInt64 = 750_000) -> String {
+    private static func logTail(_ url: URL, maxBytes: UInt64 = Constants.logTailMaxBytes) -> String {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             return "(could not open log)"
         }
@@ -525,10 +536,10 @@ final class MemoryWatchdog {
 
     private var timer: DispatchSourceTimer?
     private var samples: [Double] = []
-    private let sampleInterval: TimeInterval = 10
-    private let trendWindow = 5
-    private let warningThresholdMB: Double = 100
-    private let criticalThresholdMB: Double = 50
+    private let sampleInterval: TimeInterval = Constants.memoryWatchdogSampleInterval
+    private let trendWindow = Constants.memoryWatchdogTrendWindow
+    private let warningThresholdMB: Double = Constants.memoryWatchdogWarningThresholdMB
+    private let criticalThresholdMB: Double = Constants.memoryWatchdogCriticalThresholdMB
 
     private init() {}
 

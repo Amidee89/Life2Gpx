@@ -2,6 +2,22 @@ import Foundation
 import CoreGPX
 
 class GPXUtils {
+    private enum Constants {
+        static let coordinateEqualityTolerance: Double = 0.00001
+        static let elevationEqualityTolerance: Double = 0.1
+        static let timeEqualityTolerance: TimeInterval = 1.0
+        static let magneticVariationTolerance: Double = 0.01
+        static let geoidHeightTolerance: Double = 0.1
+        static let dilutionOfPrecisionTolerance: Double = 0.01
+        static let ageofDGPSDataTolerance: Double = 0.1
+        
+        static let confidenceLevel1RequiredPercentage: Double = 0.2
+        static let confidenceLevel2RequiredPercentage: Double = 0.4
+        static let confidenceLevel3RequiredPercentage: Double = 0.6
+        static let confidenceLevel4RequiredPercentage: Double = 0.8
+        static let confidenceLevel5RequiredPercentage: Double = 1.0
+    }
+    
     static func copyExtensions(_ extensions: GPXExtensions?) -> GPXExtensions? {
         guard let sourceExtensions = extensions else { return nil }
         FileManagerUtil.logData(context: "GPXUtils", content: "copyExtensions called.", verbosity: 5)
@@ -133,14 +149,14 @@ class GPXUtils {
         if let lat1 = point1.latitude, let lat2 = point2.latitude, 
            let lon1 = point1.longitude, let lon2 = point2.longitude {
             totalFields += 2
-            if abs(lat1 - lat2) < 0.00001 { matchingFields += 1 }
-            if abs(lon1 - lon2) < 0.00001 { matchingFields += 1 }
+            if abs(lat1 - lat2) < Constants.coordinateEqualityTolerance { matchingFields += 1 }
+            if abs(lon1 - lon2) < Constants.coordinateEqualityTolerance { matchingFields += 1 }
         }
         
         if point1.elevation != nil || point2.elevation != nil {
             totalFields += 1
             if let elevation1 = point1.elevation, let elevation2 = point2.elevation, 
-               abs(elevation1 - elevation2) < 0.1 {
+               abs(elevation1 - elevation2) < Constants.elevationEqualityTolerance {
                 matchingFields += 1
             }
         }
@@ -148,7 +164,7 @@ class GPXUtils {
         if point1.time != nil || point2.time != nil {
             totalFields += 1
             if let time1 = point1.time, let time2 = point2.time,
-               abs(time1.timeIntervalSince(time2)) < 1.0 {
+               abs(time1.timeIntervalSince(time2)) < Constants.timeEqualityTolerance {
                 matchingFields += 1
             }
         }
@@ -156,7 +172,7 @@ class GPXUtils {
         if point1.magneticVariation != nil || point2.magneticVariation != nil {
             totalFields += 1
             if let mv1 = point1.magneticVariation, let mv2 = point2.magneticVariation,
-               abs(mv1 - mv2) < 0.01 {
+               abs(mv1 - mv2) < Constants.magneticVariationTolerance {
                 matchingFields += 1
             }
         }
@@ -164,7 +180,7 @@ class GPXUtils {
         if point1.geoidHeight != nil || point2.geoidHeight != nil {
             totalFields += 1
             if let gh1 = point1.geoidHeight, let gh2 = point2.geoidHeight,
-               abs(gh1 - gh2) < 0.1 {
+               abs(gh1 - gh2) < Constants.geoidHeightTolerance {
                 matchingFields += 1
             }
         }
@@ -212,7 +228,7 @@ class GPXUtils {
         if point1.horizontalDilution != nil || point2.horizontalDilution != nil {
             totalFields += 1
             if let hd1 = point1.horizontalDilution, let hd2 = point2.horizontalDilution, 
-               abs(hd1 - hd2) < 0.01 {
+               abs(hd1 - hd2) < Constants.dilutionOfPrecisionTolerance {
                 matchingFields += 1
             }
         }
@@ -220,7 +236,7 @@ class GPXUtils {
         if point1.verticalDilution != nil || point2.verticalDilution != nil {
             totalFields += 1
             if let vd1 = point1.verticalDilution, let vd2 = point2.verticalDilution, 
-               abs(vd1 - vd2) < 0.01 {
+               abs(vd1 - vd2) < Constants.dilutionOfPrecisionTolerance {
                 matchingFields += 1
             }
         }
@@ -228,7 +244,7 @@ class GPXUtils {
         if point1.positionDilution != nil || point2.positionDilution != nil {
             totalFields += 1
             if let pd1 = point1.positionDilution, let pd2 = point2.positionDilution, 
-               abs(pd1 - pd2) < 0.01 {
+               abs(pd1 - pd2) < Constants.dilutionOfPrecisionTolerance {
                 matchingFields += 1
             }
         }
@@ -236,7 +252,7 @@ class GPXUtils {
         if point1.ageofDGPSData != nil || point2.ageofDGPSData != nil {
             totalFields += 1
             if let age1 = point1.ageofDGPSData, let age2 = point2.ageofDGPSData, 
-               abs(age1 - age2) < 0.1 {
+               abs(age1 - age2) < Constants.ageofDGPSDataTolerance {
                 matchingFields += 1
             }
         }
@@ -291,12 +307,12 @@ class GPXUtils {
         
         let requiredPercentage: Double
         switch confidenceLevel {
-        case 1: requiredPercentage = 0.2
-        case 2: requiredPercentage = 0.4
-        case 3: requiredPercentage = 0.6
-        case 4: requiredPercentage = 0.8
-        case 5: requiredPercentage = 1.0
-        default: requiredPercentage = 0.6
+        case 1: requiredPercentage = Constants.confidenceLevel1RequiredPercentage
+        case 2: requiredPercentage = Constants.confidenceLevel2RequiredPercentage
+        case 3: requiredPercentage = Constants.confidenceLevel3RequiredPercentage
+        case 4: requiredPercentage = Constants.confidenceLevel4RequiredPercentage
+        case 5: requiredPercentage = Constants.confidenceLevel5RequiredPercentage
+        default: requiredPercentage = Constants.confidenceLevel3RequiredPercentage
         }
         
         guard totalFields > 0 else { return false }
@@ -447,12 +463,12 @@ class GPXUtils {
         
         let requiredPercentage: Double
         switch confidenceLevel {
-        case 1: requiredPercentage = 0.2
-        case 2: requiredPercentage = 0.4
-        case 3: requiredPercentage = 0.6
-        case 4: requiredPercentage = 0.8
-        case 5: requiredPercentage = 1.0
-        default: requiredPercentage = 0.6
+        case 1: requiredPercentage = Constants.confidenceLevel1RequiredPercentage
+        case 2: requiredPercentage = Constants.confidenceLevel2RequiredPercentage
+        case 3: requiredPercentage = Constants.confidenceLevel3RequiredPercentage
+        case 4: requiredPercentage = Constants.confidenceLevel4RequiredPercentage
+        case 5: requiredPercentage = Constants.confidenceLevel5RequiredPercentage
+        default: requiredPercentage = Constants.confidenceLevel3RequiredPercentage
         }
         
         guard totalFields > 0 else { return false }

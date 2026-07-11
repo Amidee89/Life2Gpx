@@ -24,6 +24,13 @@ struct SettingsView: View {
     @AppStorage("minimumUpdateInterval") private var minimumUpdateInterval: Int = SettingsManager.shared.minimumUpdateInterval
     @AppStorage("stationaryDetectionTimer") private var stationaryDetectionTimer: Int = SettingsManager.shared.stationaryDetectionTimer
     @AppStorage("findClosePlacesLimit") private var findClosePlacesLimit: Int = SettingsManager.shared.findClosePlacesLimit
+    @AppStorage("placeSearchDefaultRadius") private var placeSearchDefaultRadius: Int = SettingsManager.shared.placeSearchDefaultRadius
+    @AppStorage("placeSearchKeywordRadius") private var placeSearchKeywordRadius: Int = SettingsManager.shared.placeSearchKeywordRadius
+    @AppStorage("placeSearchAppleDefaultRadius") private var placeSearchAppleDefaultRadius: Int = SettingsManager.shared.placeSearchAppleDefaultRadius
+    @AppStorage("placeSearchAppleKeywordRadius") private var placeSearchAppleKeywordRadius: Int = SettingsManager.shared.placeSearchAppleKeywordRadius
+    @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
+    @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
+    @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
 
     @FocusState private var valueFieldIsFocused: Bool
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
@@ -181,6 +188,32 @@ struct SettingsView: View {
                         .pickerStyle(.segmented)
                     }
 
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Photo Cache Memory Limit (MB)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(photoCacheMemoryMB)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(photoCacheMemoryMB) },
+                            set: { photoCacheMemoryMB = Int($0) }
+                        ), in: 16...1024, step: 16)
+                    }
+
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Full Photo Cache Count")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(photoCacheCountLimit)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(photoCacheCountLimit) },
+                            set: { photoCacheCountLimit = Int($0) }
+                        ), in: 1...20, step: 1)
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
                         
@@ -231,6 +264,88 @@ struct SettingsView: View {
                 Text(mapCoordinateSystemHelpText)
                     .font(.caption)
                     .foregroundColor(.gray)
+            }
+            
+            Section(header: Text("Place Search")) {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Default Search Radius (meters)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(placeSearchDefaultRadius)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(placeSearchDefaultRadius) },
+                            set: { placeSearchDefaultRadius = Int($0) }
+                        ), in: 10...5000, step: 10)
+                        
+                        Text("Radius used when searching for nearby places without a keyword.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Keyword Search Radius (meters)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(placeSearchKeywordRadius)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(placeSearchKeywordRadius) },
+                            set: { placeSearchKeywordRadius = Int($0) }
+                        ), in: 100...20000, step: 100)
+                        
+                        Text("Radius used when searching for places with a specific keyword.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Apple Maps Default Radius (meters)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(placeSearchAppleDefaultRadius)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(placeSearchAppleDefaultRadius) },
+                            set: { placeSearchAppleDefaultRadius = Int($0) }
+                        ), in: 100...5000, step: 100)
+                    }
+
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Apple Maps Keyword Radius (meters)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(placeSearchAppleKeywordRadius)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(placeSearchAppleKeywordRadius) },
+                            set: { placeSearchAppleKeywordRadius = Int($0) }
+                        ), in: 1000...50000, step: 1000)
+                    }
+
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Search Page Limit")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(placeSearchPageLimit)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(placeSearchPageLimit) },
+                            set: { placeSearchPageLimit = Int($0) }
+                        ), in: 5...100, step: 5)
+                        
+                        Text("Number of results to load per page.")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
             }
             
             Section(header: Text("Filter Small Round Trip Tracks")) {

@@ -100,6 +100,7 @@ final class TimelinePhotoStore: ObservableObject {
     private let fullImageCache = NSCache<NSString, UIImage>()
 
     private static let requestTimeoutSeconds: UInt64 = 10
+    private let maxInFlightPhotoRequests = 8
 
     var canReadPhotos: Bool {
         authorizationStatus == .authorized || authorizationStatus == .limited
@@ -109,8 +110,8 @@ final class TimelinePhotoStore: ObservableObject {
         thumbnailCache.countLimit = 220
         thumbnailCache.totalCostLimit = 64 * 1024 * 1024
         previewCache.countLimit = 80
-        previewCache.totalCostLimit = 96 * 1024 * 1024
-        fullImageCache.countLimit = 4
+        previewCache.totalCostLimit = SettingsManager.shared.photoCacheMemoryMB * 1024 * 1024
+        fullImageCache.countLimit = SettingsManager.shared.photoCacheCountLimit
         fullImageCache.totalCostLimit = 160 * 1024 * 1024
         isSceneSuspended = UIApplication.shared.applicationState != .active
 
@@ -626,7 +627,7 @@ final class TimelinePhotoStore: ObservableObject {
 
     private func logInFlightImagePressureIfNeeded(trigger: String) {
         let inFlightCount = loadingImageKeys.count + loadingFullImageIDs.count
-        guard inFlightCount >= 8 else { return }
+        guard inFlightCount >= maxInFlightPhotoRequests else { return }
 
         let oldestAge = imageRequestStartedAt.values
             .map { Date().timeIntervalSince($0) }

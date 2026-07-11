@@ -9,6 +9,10 @@ struct BulkApplyContext: Identifiable {
 }
 
 struct BulkApplyPlaceView: View {
+    private let defaultMaxLatDelta: CLLocationDegrees = 0.005
+    private let defaultMaxLonDelta: CLLocationDegrees = 0.005
+    private let mapSpanMultiplier: Double = 2.2
+    
     @Environment(\.dismiss) private var dismiss
     
     let context: BulkApplyContext
@@ -28,14 +32,14 @@ struct BulkApplyPlaceView: View {
         let center = CoordinateConverter.forMapDisplay(context.place.centerCoordinate)
         
         // Calculate an appropriate span based on the items
-        var maxLatDelta: CLLocationDegrees = 0.005
-        var maxLonDelta: CLLocationDegrees = 0.005
+        var maxLatDelta = defaultMaxLatDelta
+        var maxLonDelta = defaultMaxLonDelta
         
         for object in context.matchingObjects {
             if let coord = object.identifiableCoordinates.first?.coordinates.first {
                 let displayCoord = CoordinateConverter.forMapDisplay(coord)
-                let latDelta = abs(displayCoord.latitude - center.latitude) * 2.2
-                let lonDelta = abs(displayCoord.longitude - center.longitude) * 2.2
+                let latDelta = abs(displayCoord.latitude - center.latitude) * mapSpanMultiplier
+                let lonDelta = abs(displayCoord.longitude - center.longitude) * mapSpanMultiplier
                 maxLatDelta = max(maxLatDelta, latDelta)
                 maxLonDelta = max(maxLonDelta, lonDelta)
             }

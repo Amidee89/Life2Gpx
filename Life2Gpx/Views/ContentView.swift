@@ -9,6 +9,9 @@ import MapKit
 import CoreGPX
 import UIKit
 
+private let mapAutoZoomPaddingFactor: Double = 1.15
+private let mapSelectionPaddingFactor: Double = 1.4
+
 struct ContentView: View {
     @EnvironmentObject var locationManager: LocationManager
     @Environment(\.scenePhase) private var scenePhase
@@ -48,6 +51,10 @@ struct ContentView: View {
     let defaults = UserDefaults.standard
     let calendar = Calendar.current
     let settingsManager = SettingsManager.shared
+
+    private let maxTimelineGroupingMinutes: Double = 60
+    private let timelineGroupingStep: Double = 1
+    private let unknownPlaceDeepLinkTimeThreshold: TimeInterval = 2.0
 
     private let mapTimelineHandleHeight: CGFloat = 36
     private let mapTimelineHandleVisualLift: CGFloat = 50
@@ -212,7 +219,7 @@ struct ContentView: View {
                                 Image(systemName: "line.3.horizontal")
                                     .foregroundColor(.secondary)
                                     .font(.caption)
-                                Slider(value: $groupingMinutes, in: 0...60, step: 1)
+                                Slider(value: $groupingMinutes, in: 0...maxTimelineGroupingMinutes, step: timelineGroupingStep)
                                 Image(systemName: "line.3.horizontal.decrease")
                                     .foregroundColor(.secondary)
                                     .font(.caption)
@@ -857,7 +864,7 @@ struct ContentView: View {
             // 3. Find the matching waypoint
             if let matchingObj = loadedObjects.first(where: { obj in
                 guard obj.type == .waypoint, let start = obj.startDate else { return false }
-                return abs(start.timeIntervalSince(targetDate)) < 2.0
+                return abs(start.timeIntervalSince(targetDate)) < unknownPlaceDeepLinkTimeThreshold
             }) {
                 // 4. Open the edit sheet
                 self.editingWaypointFromNotification = matchingObj
@@ -975,13 +982,13 @@ public func calculateSpan(for coordinates: [CLLocationCoordinate2D], mapSize: CG
         let lonScale = mapSize.width / usableWidth
         let latScale = mapSize.height / usableHeight
         return MKCoordinateSpan(
-            latitudeDelta: rawLatDelta * latScale * 1.15,
-            longitudeDelta: rawLonDelta * lonScale * 1.15
+            latitudeDelta: rawLatDelta * latScale * mapAutoZoomPaddingFactor,
+            longitudeDelta: rawLonDelta * lonScale * mapAutoZoomPaddingFactor
         )
     }
 
     // Fallback: uniform padding
-    return MKCoordinateSpan(latitudeDelta: rawLatDelta * 1.4, longitudeDelta: rawLonDelta * 1.4)
+    return MKCoordinateSpan(latitudeDelta: rawLatDelta * mapSelectionPaddingFactor, longitudeDelta: rawLonDelta * mapSelectionPaddingFactor)
 }
 
 extension Date {

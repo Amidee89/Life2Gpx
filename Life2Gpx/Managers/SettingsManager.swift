@@ -64,6 +64,13 @@ class SettingsManager {
     private let minimumUpdateIntervalKey = "minimumUpdateInterval"
     private let stationaryDetectionTimerKey = "stationaryDetectionTimer"
     private let findClosePlacesLimitKey = "findClosePlacesLimit"
+    private let placeSearchDefaultRadiusKey = "placeSearchDefaultRadius"
+    private let placeSearchKeywordRadiusKey = "placeSearchKeywordRadius"
+    private let placeSearchAppleDefaultRadiusKey = "placeSearchAppleDefaultRadius"
+    private let placeSearchAppleKeywordRadiusKey = "placeSearchAppleKeywordRadius"
+    private let placeSearchPageLimitKey = "placeSearchPageLimit"
+    private let photoCacheMemoryMBKey = "photoCacheMemoryMB"
+    private let photoCacheCountLimitKey = "photoCacheCountLimit"
     
     private init() {
         registerDefaults()
@@ -94,7 +101,14 @@ class SettingsManager {
             trackResourceUsageKey: false,
             minimumUpdateIntervalKey: 30,
             stationaryDetectionTimerKey: 120,
-            findClosePlacesLimitKey: 10
+            findClosePlacesLimitKey: 10,
+            placeSearchDefaultRadiusKey: 200,
+            placeSearchKeywordRadiusKey: 5000,
+            placeSearchAppleDefaultRadiusKey: 1000,
+            placeSearchAppleKeywordRadiusKey: 10000,
+            placeSearchPageLimitKey: 10,
+            photoCacheMemoryMBKey: 96,
+            photoCacheCountLimitKey: 4
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -326,6 +340,41 @@ class SettingsManager {
     var findClosePlacesLimit: Int {
         get { return defaults.integer(forKey: findClosePlacesLimitKey) }
         set { defaults.set(newValue, forKey: findClosePlacesLimitKey) }
+    }
+
+    var placeSearchDefaultRadius: Int {
+        get { return defaults.integer(forKey: placeSearchDefaultRadiusKey) }
+        set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchDefaultRadiusKey) }
+    }
+
+    var placeSearchKeywordRadius: Int {
+        get { return defaults.integer(forKey: placeSearchKeywordRadiusKey) }
+        set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchKeywordRadiusKey) }
+    }
+
+    var placeSearchAppleDefaultRadius: Int {
+        get { return defaults.integer(forKey: placeSearchAppleDefaultRadiusKey) }
+        set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchAppleDefaultRadiusKey) }
+    }
+
+    var placeSearchAppleKeywordRadius: Int {
+        get { return defaults.integer(forKey: placeSearchAppleKeywordRadiusKey) }
+        set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchAppleKeywordRadiusKey) }
+    }
+
+    var placeSearchPageLimit: Int {
+        get { return defaults.integer(forKey: placeSearchPageLimitKey) }
+        set { defaults.set(max(5, min(newValue, 100)), forKey: placeSearchPageLimitKey) }
+    }
+
+    var photoCacheMemoryMB: Int {
+        get { return defaults.integer(forKey: photoCacheMemoryMBKey) }
+        set { defaults.set(max(16, min(newValue, 1024)), forKey: photoCacheMemoryMBKey) }
+    }
+
+    var photoCacheCountLimit: Int {
+        get { return defaults.integer(forKey: photoCacheCountLimitKey) }
+        set { defaults.set(max(1, min(newValue, 20)), forKey: photoCacheCountLimitKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

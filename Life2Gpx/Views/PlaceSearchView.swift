@@ -14,7 +14,7 @@ struct PlaceSearchView: View {
     @State private var isLoadingMore = false
     @State private var errorMessage: String?
     @State private var searchQuery: String = ""
-    @State private var currentLimit: Int = 10
+    @State private var currentLimit: Int = SettingsManager.shared.placeSearchPageLimit
     @FocusState private var isSearchFocused: Bool
 
     private var configuredProviders: [PlaceProvider] {
@@ -73,13 +73,13 @@ struct PlaceSearchView: View {
                     .focused($isSearchFocused)
                     .submitLabel(.search)
                     .onSubmit {
-                        currentLimit = 10
+                        currentLimit = SettingsManager.shared.placeSearchPageLimit
                         performSearch()
                     }
                 if !searchQuery.isEmpty {
                     Button {
                         searchQuery = ""
-                        currentLimit = 10
+                        currentLimit = SettingsManager.shared.placeSearchPageLimit
                         performSearch()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -177,7 +177,7 @@ struct PlaceSearchView: View {
             }
         }
         .onChange(of: selectedProvider) {
-            currentLimit = 10
+            currentLimit = SettingsManager.shared.placeSearchPageLimit
             performSearch()
         }
     }
@@ -320,7 +320,7 @@ struct PlaceSearchView: View {
 
     private func loadMore() {
         guard let provider = selectedProvider, !isLoadingMore else { return }
-        let newLimit = min(currentLimit + 10, provider.maxResultsLimit)
+        let newLimit = min(currentLimit + SettingsManager.shared.placeSearchPageLimit, provider.maxResultsLimit)
         guard newLimit > currentLimit else { return }
 
         isLoadingMore = true

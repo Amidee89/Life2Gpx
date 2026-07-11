@@ -153,6 +153,10 @@ struct PlaceSearchResult: Identifiable {
     }
 }
 
+private enum Constants {
+    static let logTruncationMaxLength = 200
+}
+
 class PlaceSearchService {
     static let shared = PlaceSearchService()
     private init() {}
@@ -170,7 +174,7 @@ class PlaceSearchService {
         return "\"\(query)\""
     }
 
-    private func truncateForLog(_ value: String, maxLength: Int = 200) -> String {
+    private func truncateForLog(_ value: String, maxLength: Int = Constants.logTruncationMaxLength) -> String {
         guard value.count > maxLength else { return value }
         return String(value.prefix(maxLength)) + "..."
     }
@@ -363,7 +367,7 @@ class PlaceSearchService {
         var components = URLComponents(string: "https://maps.googleapis.com/maps/api/place/nearbysearch/json")!
         components.queryItems = [
             URLQueryItem(name: "location", value: "\(coordinate.latitude),\(coordinate.longitude)"),
-            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "\(SettingsManager.shared.placeSearchKeywordRadius)" : "\(SettingsManager.shared.placeSearchDefaultRadius)"),
             URLQueryItem(name: "key", value: apiKey)
         ]
         if let query = query {
@@ -417,7 +421,7 @@ class PlaceSearchService {
         var components = URLComponents(string: "https://places-api.foursquare.com/places/search")!
         components.queryItems = [
             URLQueryItem(name: "ll", value: "\(coordinate.latitude),\(coordinate.longitude)"),
-            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "\(SettingsManager.shared.placeSearchKeywordRadius)" : "\(SettingsManager.shared.placeSearchDefaultRadius)"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
         if let query = query {
@@ -484,7 +488,7 @@ class PlaceSearchService {
         components.queryItems = [
             URLQueryItem(name: "latitude", value: "\(coordinate.latitude)"),
             URLQueryItem(name: "longitude", value: "\(coordinate.longitude)"),
-            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "\(SettingsManager.shared.placeSearchKeywordRadius)" : "\(SettingsManager.shared.placeSearchDefaultRadius)"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
         if let query = query {
@@ -593,7 +597,7 @@ class PlaceSearchService {
     // MARK: - OpenStreetMap (Overpass API)
 
     private func searchOpenStreetMap(coordinate: CLLocationCoordinate2D, query searchQuery: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
-        let radius = searchQuery != nil ? 5000 : 200
+        let radius = searchQuery != nil ? SettingsManager.shared.placeSearchKeywordRadius : SettingsManager.shared.placeSearchDefaultRadius
         let nameFilter = searchQuery.map { "\"name\"~\"\($0)\",i" } ?? "\"name\""
         let query = """
         [out:json][timeout:10];
@@ -732,7 +736,7 @@ class PlaceSearchService {
 
     private func searchApple(coordinate: CLLocationCoordinate2D, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         let requestKind = query == nil ? "nearbyPOI" : "naturalLanguage"
-        let requestRadiusMeters = query == nil ? 1_000.0 : 10_000.0
+        let requestRadiusMeters = query == nil ? Double(SettingsManager.shared.placeSearchAppleDefaultRadius) : Double(SettingsManager.shared.placeSearchAppleKeywordRadius)
         log(
             .apple,
             "Searching. kind=\(requestKind), center=\(formatCoordinate(coordinate)), query=\(formatQuery(query)), radius=\(Int(requestRadiusMeters))m, limit=\(limit)",
@@ -821,7 +825,7 @@ class PlaceSearchService {
         components.queryItems = [
             URLQueryItem(name: "key", value: apiKey),
             URLQueryItem(name: "location", value: "\(coordinate.longitude),\(coordinate.latitude)"),
-            URLQueryItem(name: "radius", value: query != nil ? "5000" : "200"),
+            URLQueryItem(name: "radius", value: query != nil ? "\(SettingsManager.shared.placeSearchKeywordRadius)" : "\(SettingsManager.shared.placeSearchDefaultRadius)"),
             URLQueryItem(name: "offset", value: "\(limit)"),
             URLQueryItem(name: "extensions", value: "all")
         ]

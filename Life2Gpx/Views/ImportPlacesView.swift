@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let importBatchSize = 50
+
 struct ImportPlacesView: View {
     @State private var arcBackupCount: Int = 0
     @State private var life2GpxFileCount: (files: Int, places: Int) = (0, 0)
@@ -703,7 +705,7 @@ struct ImportProgressView: View {
                          userInfo: [NSLocalizedDescriptionKey: "Could not access Arc Place folder"])
         }
         
-        let batchSize = 50
+        let batchSize = importBatchSize
         var batchCounter = 0
         
         while let fileUrl = enumerator.nextObject() as? URL {
@@ -867,7 +869,7 @@ struct ImportProgressView: View {
         // Start with 10% progress after backup
         progressValue = 0.1
         
-        let batchSize = 50
+        let batchSize = importBatchSize
         var batchCounter = 0
         
         for fileUrl in jsonFiles {

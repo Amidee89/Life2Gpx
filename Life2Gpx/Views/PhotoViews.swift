@@ -711,6 +711,12 @@ class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UIGestureRecogni
     private var currentImage: UIImage?
     private var needsZoomReset = true
     private var lastBoundsSize: CGSize = .zero
+    
+    private let minimumPhotoZoomScale: CGFloat = 1
+    private let defaultMaximumPhotoZoomScale: CGFloat = 8
+    private let absoluteMaxPhotoZoomScale: CGFloat = 12
+    private let minDoubleTapZoomScale: CGFloat = 3
+    private let maxDoubleTapZoomScale: CGFloat = 3
 
     var onDismissRequest: (() -> Void)?
     var onShowPreviousPhoto: (() -> Void)?
@@ -763,8 +769,8 @@ class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UIGestureRecogni
         scrollView.bouncesZoom = true
         scrollView.showsHorizontalScrollIndicator = true
         scrollView.showsVerticalScrollIndicator = true
-        scrollView.minimumZoomScale = 1
-        scrollView.maximumZoomScale = 8
+        scrollView.minimumZoomScale = minimumPhotoZoomScale
+        scrollView.maximumZoomScale = defaultMaximumPhotoZoomScale
 
         imageView.contentMode = .scaleAspectFit
         imageView.isUserInteractionEnabled = true
@@ -808,9 +814,9 @@ class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UIGestureRecogni
         let fittedSize = CGSize(width: imageSize.width * fitScale, height: imageSize.height * fitScale)
         let pixelScale = max(imageSize.width / max(fittedSize.width, 1), imageSize.height / max(fittedSize.height, 1))
 
-        scrollView.minimumZoomScale = 1
-        scrollView.maximumZoomScale = max(4, min(12, pixelScale))
-        scrollView.zoomScale = 1
+        scrollView.minimumZoomScale = minimumPhotoZoomScale
+        scrollView.maximumZoomScale = max(defaultMaximumPhotoZoomScale / 2, min(absoluteMaxPhotoZoomScale, pixelScale))
+        scrollView.zoomScale = minimumPhotoZoomScale
         imageView.frame = CGRect(origin: .zero, size: fittedSize)
         scrollView.contentSize = fittedSize
         centerImage()
@@ -830,7 +836,7 @@ class ZoomableImageContainerView: UIView, UIScrollViewDelegate, UIGestureRecogni
             return
         }
 
-        let targetScale = min(scrollView.maximumZoomScale, max(3, scrollView.minimumZoomScale * 3))
+        let targetScale = min(scrollView.maximumZoomScale, max(minDoubleTapZoomScale, scrollView.minimumZoomScale * maxDoubleTapZoomScale))
         let tapPoint = recognizer.location(in: imageView)
         let zoomSize = CGSize(
             width: scrollView.bounds.width / targetScale,
