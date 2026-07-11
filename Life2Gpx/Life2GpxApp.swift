@@ -37,6 +37,7 @@ struct Life2GpxApp: App {
             switch newPhase {
             case .active:
                 let currentTime = Date()
+                locationManager.startHeadingUpdates()
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became active at \(currentTime).", verbosity: 2)
                 ResourceDiagnostics.logRuntime(
                     context: "AppLifecycle",
@@ -51,6 +52,7 @@ struct Life2GpxApp: App {
                 )
             case .background:
                 let currentTime = Date()
+                locationManager.stopHeadingUpdates()
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene moved to background at \(currentTime).", verbosity: 2)
                 ResourceDiagnostics.logRuntime(
                     context: "AppLifecycle",

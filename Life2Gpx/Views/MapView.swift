@@ -17,6 +17,10 @@ struct MapView: View {
     @Binding var cameraPosition: MapCameraPosition 
     @Binding var selectedDate: Date
     var safeAreaTop: CGFloat
+    
+    @EnvironmentObject var locationManager: LocationManager
+    @State private var mapHeading: Double = 0.0
+    @State private var lastRawMapHeading: Double?
 
     private func isSelected(_ id: UUID) -> Bool {
         id == selectedTimelineObjectID || selectedGroupIDs.contains(id)
@@ -127,9 +131,34 @@ struct MapView: View {
                 position: $cameraPosition,
                 interactionModes: [.pan, .zoom, .rotate]
             ) {
-                if calendar.isDate(selectedDate, inSameDayAs: Date())
+                if calendar.isDate(selectedDate, inSameDayAs: Date()),
+                   let location = locationManager.currentRawLocation?.coordinate
                 {
-                    UserAnnotation()
+                    Annotation(coordinate: location) {
+                        ZStack {
+                            Image(systemName: "location.north.fill")
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundColor(.blue.opacity(0.8))
+                                .offset(y: -14)
+                                .rotationEffect(Angle(degrees: locationManager.heading - mapHeading))
+                                .animation(.linear, value: locationManager.heading)
+                                .animation(.linear, value: mapHeading)
+                            
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 22, height: 22)
+                                .shadow(radius: 2)
+                            
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 16, height: 16)
+                        }
+                    } label: {
+                        EmptyView()
+                    }
+                    //trying to make sure it's not covering eventual current visit's label by putting it at a lower priority. 
+                    .mapOverlayLevel(level: .aboveRoads)
                 }
                 ForEach(timelineObjects.filter { $0.type == .track && !isSelected($0.id) }, id: \.id) { trackObject in
                     ForEach(trackObject.identifiableCoordinates, id: \.id) { identifiableCoordinates in
@@ -199,6 +228,18 @@ struct MapView: View {
             }
             .mapControls {
                 MapScaleView()
+            }
+            .onMapCameraChange(frequency: .continuous) { context in
+                let rawHeading = context.camera.heading
+                if let lastRaw = lastRawMapHeading {
+                    var diff = rawHeading - lastRaw
+                    if diff > 180 { diff -= 360 }
+                    else if diff < -180 { diff += 360 }
+                    mapHeading += diff
+                } else {
+                    mapHeading = rawHeading
+                }
+                lastRawMapHeading = rawHeading
             }
             .onTapGesture { screenPoint in
                 handleMapTap(at: screenPoint, proxy: mapProxy)

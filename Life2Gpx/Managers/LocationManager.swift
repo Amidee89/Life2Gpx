@@ -7,7 +7,10 @@ import UserNotifications
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
     @Published var currentFilteredLocation: CLLocation?
+    @Published var currentRawLocation: CLLocation?
     @Published var dataHasBeenUpdated: Bool = false
+    @Published var heading: Double = 0.0
+    private var lastRawHeading: Double?
 
     private var previousSavedLocation: CLLocation?
     private var locationUpdateTimer: Timer?
@@ -222,6 +225,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    func startHeadingUpdates() {
+        locationManager.startUpdatingHeading()
+        FileManagerUtil.logData(context: "LocationManager", content: "Started updating heading.", verbosity: 4)
+    }
+
+    func stopHeadingUpdates() {
+        locationManager.stopUpdatingHeading()
+        FileManagerUtil.logData(context: "LocationManager", content: "Stopped updating heading.", verbosity: 4)
+    }
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let functionStartTime = Date()
         let currentTime = Date()
@@ -230,6 +243,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
+        DispatchQueue.main.async {
+            self.currentRawLocation = newLocation
+        }
         CoordinateConverter.updateDeviceLocation(newLocation.coordinate)
            
         var shouldProcessThisLocation: Bool
@@ -778,5 +794,37 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         FileManagerUtil.logData(context: "GPXUtil", content: "getMostRecentGPXElement found: Type: \(elementType), Time: \(String(describing: mostRecentTime)).", verbosity: 5)
         return mostRecentElement
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        let functionStartTime = Date()
+        
+        DispatchQueue.main.async {
+            let rawHeading = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+            if let lastRaw = self.lastRawHeading {
+                var diff = rawHeading - lastRaw
+                if diff > 180 {
+                    diff -= 360
+                } else if diff < -180 {
+                    diff += 360
+                }
+                self.heading += diff
+            } else {
+                self.heading = rawHeading
+            }
+            self.lastRawHeading = rawHeading
+        }
+        
+        let endTime = Date()
+        let executionTime = endTime.timeIntervalSince(functionStartTime)
+        let executionTimeString = String(format: "%.10f", executionTime)
+        let logContent = "Execution time: \(executionTimeString) seconds"
+        FileManagerUtil.logData(context: "HeadingUpdate", content: logContent, verbosity: 5)
+        
+        ResourceTracker.shared.logResourceEvent(
+            context: "HeadingUpdate", 
+            executionTime: executionTime, 
+            extraInfo: ["TrueHeading": String(newHeading.trueHeading), "MagneticHeading": String(newHeading.magneticHeading)]
+        )
     }
 }
