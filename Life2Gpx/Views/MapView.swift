@@ -125,7 +125,7 @@ struct MapView: View {
         MapReader { mapProxy in
             Map(
                 position: $cameraPosition,
-                interactionModes: .all
+                interactionModes: [.pan, .zoom, .rotate]
             ) {
                 if calendar.isDate(selectedDate, inSameDayAs: Date())
                 {
@@ -196,6 +196,9 @@ struct MapView: View {
 
                     }
                 }
+            }
+            .mapControls {
+                MapScaleView()
             }
             .onTapGesture { screenPoint in
                 handleMapTap(at: screenPoint, proxy: mapProxy)
