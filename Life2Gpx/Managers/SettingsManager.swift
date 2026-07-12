@@ -88,6 +88,7 @@ class SettingsManager {
     private let photoCacheMemoryMBKey = "photoCacheMemoryMB"
     private let photoCacheCountLimitKey = "photoCacheCountLimit"
     private let showCurrentPositionModeKey = "showCurrentPositionMode"
+    private let disableTrackingKey = "disableTracking"
     
     private init() {
         registerDefaults()
@@ -126,7 +127,8 @@ class SettingsManager {
             placeSearchPageLimitKey: 10,
             photoCacheMemoryMBKey: 96,
             photoCacheCountLimitKey: 4,
-            showCurrentPositionModeKey: ShowCurrentPositionMode.onlyToday.rawValue
+            showCurrentPositionModeKey: ShowCurrentPositionMode.onlyToday.rawValue,
+            disableTrackingKey: false
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -403,6 +405,11 @@ class SettingsManager {
     var photoCacheCountLimit: Int {
         get { return defaults.integer(forKey: photoCacheCountLimitKey) }
         set { defaults.set(max(1, min(newValue, 20)), forKey: photoCacheCountLimitKey) }
+    }
+
+    var disableTracking: Bool {
+        get { return defaults.bool(forKey: disableTrackingKey) }
+        set { defaults.set(newValue, forKey: disableTrackingKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

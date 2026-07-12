@@ -18,6 +18,7 @@ struct Life2GpxApp: App {
     
     private let defaults = UserDefaults.standard
     private let settingsManager = SettingsManager.shared
+    @AppStorage("disableTracking") private var disableTracking = SettingsManager.shared.disableTracking
 
     init() {
         // Singletons
@@ -33,11 +34,22 @@ struct Life2GpxApp: App {
             ContentView()
                 .environmentObject(locationManager)
         }
+        .onChange(of: disableTracking) { _, newValue in
+            if newValue {
+                significantLocationChangeManager.stop()
+                locationManager.stopAllTracking()
+            } else {
+                significantLocationChangeManager.start()
+                locationManager.startAllTracking()
+            }
+        }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
                 let currentTime = Date()
-                locationManager.startHeadingUpdates()
+                if !disableTracking {
+                    locationManager.startHeadingUpdates()
+                }
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became active at \(currentTime).", verbosity: 2)
                 ResourceDiagnostics.logRuntime(
                     context: "AppLifecycle",
@@ -52,7 +64,9 @@ struct Life2GpxApp: App {
                 )
             case .background:
                 let currentTime = Date()
-                locationManager.stopHeadingUpdates()
+                if !disableTracking {
+                    locationManager.stopHeadingUpdates()
+                }
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene moved to background at \(currentTime).", verbosity: 2)
                 ResourceDiagnostics.logRuntime(
                     context: "AppLifecycle",

@@ -60,16 +60,38 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
              lastUpdateTimestamp = savedTimestamp
         }
         
+        if !SettingsManager.shared.disableTracking {
+            setupLocationManager()
+            setupMotionActivityManager()
+            scheduleMidnightUpdate()
+            scheduleDeadMansSwitchNotification()
+            startNotificationResetTimer()
+        }
+        
+        setupPedometer()
+        currentDate = Date()
+    }
+
+    func stopAllTracking() {
+        locationManager.stopUpdatingLocation()
+        locationManager.stopUpdatingHeading()
+        motionActivityManager.stopActivityUpdates()
+        midnightTimer?.invalidate()
+        stopNotificationResetTimer()
+        
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch", "UnknownPlaceCheckIn"])
+        
+        FileManagerUtil.logData(context: "LocationManager", content: "All tracking stopped.", verbosity: 2)
+    }
+
+    func startAllTracking() {
         setupLocationManager()
         setupMotionActivityManager()
-        setupPedometer()
         scheduleMidnightUpdate()
-        currentDate = Date()
-        
-        //these are for notifying the
         scheduleDeadMansSwitchNotification()
         startNotificationResetTimer()
-
+        FileManagerUtil.logData(context: "LocationManager", content: "All tracking started.", verbosity: 2)
     }
     private func scheduleMidnightUpdate() {
             let calendar = Calendar.current

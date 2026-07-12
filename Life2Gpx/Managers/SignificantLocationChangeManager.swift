@@ -12,8 +12,19 @@ class SignificantLocationChangeManager: NSObject, CLLocationManagerDelegate {
         locationManager.requestAlwaysAuthorization() 
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
+        if !SettingsManager.shared.disableTracking {
+            start()
+        }
+    }
+
+    func start() {
         locationManager.startMonitoringSignificantLocationChanges()
         FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Started monitoring significant location changes.", verbosity: 3)
+    }
+
+    func stop() {
+        locationManager.stopMonitoringSignificantLocationChanges()
+        FileManagerUtil.logData(context: "SigLocChangeMgr", content: "Stopped monitoring significant location changes.", verbosity: 3)
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {

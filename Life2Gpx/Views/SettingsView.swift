@@ -32,6 +32,7 @@ struct SettingsView: View {
     @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
     @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
     @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
+    @AppStorage("disableTracking") private var disableTracking: Bool = SettingsManager.shared.disableTracking
 
     @FocusState private var valueFieldIsFocused: Bool
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
@@ -42,6 +43,18 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Disable tracking", isOn: $disableTracking)
+                        .tint(.red)
+                    
+                    Text("Disable all realtime tracking from the app")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .listRowBackground(disableTracking ? Color.red.opacity(0.1) : nil)
+            
             Section(header: Text("Logging")) {
                 Text("Adjust the level of detail for application logs.")
                 
