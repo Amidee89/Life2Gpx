@@ -100,6 +100,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             context: "AppLifecycle",
             detail: "ApplicationWillTerminate runtime snapshot."
         )
+        
+        // Disable the Dead Man's Switch since this is a clean exit (e.g., user force quit)
+        // This is NOT called on a crash, which is exactly what we want.
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch"])
+        FileManagerUtil.logData(context: "AppLifecycle", content: "Cancelled DeadMansSwitch on manual termination.", verbosity: 2)
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
