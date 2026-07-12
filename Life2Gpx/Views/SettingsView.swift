@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
+    @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
@@ -254,7 +255,20 @@ struct SettingsView: View {
                 .padding(.vertical)
             }
 
-            Section(header: Text("Map coordinates")) {
+            Section(header: Text("Map")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Show current position on map")
+                        .foregroundColor(.primary)
+
+                    Picker("Show current position on map", selection: $showCurrentPositionMode) {
+                        ForEach(ShowCurrentPositionMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.bottom, 8)
+                
                 Picker("Map coordinate system", selection: $mapCoordinateSystemMode) {
                     ForEach(MapCoordinateSystemMode.allCases) { mode in
                         Text(mode.displayName).tag(mode.rawValue)

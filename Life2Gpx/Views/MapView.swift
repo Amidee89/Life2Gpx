@@ -18,9 +18,23 @@ struct MapView: View {
     @Binding var selectedDate: Date
     var safeAreaTop: CGFloat
     
+    @AppStorage("showCurrentPositionMode") private var showCurrentPositionModeString: String = SettingsManager.shared.showCurrentPositionMode.rawValue
+
     @EnvironmentObject var locationManager: LocationManager
     @State private var mapHeading: Double = 0.0
     @State private var lastRawMapHeading: Double?
+
+    private var shouldShowPosition: Bool {
+        let showPositionMode = ShowCurrentPositionMode(rawValue: showCurrentPositionModeString) ?? .onlyToday
+        switch showPositionMode {
+        case .always:
+            return true
+        case .onlyToday:
+            return calendar.isDate(selectedDate, inSameDayAs: Date())
+        case .never:
+            return false
+        }
+    }
 
     private func isSelected(_ id: UUID) -> Bool {
         id == selectedTimelineObjectID || selectedGroupIDs.contains(id)
@@ -131,7 +145,7 @@ struct MapView: View {
                 position: $cameraPosition,
                 interactionModes: [.pan, .zoom, .rotate]
             ) {
-                if calendar.isDate(selectedDate, inSameDayAs: Date()),
+                if shouldShowPosition,
                    let location = locationManager.currentRawLocation?.coordinate
                 {
                     Annotation(coordinate: location) {

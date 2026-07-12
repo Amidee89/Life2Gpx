@@ -39,6 +39,22 @@ enum TimelinePictureDisplayMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum ShowCurrentPositionMode: String, CaseIterable, Identifiable {
+    case always
+    case onlyToday
+    case never
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .always: return "Always"
+        case .onlyToday: return "Only Today"
+        case .never: return "Never"
+        }
+    }
+}
+
 class SettingsManager {
     static let shared = SettingsManager()
     private let defaults = UserDefaults.standard
@@ -71,6 +87,7 @@ class SettingsManager {
     private let placeSearchPageLimitKey = "placeSearchPageLimit"
     private let photoCacheMemoryMBKey = "photoCacheMemoryMB"
     private let photoCacheCountLimitKey = "photoCacheCountLimit"
+    private let showCurrentPositionModeKey = "showCurrentPositionMode"
     
     private init() {
         registerDefaults()
@@ -108,7 +125,8 @@ class SettingsManager {
             placeSearchAppleKeywordRadiusKey: 10000,
             placeSearchPageLimitKey: 10,
             photoCacheMemoryMBKey: 96,
-            photoCacheCountLimitKey: 4
+            photoCacheCountLimitKey: 4,
+            showCurrentPositionModeKey: ShowCurrentPositionMode.onlyToday.rawValue
         ])
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
@@ -295,6 +313,16 @@ class SettingsManager {
         }
         set {
             defaults.set(newValue.rawValue, forKey: mapCoordinateSystemModeKey)
+        }
+    }
+
+    var showCurrentPositionMode: ShowCurrentPositionMode {
+        get {
+            let raw = defaults.string(forKey: showCurrentPositionModeKey) ?? ShowCurrentPositionMode.onlyToday.rawValue
+            return ShowCurrentPositionMode(rawValue: raw) ?? .onlyToday
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: showCurrentPositionModeKey)
         }
     }
 
