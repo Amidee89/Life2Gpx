@@ -22,7 +22,7 @@ struct MapControlsView: View {
     var body: some View {
         GeometryReader { geometry in
             let noDataHeight: CGFloat = timelineObjects.isEmpty ? 92 : 0
-            let dynamicTopPadding = max(0, min(safeAreaTop + 16, geometry.size.height - (136 + noDataHeight)))
+            let dynamicTopPadding = max(0, min(safeAreaTop, geometry.size.height - (136 + noDataHeight)))
             
             VStack {
                 HStack{
@@ -82,7 +82,7 @@ struct MapControlsView: View {
                     .padding(.bottom, 16)
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

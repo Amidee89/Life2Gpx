@@ -57,7 +57,6 @@ struct ContentView: View {
     private let unknownPlaceDeepLinkTimeThreshold: TimeInterval = 2.0
 
     private let mapTimelineHandleHeight: CGFloat = 36
-    private let mapTimelineHandleVisualLift: CGFloat = 50
     private let mapCollapseSafeZoneHeight: CGFloat = 72
     private let minimumBottomPanelHeight: CGFloat = 220
     private let mapTimelineSplitCoordinateSpace = "mapTimelineSplit"
@@ -69,9 +68,7 @@ struct ContentView: View {
             let isMapCollapsed = currentMapHeight <= 0
             let safeAreaTop = geometry.safeAreaInsets.top
             let topSlotHeight = isMapCollapsed ? safeAreaTop + mapTimelineHandleHeight : currentMapHeight
-            let handleCenterY = isMapCollapsed
-                ? safeAreaTop + mapTimelineHandleHeight / 2 - mapTimelineHandleVisualLift
-                : currentMapHeight - mapTimelineHandleHeight / 2 - mapTimelineHandleVisualLift
+            let handleCenterY = topSlotHeight - safeAreaTop - 10
             let mapFrameHeight = isMapCollapsed ? 1 : currentMapHeight
             let isMapVisible = !isMapCollapsed
 
@@ -132,16 +129,16 @@ struct ContentView: View {
 
                     VStack(spacing: 0) {
                         
-                        HStack {
-                            Spacer()
-                            
+                        HStack(spacing: 2) {
+                            Spacer(minLength: 0)
                             Button(action: {
                                 withAnimation(.easeInOut(duration: 0.25)) {
                                     showGroupingSlider.toggle()
                                 }
                             }) {
                                 Image(systemName: "line.3.horizontal.decrease")
-                                    .padding(8)
+                                    .frame(minWidth: 32, minHeight: 32)
+                                    .contentShape(Rectangle())
                                     .foregroundColor(groupingMinutes > 0 ? .orange : .blue)
                             }
                             .disabled(isEditMode)
@@ -151,7 +148,8 @@ struct ContentView: View {
                                 toggleEditMode()
                             }) {
                                 Image(systemName: "square.and.pencil")
-                                    .padding(8)
+                                    .frame(minWidth: 32, minHeight: 32)
+                                    .contentShape(Rectangle())
                                     .foregroundColor(isEditMode ? .orange : .blue)
                             }
                             
@@ -159,7 +157,8 @@ struct ContentView: View {
                                 self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
                             }) {
                                 Image(systemName: "chevron.left")
-                                    .padding(8)
+                                    .frame(minWidth: 32, minHeight: 32)
+                                    .contentShape(Rectangle())
                                     .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) ? .gray : .blue)
                             }
                             .disabled(Calendar.current.isDate(selectedDate, equalTo: minDate, toGranularity: .day) || isEditMode)
@@ -185,7 +184,8 @@ struct ContentView: View {
                                 self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
                             }) {
                                 Image(systemName: "chevron.right")
-                                    .padding(8)
+                                    .frame(minWidth: 32, minHeight: 32)
+                                    .contentShape(Rectangle())
                                     .foregroundColor(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) ? .gray : .blue)
                             }
                             .disabled(Calendar.current.isDate(selectedDate, equalTo: maxDate, toGranularity: .day) || isEditMode)
@@ -195,7 +195,8 @@ struct ContentView: View {
                                 self.showSettings = true
                             }) {
                                 Image(systemName: "gearshape")
-                                    .padding(8)
+                                    .frame(minWidth: 32, minHeight: 32)
+                                    .contentShape(Rectangle())
                                     .foregroundColor(.blue)
                             }
                             .disabled(isEditMode)
@@ -205,15 +206,17 @@ struct ContentView: View {
                                 shareCurrentGpx()
                             }) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .padding(8)
+                                    .frame(minWidth: 32, minHeight: 32)
+                                    .contentShape(Rectangle())
                                     .foregroundColor(currentGpxShareURL == nil ? .gray : .blue)
                             }
                             .disabled(currentGpxShareURL == nil || isEditMode)
                             .opacity(isEditMode ? 0.4 : 1)
                             .accessibilityLabel(currentGpxShareURL == nil ? "Share GPX unavailable" : "Share GPX")
-                            
-                            Spacer()
-                        } .padding(5)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         if showGroupingSlider && !isEditMode {
                             HStack(spacing: 8) {
                                 Image(systemName: "line.3.horizontal")
