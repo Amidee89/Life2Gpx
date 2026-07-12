@@ -17,6 +17,22 @@ enum MapCoordinateSystemMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum ActivitySummaryVisibility: String, CaseIterable, Identifiable {
+    case always
+    case onPullDown
+    case dontShow
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .always: return "Always"
+        case .onPullDown: return "On pull down"
+        case .dontShow: return "Don't show"
+        }
+    }
+}
+
 enum TimelinePictureDisplayMode: String, CaseIterable, Identifiable {
     case none
     case small
@@ -95,6 +111,8 @@ class SettingsManager {
     private let iCloudBackupIntervalValueKey = "iCloudBackupIntervalValue"
     private let iCloudBackupIntervalUnitKey = "iCloudBackupIntervalUnit"
     private let lastICloudBackupDateKey = "lastICloudBackupDate"
+    private let activitySummaryVisibilityKey = "activitySummaryVisibility"
+    private let activitySummaryDistanceThresholdKey = "activitySummaryDistanceThreshold"
     
     private init() {
         registerDefaults()
@@ -138,7 +156,9 @@ class SettingsManager {
             iCloudBackupEnabledKey: false,
             iCloudBackupModeKey: "daily",
             iCloudBackupIntervalValueKey: 1,
-            iCloudBackupIntervalUnitKey: "days"
+            iCloudBackupIntervalUnitKey: "days",
+            activitySummaryVisibilityKey: ActivitySummaryVisibility.onPullDown.rawValue,
+            activitySummaryDistanceThresholdKey: 100
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -345,6 +365,21 @@ class SettingsManager {
         set {
             defaults.set(newValue.rawValue, forKey: showCurrentPositionModeKey)
         }
+    }
+
+    var activitySummaryVisibility: ActivitySummaryVisibility {
+        get {
+            let raw = defaults.string(forKey: activitySummaryVisibilityKey) ?? ActivitySummaryVisibility.onPullDown.rawValue
+            return ActivitySummaryVisibility(rawValue: raw) ?? .onPullDown
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: activitySummaryVisibilityKey)
+        }
+    }
+
+    var activitySummaryDistanceThreshold: Int {
+        get { return defaults.integer(forKey: activitySummaryDistanceThresholdKey) }
+        set { defaults.set(max(0, newValue), forKey: activitySummaryDistanceThresholdKey) }
     }
 
     var suggestApplyToOtherPlaces: Bool {

@@ -885,6 +885,8 @@ struct TimelineView: View {
     @StateObject private var photoStore = TimelinePhotoStore()
     @State private var photoSheet: TimelinePhotoSheet?
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayModeRaw: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
+    @AppStorage("activitySummaryVisibility") private var activitySummaryVisibilityRaw: String = SettingsManager.shared.activitySummaryVisibility.rawValue
+    @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
 
     var groupingMinutes: Double
     var onRefresh: () -> Void
@@ -1003,127 +1005,211 @@ struct TimelineView: View {
         }
     }
     
+    private var activitySummaryVisibility: ActivitySummaryVisibility {
+        ActivitySummaryVisibility(rawValue: activitySummaryVisibilityRaw) ?? .onPullDown
+    }
+
+    struct ActivitySummary {
+        let trackType: String?
+        var meters: Int
+        var steps: Int
+    }
+
+    private var activitySummaries: [ActivitySummary] {
+        var summaryMap: [String: ActivitySummary] = [:]
+        
+        for item in timelineObjects {
+            let key = item.trackType ?? "unknown"
+            if item.type == .track && item.meters >= activitySummaryDistanceThreshold && key != "unknown" {
+                if summaryMap[key] != nil {
+                    summaryMap[key]!.meters += item.meters
+                    summaryMap[key]!.steps += item.steps
+                } else {
+                    summaryMap[key] = ActivitySummary(trackType: key, meters: item.meters, steps: item.steps)
+                }
+            }
+        }
+        
+        return summaryMap.values.sorted { ($0.trackType ?? "") < ($1.trackType ?? "") }
+    }
+
+    @ViewBuilder
+    private var activitySummaryView: some View {
+        let summaries = activitySummaries
+        if !summaries.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(summaries, id: \.trackType) { summary in
+                        let typeName = PreferencesManager.shared.trackType(for: summary.trackType)?.name ?? "Unknown"
+                        let color = PreferencesManager.shared.color(for: summary.trackType)
+                        let icon = PreferencesManager.shared.icon(for: summary.trackType)
+                        let km = Double(summary.meters) / 1000.0
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: icon)
+                            if summary.steps > 0 {
+                                Text(String(format: "%@: %.1f km / %d steps", typeName, km, summary.steps))
+                            } else {
+                                Text(String(format: "%@: %.1f km", typeName, km))
+                            }
+                        }
+                        .font(.caption.bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(color.opacity(0.2))
+                        .foregroundColor(color)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(color, lineWidth: 1)
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rowView(for displayItem: TimelineDisplayItem, photoIntervals: [UUID: DateInterval]) -> some View {
+        switch displayItem {
+        case .single(let item):
+            HStack(spacing: 0) {
+                if isEditMode {
+                    editModeSelectionCircle(for: item)
+                }
+                itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervals[item.id])
+            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+                .onTapGesture {
+                    if isEditMode {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            toggleEditSelection(for: item)
+                        }
+                    } else {
+                        withAnimation { onSelectItem(item) }
+                    }
+                }
+                .listRowBackground(
+                    isEditMode
+                        ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color.clear)
+                        : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
+                )
+                .id(displayItem.id)
+                .onAppear {
+                    visibleIDs.insert(displayItem.id)
+                    updateActiveScrollID()
+                }
+                .onDisappear {
+                    visibleIDs.remove(displayItem.id)
+                    updateActiveScrollID()
+                }
+
+        case .groupHeader(_, let groupUUID, let items, let isExpanded):
+            HStack(spacing: 0) {
+                if isEditMode {
+                    editModeGroupSelectionCircle(for: items)
+                }
+                groupHeaderRow(groupID: groupUUID, items: items, isExpanded: isExpanded)
+            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+                .onTapGesture {
+                    if isEditMode {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            let allSelected = items.allSatisfy { selectedEditItems.contains($0.id) }
+                            for item in items {
+                                if allSelected {
+                                    selectedEditItems.remove(item.id)
+                                } else {
+                                    selectedEditItems.insert(item.id)
+                                }
+                            }
+                        }
+                    } else {
+                        withAnimation {
+                            onSelectGroup?(items)
+                        }
+                    }
+                }
+                .listRowBackground(
+                    isEditMode
+                        ? (items.contains(where: { selectedEditItems.contains($0.id) }) ? Color.blue.opacity(0.15) : Color.clear)
+                        : (items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear)
+                )
+                .id(displayItem.id)
+                .onAppear {
+                    visibleIDs.insert(displayItem.id)
+                    updateActiveScrollID()
+                }
+                .onDisappear {
+                    visibleIDs.remove(displayItem.id)
+                    updateActiveScrollID()
+                }
+
+        case .groupChild(let item):
+            HStack(spacing: 0) {
+                if isEditMode {
+                    editModeSelectionCircle(for: item)
+                }
+                itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervals[item.id])
+            }
+                .padding(.leading, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+                .onTapGesture {
+                    if isEditMode {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            toggleEditSelection(for: item)
+                        }
+                    } else {
+                        withAnimation { onSelectItem(item) }
+                    }
+                }
+                .listRowBackground(
+                    isEditMode
+                        ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color(.secondarySystemBackground))
+                        : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
+                )
+                .id(displayItem.id)
+                .onAppear {
+                    visibleIDs.insert(displayItem.id)
+                    updateActiveScrollID()
+                }
+                .onDisappear {
+                    visibleIDs.remove(displayItem.id)
+                    updateActiveScrollID()
+                }
+        }
+    }
+
     var body: some View {
         let photoIntervalsByObjectID = makePhotoIntervalsByObjectID()
 
         ScrollViewReader { proxy in
-        List(displayItems) { displayItem in
-            switch displayItem {
-            case .single(let item):
-                HStack(spacing: 0) {
-                    if isEditMode {
-                        editModeSelectionCircle(for: item)
-                    }
-                    itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervalsByObjectID[item.id])
-                }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
-                    .onTapGesture {
-                        if isEditMode {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                toggleEditSelection(for: item)
-                            }
-                        } else {
-                            withAnimation { onSelectItem(item) }
-                        }
-                    }
-                    .listRowBackground(
-                        isEditMode
-                            ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color.clear)
-                            : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
-                    )
-                    .id(displayItem.id)
-                    .onAppear {
-                        visibleIDs.insert(displayItem.id)
-                        updateActiveScrollID()
-                    }
-                    .onDisappear {
-                        visibleIDs.remove(displayItem.id)
-                        updateActiveScrollID()
-                    }
-
-            case .groupHeader(_, let groupUUID, let items, let isExpanded):
-                HStack(spacing: 0) {
-                    if isEditMode {
-                        // In edit mode, allow selecting all items in the group
-                        editModeGroupSelectionCircle(for: items)
-                    }
-                    groupHeaderRow(groupID: groupUUID, items: items, isExpanded: isExpanded)
-                }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
-                    .onTapGesture {
-                        if isEditMode {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                let allSelected = items.allSatisfy { selectedEditItems.contains($0.id) }
-                                for item in items {
-                                    if allSelected {
-                                        selectedEditItems.remove(item.id)
-                                    } else {
-                                        selectedEditItems.insert(item.id)
-                                    }
-                                }
-                            }
-                        } else {
-                            withAnimation {
-                                onSelectGroup?(items)
-                            }
-                        }
-                    }
-                    .listRowBackground(
-                        isEditMode
-                            ? (items.contains(where: { selectedEditItems.contains($0.id) }) ? Color.blue.opacity(0.15) : Color.clear)
-                            : (items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear)
-                    )
-                    .id(displayItem.id)
-                    .onAppear {
-                        visibleIDs.insert(displayItem.id)
-                        updateActiveScrollID()
-                    }
-                    .onDisappear {
-                        visibleIDs.remove(displayItem.id)
-                        updateActiveScrollID()
-                    }
-
-            case .groupChild(let item):
-                HStack(spacing: 0) {
-                    if isEditMode {
-                        editModeSelectionCircle(for: item)
-                    }
-                    itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervalsByObjectID[item.id])
-                }
-                    .padding(.leading, 12)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
-                    .onTapGesture {
-                        if isEditMode {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                toggleEditSelection(for: item)
-                            }
-                        } else {
-                            withAnimation { onSelectItem(item) }
-                        }
-                    }
-                    .listRowBackground(
-                        isEditMode
-                            ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color(.secondarySystemBackground))
-                            : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
-                    )
-                    .id(displayItem.id)
-                    .onAppear {
-                        visibleIDs.insert(displayItem.id)
-                        updateActiveScrollID()
-                    }
-                    .onDisappear {
-                        visibleIDs.remove(displayItem.id)
-                        updateActiveScrollID()
-                    }
+        VStack(spacing: 0) {
+            if activitySummaryVisibility == .always {
+                activitySummaryView
+                    .background(Color(.systemBackground))
             }
-        }
-        .refreshable {
+            List {
+                if activitySummaryVisibility == .onPullDown {
+                    activitySummaryView
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .id("ActivitySummaryID")
+                }
+                ForEach(displayItems) { displayItem in
+                    rowView(for: displayItem, photoIntervals: photoIntervalsByObjectID)
+                }
+            }
+            .refreshable {
             onRefresh()
         }
         .listStyle(PlainListStyle())
@@ -1194,6 +1280,7 @@ struct TimelineView: View {
                 }
             }
         }
+        } // end VStack
         } // end ScrollViewReader
         .sheet(isPresented: $showingEditSheet, content: {
             if let timelineObject = editingTimelineObject {

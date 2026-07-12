@@ -17,6 +17,8 @@ struct SettingsView: View {
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
+    @AppStorage("activitySummaryVisibility") private var activitySummaryVisibility: String = SettingsManager.shared.activitySummaryVisibility.rawValue
+    @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
@@ -265,6 +267,38 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Activity Summary")
+                            .foregroundColor(.primary)
+
+                        Picker("Activity Summary", selection: $activitySummaryVisibility) {
+                            ForEach(ActivitySummaryVisibility.allCases) { mode in
+                                Text(mode.displayName).tag(mode.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        
+                        if activitySummaryVisibility != ActivitySummaryVisibility.dontShow.rawValue {
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text("Distance Threshold (meters)")
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Text("\(activitySummaryDistanceThreshold)")
+                                }
+                                Slider(value: Binding(
+                                    get: { Double(activitySummaryDistanceThreshold) },
+                                    set: { activitySummaryDistanceThreshold = Int($0) }
+                                ), in: 0...5000, step: 50)
+                                
+                                Text("Activities below this distance will not be included in the summary.")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.top, 8)
+                        }
                     }
 
                     VStack(alignment: .leading) {
