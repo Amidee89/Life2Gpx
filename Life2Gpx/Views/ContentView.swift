@@ -938,9 +938,10 @@ private func topViewController(base: UIViewController? = nil) -> UIViewControlle
     return rootController
 }
 
-public func formatDateToHoursMinutes(_ date: Date) -> String {
+public func formatDateToHoursMinutes(_ date: Date, timeZone: TimeZone = .current) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "HH:mm"
+    formatter.timeZone = timeZone
     return formatter.string(from: date)
 }
 

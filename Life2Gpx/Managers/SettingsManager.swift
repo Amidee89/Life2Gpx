@@ -17,6 +17,22 @@ enum MapCoordinateSystemMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum TimelineLocalTimeMode: String, CaseIterable, Identifiable {
+    case never
+    case ask
+    case always
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .never: return "Never"
+        case .ask: return "Ask"
+        case .always: return "Always"
+        }
+    }
+}
+
 enum ActivitySummaryVisibility: String, CaseIterable, Identifiable {
     case always
     case onPullDown
@@ -113,6 +129,7 @@ class SettingsManager {
     private let lastICloudBackupDateKey = "lastICloudBackupDate"
     private let activitySummaryVisibilityKey = "activitySummaryVisibility"
     private let activitySummaryDistanceThresholdKey = "activitySummaryDistanceThreshold"
+    private let timelineLocalTimeModeKey = "timelineLocalTimeMode"
     
     private init() {
         registerDefaults()
@@ -158,7 +175,8 @@ class SettingsManager {
             iCloudBackupIntervalValueKey: 1,
             iCloudBackupIntervalUnitKey: "days",
             activitySummaryVisibilityKey: ActivitySummaryVisibility.onPullDown.rawValue,
-            activitySummaryDistanceThresholdKey: 100
+            activitySummaryDistanceThresholdKey: 100,
+            timelineLocalTimeModeKey: TimelineLocalTimeMode.never.rawValue
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -380,6 +398,16 @@ class SettingsManager {
     var activitySummaryDistanceThreshold: Int {
         get { return defaults.integer(forKey: activitySummaryDistanceThresholdKey) }
         set { defaults.set(max(0, newValue), forKey: activitySummaryDistanceThresholdKey) }
+    }
+
+    var timelineLocalTimeMode: TimelineLocalTimeMode {
+        get {
+            let raw = defaults.string(forKey: timelineLocalTimeModeKey) ?? TimelineLocalTimeMode.never.rawValue
+            return TimelineLocalTimeMode(rawValue: raw) ?? .never
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: timelineLocalTimeModeKey)
+        }
     }
 
     var suggestApplyToOtherPlaces: Bool {

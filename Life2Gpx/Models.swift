@@ -7,6 +7,23 @@
 import SwiftUI
 import CoreLocation
 import CoreGPX
+import SwiftTimeZoneLookup
+
+class TimeZoneResolver {
+    static let shared = TimeZoneResolver()
+    private let lookup: SwiftTimeZoneLookup?
+    
+    private init() {
+        lookup = try? SwiftTimeZoneLookup()
+    }
+    
+    func resolve(latitude: Double, longitude: Double) -> TimeZone? {
+        if let result = lookup?.lookup(latitude: Float(latitude), longitude: Float(longitude)) {
+            return TimeZone(identifier: result.timezone)
+        }
+        return nil
+    }
+}
 
 enum TimelineObjectType {
     case waypoint, track
@@ -75,6 +92,13 @@ class TimelineObject: Identifiable, ObservableObject {
         self.selected = false
         self.customIcon = customIcon
         self.track = track
+        var resolvedTZ: TimeZone? = nil
+        
+        if let firstCoord = coordinates.first?.coordinates.first {
+            resolvedTZ = TimeZoneResolver.shared.resolve(latitude: firstCoord.latitude, longitude: firstCoord.longitude)
+        }
+        
+        self.localTimeZone = resolvedTZ
     }
 
     private static func formatDuration(seconds: Int) -> String {
@@ -183,6 +207,8 @@ class TimelineObject: Identifiable, ObservableObject {
             points: [waypoint]
         )
     }()
+
+    var localTimeZone: TimeZone?
 }
 
 struct IdentifiableCoordinates: Identifiable {

@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
+    @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeMode: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
     @AppStorage("activitySummaryVisibility") private var activitySummaryVisibility: String = SettingsManager.shared.activitySummaryVisibility.rawValue
@@ -263,6 +264,18 @@ struct SettingsView: View {
 
                         Picker("Show pictures in timeline", selection: $timelinePictureDisplayMode) {
                             ForEach(TimelinePictureDisplayMode.allCases) { mode in
+                                Text(mode.displayName).tag(mode.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Show times in local time zone")
+                            .foregroundColor(.primary)
+
+                        Picker("Show times in local time zone", selection: $timelineLocalTimeMode) {
+                            ForEach(TimelineLocalTimeMode.allCases) { mode in
                                 Text(mode.displayName).tag(mode.rawValue)
                             }
                         }
@@ -532,6 +545,9 @@ struct SettingsView: View {
         }
         .onChange(of: iCloudBackupDailyTime) { _, newValue in
             SettingsManager.shared.iCloudBackupDailyTime = newValue
+        }
+        .onChange(of: timelineLocalTimeMode) { _, newValue in
+            SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .never
         }
         .onChange(of: timelinePictureDisplayMode) { _, newValue in
             FileManagerUtil.logData(

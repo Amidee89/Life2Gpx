@@ -887,6 +887,29 @@ struct TimelineView: View {
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayModeRaw: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("activitySummaryVisibility") private var activitySummaryVisibilityRaw: String = SettingsManager.shared.activitySummaryVisibility.rawValue
     @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
+    @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeModeRaw: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
+
+    @State private var useOriginalTimeZoneForDay: Bool = false
+    @State private var dayHasDifferentTimeZone: Bool = false
+    @State private var dayCalculatedTimeZone: TimeZone? = nil
+
+    private var timelineLocalTimeMode: TimelineLocalTimeMode {
+        TimelineLocalTimeMode(rawValue: timelineLocalTimeModeRaw) ?? .never
+    }
+    
+    private func displayTimeZone(for item: TimelineObject?) -> TimeZone {
+        if timelineLocalTimeMode == .never {
+            return .current
+        }
+        
+        let itemTZ = item?.localTimeZone ?? dayCalculatedTimeZone ?? .current
+        
+        if timelineLocalTimeMode == .always {
+            return itemTZ
+        }
+        // ask mode
+        return useOriginalTimeZoneForDay ? itemTZ : .current
+    }
 
     var groupingMinutes: Double
     var onRefresh: () -> Void
@@ -962,6 +985,38 @@ struct TimelineView: View {
                 FileManagerUtil.logData(context: "TimelineScroll", content: "[updateActiveScrollID] Top visible item ID determined to be: \(topId)", verbosity: 4)
                 activeScrollID = topId
             }
+        }
+    }
+
+    private func updateTimeZoneInfo() {
+        if timelineLocalTimeMode == .never {
+            dayHasDifferentTimeZone = false
+            dayCalculatedTimeZone = nil
+            return
+        }
+        
+        let currentOffset = TimeZone.current.secondsFromGMT(for: selectedDate)
+        
+        var hasDifferentTZ = false
+        var firstFoundTZ: TimeZone? = nil
+        
+        for obj in timelineObjects {
+            if let tz = obj.localTimeZone {
+                if firstFoundTZ == nil {
+                    firstFoundTZ = tz
+                }
+                let newOffset = tz.secondsFromGMT(for: selectedDate)
+                if currentOffset != newOffset {
+                    hasDifferentTZ = true
+                }
+            }
+        }
+        
+        dayHasDifferentTimeZone = hasDifferentTZ
+        dayCalculatedTimeZone = firstFoundTZ
+        
+        if timelineLocalTimeMode == .always {
+            useOriginalTimeZoneForDay = true
         }
     }
 
@@ -1193,6 +1248,16 @@ struct TimelineView: View {
 
         ScrollViewReader { proxy in
         VStack(spacing: 0) {
+            if timelineLocalTimeMode == .ask && dayHasDifferentTimeZone {
+                Toggle(isOn: $useOriginalTimeZoneForDay) {
+                    Text("Show times in local time zone")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(.systemBackground))
+            }
             if activitySummaryVisibility == .always {
                 activitySummaryView
                     .background(Color(.systemBackground))
@@ -1230,6 +1295,13 @@ struct TimelineView: View {
             FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange timelineObjects] IDs changed. Old count: \(oldIds.count), New count: \(newIds.count). Restoring scroll position.", verbosity: 4)
             recordTimelineDiagnostics(reason: "Timeline object IDs changed \(oldIds.count) -> \(newIds.count)")
             applyScrollPositionForCurrentDay()
+            updateTimeZoneInfo()
+        }
+        .onAppear {
+            updateTimeZoneInfo()
+        }
+        .onChange(of: timelineLocalTimeModeRaw) { _, _ in
+            updateTimeZoneInfo()
         }
         .onChange(of: activeScrollID) { oldId, newId in
             let key = selectedDayKey
@@ -1386,7 +1458,7 @@ struct TimelineView: View {
             HStack {
                 VStack(alignment: .trailing) {
                     if let startDate = item.startDate {
-                        Text("\(formatDateToHoursMinutes(startDate))")
+                        Text("\(formatDateToHoursMinutes(startDate, timeZone: displayTimeZone(for: item)))")
                             .bold()
                     }
                     Text(item.duration)
@@ -1548,7 +1620,7 @@ struct TimelineView: View {
         HStack {
             VStack(alignment: .trailing) {
                 if let startDate = items.first?.startDate {
-                    Text("\(formatDateToHoursMinutes(startDate))")
+                    Text("\(formatDateToHoursMinutes(startDate, timeZone: displayTimeZone(for: items.first!)))")
                         .bold()
                 }
                 if let start = items.first?.startDate, let end = items.last?.endDate {

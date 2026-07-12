@@ -1,5 +1,5 @@
 {
-  "originHash" : "8bdf0dcad894673edf1299810582603a2439a5b3390962c50b7a21f6894cf574",
+  "originHash" : "6afe519c9d2f3e4313f93d30e13627d6b0065a8873d225d78043f7f20345a391",
   "pins" : [
     {
       "identity" : "coregpx",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "90dea5dea799e2b3684f5c72f07141d8516ce80b",
         "version" : "0.9.2"
+      }
+    },
+    {
+      "identity" : "swifttimezonelookup",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/patrick-zippenfenig/SwiftTimeZoneLookup.git",
+      "state" : {
+        "revision" : "e4db6c3ad57b58d472a05b73cf8ea78352957500",
+        "version" : "1.0.8"
       }
     },
     {
