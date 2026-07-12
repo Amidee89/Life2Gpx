@@ -1,6 +1,7 @@
 import UIKit
 import SwiftUI
 import UserNotifications
+import BackgroundTasks
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     private var memoryWarningObserver: NSObjectProtocol?
@@ -30,6 +31,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         )
         if let options = launchOptions, options[.location] != nil {
             FileManagerUtil.logData(context: "AppLifecycle", content: "App launched due to location update.", verbosity: 2)
+        }
+        
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.DeltaCygniLabs.Life2Gpx.backup", using: nil) { task in
+            self.handleBackupTask(task: task as! BGProcessingTask)
         }
 
         memoryWarningObserver = NotificationCenter.default.addObserver(
@@ -114,6 +119,47 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             context: "AppLifecycle",
             detail: "ApplicationDidEnterBackground runtime snapshot."
         )
+        
+        scheduleBackupTask()
+    }
+
+    func scheduleBackupTask() {
+        guard SettingsManager.shared.iCloudBackupEnabled else { return }
+        
+        let request = BGProcessingTaskRequest(identifier: "com.DeltaCygniLabs.Life2Gpx.backup")
+        request.requiresNetworkConnectivity = true
+        request.requiresExternalPower = false
+        
+        if iCloudBackupManager.shared.isBackupDue() {
+            request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+        } else {
+            request.earliestBeginDate = Date(timeIntervalSinceNow: 2 * 3600)
+        }
+        
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            FileManagerUtil.logData(context: "iCloudBackup", content: "Scheduled backup task.", verbosity: 3)
+        } catch {
+            FileManagerUtil.logData(context: "iCloudBackup", content: "Could not schedule backup task: \(error)", verbosity: 1)
+        }
+    }
+
+    private func handleBackupTask(task: BGProcessingTask) {
+        scheduleBackupTask()
+        
+        guard iCloudBackupManager.shared.isBackupDue() else {
+            task.setTaskCompleted(success: true)
+            return
+        }
+        
+        let operation = Task {
+            await iCloudBackupManager.shared.runBackup()
+            task.setTaskCompleted(success: true)
+        }
+        
+        task.expirationHandler = {
+            operation.cancel()
+        }
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {

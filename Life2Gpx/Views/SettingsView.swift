@@ -33,6 +33,13 @@ struct SettingsView: View {
     @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
     @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
     @AppStorage("disableTracking") private var disableTracking: Bool = SettingsManager.shared.disableTracking
+    @AppStorage("iCloudBackupEnabled") private var iCloudBackupEnabled: Bool = SettingsManager.shared.iCloudBackupEnabled
+    @AppStorage("iCloudBackupMode") private var iCloudBackupMode: String = SettingsManager.shared.iCloudBackupMode
+    @State private var iCloudBackupDailyTime: Date = SettingsManager.shared.iCloudBackupDailyTime
+    @AppStorage("iCloudBackupIntervalValue") private var iCloudBackupIntervalValue: Int = SettingsManager.shared.iCloudBackupIntervalValue
+    @AppStorage("iCloudBackupIntervalUnit") private var iCloudBackupIntervalUnit: String = SettingsManager.shared.iCloudBackupIntervalUnit
+    
+    @ObservedObject private var backupManager = iCloudBackupManager.shared
 
     @FocusState private var valueFieldIsFocused: Bool
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
@@ -99,6 +106,64 @@ struct SettingsView: View {
                 Button(action: resourceLogDump) {
                     Label("Resource log dump", systemImage: "doc.text.magnifyingglass")
                 }
+            }
+            
+            Section(header: Text("iCloud Backup")) {
+                Toggle("Enable iCloud Backup", isOn: $iCloudBackupEnabled)
+                
+                if iCloudBackupEnabled {
+                    Picker("Backup Frequency", selection: $iCloudBackupMode) {
+                        Text("Daily").tag("daily")
+                        Text("Interval").tag("interval")
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    
+                    if iCloudBackupMode == "daily" {
+                        DatePicker("Backup Time", selection: $iCloudBackupDailyTime, displayedComponents: .hourAndMinute)
+                    } else {
+                        VStack(alignment: .leading) {
+                            Text("Backup Interval")
+                                .foregroundColor(.primary)
+                            
+                            HStack(spacing: 4) {
+                                TextField("Value", value: $iCloudBackupIntervalValue, format: .number)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.numberPad)
+                                    .frame(maxWidth: 80)
+                                    .focused($valueFieldIsFocused)
+                                
+                                Picker("", selection: $iCloudBackupIntervalUnit) {
+                                    ForEach(timeUnits, id: \.self) { unit in
+                                        Text(unit).tag(unit)
+                                    }
+                                }
+                                .pickerStyle(MenuPickerStyle())
+                                .fixedSize(horizontal: true, vertical: false)
+                                .labelsHidden()
+                                
+                                Spacer()
+                            }
+                        }
+                    }
+                    
+                    Button("Run Backup Now") {
+                        Task {
+                            await backupManager.runBackup()
+                        }
+                    }
+                    .disabled(backupManager.isBackupRunning)
+                    
+                    if backupManager.isBackupRunning || !backupManager.backupStatusMessage.isEmpty {
+                        Text(backupManager.backupStatusMessage)
+                            .font(.caption)
+                            .foregroundColor(backupManager.isBackupRunning ? .blue : .gray)
+                    }
+                }
+                
+                let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "UnknownDevice"
+                Text("Backups are saved to iCloud Drive/Life2Gpx/\(deviceID)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
             }
             
             Section(header: Text("Location Tracking")) {
@@ -430,6 +495,9 @@ struct SettingsView: View {
                     valueFieldIsFocused = false
                 }
             }
+        }
+        .onChange(of: iCloudBackupDailyTime) { _, newValue in
+            SettingsManager.shared.iCloudBackupDailyTime = newValue
         }
         .onChange(of: timelinePictureDisplayMode) { _, newValue in
             FileManagerUtil.logData(

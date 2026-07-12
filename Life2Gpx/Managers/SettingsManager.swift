@@ -89,6 +89,12 @@ class SettingsManager {
     private let photoCacheCountLimitKey = "photoCacheCountLimit"
     private let showCurrentPositionModeKey = "showCurrentPositionMode"
     private let disableTrackingKey = "disableTracking"
+    private let iCloudBackupEnabledKey = "iCloudBackupEnabled"
+    private let iCloudBackupModeKey = "iCloudBackupMode"
+    private let iCloudBackupDailyTimeKey = "iCloudBackupDailyTime"
+    private let iCloudBackupIntervalValueKey = "iCloudBackupIntervalValue"
+    private let iCloudBackupIntervalUnitKey = "iCloudBackupIntervalUnit"
+    private let lastICloudBackupDateKey = "lastICloudBackupDate"
     
     private init() {
         registerDefaults()
@@ -128,8 +134,21 @@ class SettingsManager {
             photoCacheMemoryMBKey: 96,
             photoCacheCountLimitKey: 4,
             showCurrentPositionModeKey: ShowCurrentPositionMode.onlyToday.rawValue,
-            disableTrackingKey: false
+            disableTrackingKey: false,
+            iCloudBackupEnabledKey: false,
+            iCloudBackupModeKey: "daily",
+            iCloudBackupIntervalValueKey: 1,
+            iCloudBackupIntervalUnitKey: "days"
         ])
+        
+        if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
+            var components = DateComponents()
+            components.hour = 2
+            components.minute = 0
+            let defaultTime = Calendar.current.date(from: components) ?? Date()
+            defaults.set(defaultTime, forKey: iCloudBackupDailyTimeKey)
+        }
+        
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
         print("UserDefaults registered with default auto refresh interval: \(loadCurrentDayOnRestoreAfterValue) \(loadCurrentDayOnRestoreAfterUnit)")
         print("UserDefaults registered with default new place radius: \(defaults.integer(forKey: defaultNewPlaceRadiusKey))")
@@ -410,6 +429,43 @@ class SettingsManager {
     var disableTracking: Bool {
         get { return defaults.bool(forKey: disableTrackingKey) }
         set { defaults.set(newValue, forKey: disableTrackingKey) }
+    }
+
+    var iCloudBackupEnabled: Bool {
+        get { return defaults.bool(forKey: iCloudBackupEnabledKey) }
+        set { defaults.set(newValue, forKey: iCloudBackupEnabledKey) }
+    }
+
+    var iCloudBackupMode: String {
+        get { return defaults.string(forKey: iCloudBackupModeKey) ?? "daily" }
+        set { defaults.set(newValue, forKey: iCloudBackupModeKey) }
+    }
+
+    var iCloudBackupDailyTime: Date {
+        get { return defaults.object(forKey: iCloudBackupDailyTimeKey) as? Date ?? Date() }
+        set { defaults.set(newValue, forKey: iCloudBackupDailyTimeKey) }
+    }
+
+    var iCloudBackupIntervalValue: Int {
+        get { return max(1, defaults.integer(forKey: iCloudBackupIntervalValueKey)) }
+        set { defaults.set(max(1, newValue), forKey: iCloudBackupIntervalValueKey) }
+    }
+
+    var iCloudBackupIntervalUnit: String {
+        get {
+            let unit = defaults.string(forKey: iCloudBackupIntervalUnitKey) ?? "days"
+            return ["seconds", "minutes", "hours", "days"].contains(unit) ? unit : "days"
+        }
+        set {
+            let validUnits = ["seconds", "minutes", "hours", "days"]
+            let unit = validUnits.contains(newValue) ? newValue : "days"
+            defaults.set(unit, forKey: iCloudBackupIntervalUnitKey)
+        }
+    }
+
+    var lastICloudBackupDate: Date? {
+        get { return defaults.object(forKey: lastICloudBackupDateKey) as? Date }
+        set { defaults.set(newValue, forKey: lastICloudBackupDateKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {
