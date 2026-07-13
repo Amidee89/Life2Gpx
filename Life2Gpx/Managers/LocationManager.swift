@@ -547,6 +547,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         "VerticalPrecision": String(location.verticalAccuracy),
                         "Speed": String(location.speed),
                         "SpeedAccuracy": String(location.speedAccuracy),
+                        "TimezoneOffset": String(TimeZone.current.secondsFromGMT())
                     ]
                     
                     if debug != "" {
@@ -660,6 +661,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             "HorizontalPrecision": String(location.horizontalAccuracy),
                             "VerticalPrecision": String(location.verticalAccuracy),
                             "PlaceId": matchingPlace.placeId,
+                            "TimezoneOffset": String(TimeZone.current.secondsFromGMT())
                         ]
                         
                         if let address = matchingPlace.streetAddress {
@@ -685,7 +687,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     } else {
                         var customExtensionData: [String: String] = [
                             "HorizontalPrecision": String(location.horizontalAccuracy),
-                            "VerticalPrecision": String(location.verticalAccuracy)
+                            "VerticalPrecision": String(location.verticalAccuracy),
+                            "TimezoneOffset": String(TimeZone.current.secondsFromGMT())
                         ]
                         if debug != "" {
                             customExtensionData["Debug"] = debug

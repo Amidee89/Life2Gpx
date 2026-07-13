@@ -94,7 +94,20 @@ class TimelineObject: Identifiable, ObservableObject {
         self.track = track
         var resolvedTZ: TimeZone? = nil
         
-        if let firstCoord = coordinates.first?.coordinates.first {
+        var foundOffset: Int? = nil
+        if type == .waypoint, let waypoint = points.first {
+            if let offsetStr = waypoint.extensions?["TimezoneOffset"].text, let offset = Int(offsetStr) {
+                foundOffset = offset
+            }
+        } else if type == .track, let firstPoint = track?.segments.first?.points.first {
+            if let offsetStr = firstPoint.extensions?["TimezoneOffset"].text, let offset = Int(offsetStr) {
+                foundOffset = offset
+            }
+        }
+        
+        if let offset = foundOffset, let tz = TimeZone(secondsFromGMT: offset) {
+            resolvedTZ = tz
+        } else if let firstCoord = coordinates.first?.coordinates.first {
             resolvedTZ = TimeZoneResolver.shared.resolve(latitude: firstCoord.latitude, longitude: firstCoord.longitude)
         }
         
