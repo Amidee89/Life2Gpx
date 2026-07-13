@@ -27,6 +27,7 @@ struct SettingsView: View {
     @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
     @AppStorage("minimumUpdateInterval") private var minimumUpdateInterval: Int = SettingsManager.shared.minimumUpdateInterval
     @AppStorage("stationaryDetectionTimer") private var stationaryDetectionTimer: Int = SettingsManager.shared.stationaryDetectionTimer
+    @AppStorage("stationaryStepsUpdateInterval") private var stationaryStepsUpdateInterval: Int = SettingsManager.shared.stationaryStepsUpdateInterval
     @AppStorage("findClosePlacesLimit") private var findClosePlacesLimit: Int = SettingsManager.shared.findClosePlacesLimit
     @AppStorage("placeSearchDefaultRadius") private var placeSearchDefaultRadius: Int = SettingsManager.shared.placeSearchDefaultRadius
     @AppStorage("placeSearchKeywordRadius") private var placeSearchKeywordRadius: Int = SettingsManager.shared.placeSearchKeywordRadius
@@ -50,6 +51,16 @@ struct SettingsView: View {
     @State private var showDiagnosticReportError = false
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
+    
+    private var formattedLastBackupDate: String {
+        if let date = SettingsManager.shared.lastICloudBackupDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm"
+            return formatter.string(from: date)
+        } else {
+            return "never"
+        }
+    }
 
     var body: some View {
         Form {
@@ -149,12 +160,18 @@ struct SettingsView: View {
                         }
                     }
                     
-                    Button("Run Backup Now") {
-                        Task {
-                            await backupManager.runBackup()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button("Run Backup Now") {
+                            Task {
+                                await backupManager.runBackup()
+                            }
                         }
+                        .disabled(backupManager.isBackupRunning)
+                        
+                        Text("Last backup: \(formattedLastBackupDate)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
-                    .disabled(backupManager.isBackupRunning)
                     
                     if backupManager.isBackupRunning || !backupManager.backupStatusMessage.isEmpty {
                         Text(backupManager.backupStatusMessage)
@@ -195,6 +212,20 @@ struct SettingsView: View {
                             get: { Double(stationaryDetectionTimer) },
                             set: { stationaryDetectionTimer = Int($0) }
                         ), in: 30...300, step: 10)
+                    }
+
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Stationary Steps Update (minutes)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text(stationaryStepsUpdateInterval == 0 ? "Disabled" : "\(stationaryStepsUpdateInterval)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(stationaryStepsUpdateInterval) },
+                            set: { stationaryStepsUpdateInterval = Int($0) }
+                        ), in: 0...60, step: 1)
                     }
                 }
                 .padding(.vertical)

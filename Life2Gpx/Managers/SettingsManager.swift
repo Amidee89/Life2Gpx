@@ -111,6 +111,7 @@ class SettingsManager {
     private let trackResourceUsageKey = "trackResourceUsage"
     private let minimumUpdateIntervalKey = "minimumUpdateInterval"
     private let stationaryDetectionTimerKey = "stationaryDetectionTimer"
+    private let stationaryStepsUpdateIntervalKey = "stationaryStepsUpdateInterval"
     private let findClosePlacesLimitKey = "findClosePlacesLimit"
     private let placeSearchDefaultRadiusKey = "placeSearchDefaultRadius"
     private let placeSearchKeywordRadiusKey = "placeSearchKeywordRadius"
@@ -160,6 +161,7 @@ class SettingsManager {
             trackResourceUsageKey: false,
             minimumUpdateIntervalKey: 30,
             stationaryDetectionTimerKey: 120,
+            stationaryStepsUpdateIntervalKey: 5,
             findClosePlacesLimitKey: 10,
             placeSearchDefaultRadiusKey: 200,
             placeSearchKeywordRadiusKey: 5000,
@@ -447,6 +449,11 @@ class SettingsManager {
     var stationaryDetectionTimer: Int {
         get { return defaults.integer(forKey: stationaryDetectionTimerKey) }
         set { defaults.set(newValue, forKey: stationaryDetectionTimerKey) }
+    }
+
+    var stationaryStepsUpdateInterval: Int {
+        get { return defaults.integer(forKey: stationaryStepsUpdateIntervalKey) }
+        set { defaults.set(newValue, forKey: stationaryStepsUpdateIntervalKey) }
     }
 
     var findClosePlacesLimit: Int {

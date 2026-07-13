@@ -36,6 +36,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var lastPedometerCheckDate: Date?
     private var latestPedometerSteps: Int = 0
     private var midnightTimer: Timer?
+    private var stationaryStepsUpdateTimer: Timer?
     private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     private var lastAppendCall: Date?
     private var notificationResetTimer: Timer?
@@ -107,10 +108,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             //extra grace period in case clock ran a little bit too fast. It happened.
             let adjustedInterval = (timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400) + midnightUpdateGracePeriod
             FileManagerUtil.logData(context: "LocationManager", content: "Scheduling midnight update in \(adjustedInterval) seconds.", verbosity: 4)
-            midnightTimer = Timer.scheduledTimer(timeInterval: adjustedInterval, target: self, selector: #selector(forceMidnightUpdate), userInfo: nil, repeats: false)
+            midnightTimer = Timer.scheduledTimer(withTimeInterval: adjustedInterval, repeats: false) { [weak self] _ in
+                self?.forceMidnightUpdate()
+            }
         }
         
-    @objc private func forceMidnightUpdate() {
+    private func forceMidnightUpdate() {
         if currentFilteredLocation == nil {
             if let location = locationManager.location {
                 currentFilteredLocation = location
@@ -374,6 +377,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     FileManagerUtil.logData(context: "LocationManager", content: "Added location to filteredByPositionQueue. Queue size: \(self.filteredByPositionQueue.count).", verbosity: 4)
                 }
                  FileManagerUtil.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m < \(customDistanceFilter)m) or Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
+                 
+                let intervalMinutes = SettingsManager.shared.stationaryStepsUpdateInterval
+                if intervalMinutes > 0, let lastCheck = self.lastPedometerCheckDate, Date().timeIntervalSince(lastCheck) >= Double(intervalMinutes * 60) {
+                    FileManagerUtil.logData(context: "LocationManager", content: "Triggering steps update from background location update since we are skipping points.", verbosity: 4)
+                    self.updateStationarySteps()
+                }
             }
         }
         else
@@ -413,6 +422,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         )
     }
     private func adjustSettingsForMovement() {
+        stopStationaryStepsUpdateTimer()
         self.cancelUnknownPlaceCheckInNotification()
         locationManager.stopUpdatingLocation()
         FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
@@ -429,7 +439,51 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    private func startStationaryStepsUpdateTimer() {
+        stopStationaryStepsUpdateTimer()
+        let intervalMinutes = SettingsManager.shared.stationaryStepsUpdateInterval
+        if intervalMinutes > 0 {
+            stationaryStepsUpdateTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
+                self?.updateStationarySteps()
+            }
+        }
+    }
+
+    private func stopStationaryStepsUpdateTimer() {
+        stationaryStepsUpdateTimer?.invalidate()
+        stationaryStepsUpdateTimer = nil
+    }
+
+    private func updateStationarySteps() {
+        guard let startDate = self.lastPedometerCheckDate else { return }
+        
+        self.pedometer.queryPedometerData(from: startDate, to: Date()) { [weak self] data, error in
+            guard let self = self else { return }
+            
+            if let pedometerData = data, error == nil {
+                let steps = pedometerData.numberOfSteps.intValue
+                DispatchQueue.main.async {
+                    if steps > 0 {
+                        FileManagerUtil.logData(context: "LocationManager", content: "Stationary steps update: fetched \(steps) steps.", verbosity: 4)
+                        GPXManager.shared.loadFile(forDate: Date()) { loadedGpxWaypoints, loadedGpxTracks in
+                            if let lastElement = self.getMostRecentGPXElement(waypoints: loadedGpxWaypoints, tracks: loadedGpxTracks) {
+                                let existingSteps = Int(lastElement.extensions?["Steps"].text ?? "0") ?? 0
+                                let combinedSteps = existingSteps + steps
+                                GPXUtils.updateExtension(for: lastElement, with: ["Steps": String(combinedSteps)])
+                                GPXManager.shared.saveLocationData(loadedGpxWaypoints, tracks: loadedGpxTracks, forDate: Date())
+                            }
+                        }
+                    }
+                    self.lastPedometerCheckDate = Date()
+                }
+            } else {
+                FileManagerUtil.logData(context: "LocationManager", content: "Stationary steps update error: \(error?.localizedDescription ?? "unknown error")", verbosity: 2)
+            }
+        }
+    }
+    
     private func adjustSettingsForStationary() {
+        startStationaryStepsUpdateTimer()
         customDistanceFilter = stationaryDistanceFilterConstant // Reset custom distance filter for stationary
         FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
         appendLocationToFile(type: .stationary)
@@ -517,7 +571,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 {
                     stepsExtensionData["Steps"] = String(self.latestPedometerSteps)
                     if let lastElement = self.getMostRecentGPXElement(waypoints: gpxWaypoints, tracks: gpxTracks){
-                        lastElement.extensions?.append(at: nil, contents: stepsExtensionData)
+                        GPXUtils.updateExtension(for: lastElement, with: stepsExtensionData)
                         FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Added 'Steps' extension to last element: \(String(describing: lastElement.time)).", verbosity: 4)
                     }
                     self.lastPedometerCheckDate = Date()
@@ -525,7 +579,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 else if self.latestPedometerSteps == -1{
                     stepsExtensionData["Debug"] = "Steps error"
                     if let lastElement = self.getMostRecentGPXElement(waypoints: gpxWaypoints, tracks: gpxTracks){
-                        lastElement.extensions?.append(at: nil, contents: stepsExtensionData)
+                        GPXUtils.updateExtension(for: lastElement, with: stepsExtensionData)
                         FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Added 'Steps error' debug extension to last element: \(String(describing: lastElement.time)).", verbosity: 3)
                     } else {
                         FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Could not add 'Steps error' debug extension: No last element found.", verbosity: 2)
@@ -777,10 +831,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let existingSteps = Int(previousWaypoint.extensions?["Steps"].text ?? "0") ?? 0
         let combinedSteps = existingSteps + trackSteps
         if combinedSteps > 0 {
-            if previousWaypoint.extensions == nil {
-                previousWaypoint.extensions = GPXExtensions()
-            }
-            previousWaypoint.extensions?.append(at: nil, contents: ["Steps": String(combinedSteps)])
+            GPXUtils.updateExtension(for: previousWaypoint, with: ["Steps": String(combinedSteps)])
         }
 
         gpxTracks.removeLast()

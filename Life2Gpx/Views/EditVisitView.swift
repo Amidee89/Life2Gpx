@@ -247,10 +247,7 @@ struct EditVisitView: View {
                     waypoint.elevation = Double(elevationString) ?? 0
                     
                     if let steps = Int(stepsString), steps > 0 {
-                        if waypoint.extensions == nil {
-                            waypoint.extensions = GPXExtensions()
-                        }
-                        waypoint.extensions?.append(at: nil, contents: ["Steps": stepsString])
+                        GPXUtils.updateExtension(for: waypoint, with: ["Steps": stepsString])
                     }
                     
                     let finalWaypoint: GPXWaypoint

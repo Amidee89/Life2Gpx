@@ -42,6 +42,27 @@ class GPXUtils {
         return nil
     }
     
+    static func updateExtension(for waypoint: GPXWaypoint, with newValues: [String: String]) {
+        var combinedData = [String: String]()
+        if let existing = waypoint.extensions {
+            for child in existing.children {
+                let k = child.name
+                if let v = child.text, !k.isEmpty {
+                    combinedData[k] = v
+                }
+            }
+        }
+        for (k, v) in newValues {
+            combinedData[k] = v
+        }
+        
+        if !combinedData.isEmpty {
+            let newExtensions = GPXExtensions()
+            newExtensions.append(at: nil, contents: combinedData)
+            waypoint.extensions = newExtensions
+        }
+    }
+    
     static func deepCopyPoint(_ point: GPXWaypoint) -> GPXWaypoint {
         FileManagerUtil.logData(context: "GPXUtils", content: "deepCopyPoint called for point at time \(point.time?.description ?? "N/A").", verbosity: 5)
         let copy: GPXWaypoint
@@ -521,11 +542,7 @@ class GPXUtils {
             extensionData["GaodePlaceId"] = gaodeId
         }
         
-        if updatedWaypoint.extensions == nil {
-            updatedWaypoint.extensions = GPXExtensions()
-        }
-        
-        updatedWaypoint.extensions?.append(at: nil, contents: extensionData)
+        GPXUtils.updateExtension(for: updatedWaypoint, with: extensionData)
         FileManagerUtil.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace finished updating waypoint.", verbosity: 4)
         
         return updatedWaypoint
