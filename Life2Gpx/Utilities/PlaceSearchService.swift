@@ -736,7 +736,7 @@ class PlaceSearchService {
 
     private func searchApple(coordinate: CLLocationCoordinate2D, query: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         let requestKind = query == nil ? "nearbyPOI" : "naturalLanguage"
-        let requestRadiusMeters = query == nil ? Double(SettingsManager.shared.placeSearchAppleDefaultRadius) : Double(SettingsManager.shared.placeSearchAppleKeywordRadius)
+        let requestRadiusMeters = query == nil ? Double(SettingsManager.shared.placeSearchDefaultRadius) : Double(SettingsManager.shared.placeSearchKeywordRadius)
         log(
             .apple,
             "Searching. kind=\(requestKind), center=\(formatCoordinate(coordinate)), query=\(formatQuery(query)), radius=\(Int(requestRadiusMeters))m, limit=\(limit)",

@@ -117,8 +117,6 @@ class SettingsManager {
     private let findClosePlacesLimitKey = "findClosePlacesLimit"
     private let placeSearchDefaultRadiusKey = "placeSearchDefaultRadius"
     private let placeSearchKeywordRadiusKey = "placeSearchKeywordRadius"
-    private let placeSearchAppleDefaultRadiusKey = "placeSearchAppleDefaultRadius"
-    private let placeSearchAppleKeywordRadiusKey = "placeSearchAppleKeywordRadius"
     private let placeSearchPageLimitKey = "placeSearchPageLimit"
     private let photoCacheMemoryMBKey = "photoCacheMemoryMB"
     private let photoCacheCountLimitKey = "photoCacheCountLimit"
@@ -168,10 +166,8 @@ class SettingsManager {
             stationaryDetectionTimerKey: 120,
             stationaryStepsUpdateIntervalKey: 5,
             findClosePlacesLimitKey: 10,
-            placeSearchDefaultRadiusKey: 200,
+            placeSearchDefaultRadiusKey: 500,
             placeSearchKeywordRadiusKey: 5000,
-            placeSearchAppleDefaultRadiusKey: 1000,
-            placeSearchAppleKeywordRadiusKey: 10000,
             placeSearchPageLimitKey: 10,
             photoCacheMemoryMBKey: 96,
             photoCacheCountLimitKey: 4,
@@ -479,15 +475,7 @@ class SettingsManager {
         set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchKeywordRadiusKey) }
     }
 
-    var placeSearchAppleDefaultRadius: Int {
-        get { return defaults.integer(forKey: placeSearchAppleDefaultRadiusKey) }
-        set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchAppleDefaultRadiusKey) }
-    }
 
-    var placeSearchAppleKeywordRadius: Int {
-        get { return defaults.integer(forKey: placeSearchAppleKeywordRadiusKey) }
-        set { defaults.set(max(10, min(newValue, 50000)), forKey: placeSearchAppleKeywordRadiusKey) }
-    }
 
     var placeSearchPageLimit: Int {
         get { return defaults.integer(forKey: placeSearchPageLimitKey) }

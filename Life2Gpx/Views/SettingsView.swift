@@ -31,8 +31,6 @@ struct SettingsView: View {
     @AppStorage("findClosePlacesLimit") private var findClosePlacesLimit: Int = SettingsManager.shared.findClosePlacesLimit
     @AppStorage("placeSearchDefaultRadius") private var placeSearchDefaultRadius: Int = SettingsManager.shared.placeSearchDefaultRadius
     @AppStorage("placeSearchKeywordRadius") private var placeSearchKeywordRadius: Int = SettingsManager.shared.placeSearchKeywordRadius
-    @AppStorage("placeSearchAppleDefaultRadius") private var placeSearchAppleDefaultRadius: Int = SettingsManager.shared.placeSearchAppleDefaultRadius
-    @AppStorage("placeSearchAppleKeywordRadius") private var placeSearchAppleKeywordRadius: Int = SettingsManager.shared.placeSearchAppleKeywordRadius
     @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
     @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
     @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
@@ -524,31 +522,7 @@ struct SettingsView: View {
                             .foregroundColor(.gray)
                     }
 
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Apple Maps Default Radius (meters)")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(placeSearchAppleDefaultRadius)")
-                        }
-                        Slider(value: Binding(
-                            get: { Double(placeSearchAppleDefaultRadius) },
-                            set: { placeSearchAppleDefaultRadius = Int($0) }
-                        ), in: 100...5000, step: 100)
-                    }
 
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Apple Maps Keyword Radius (meters)")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(placeSearchAppleKeywordRadius)")
-                        }
-                        Slider(value: Binding(
-                            get: { Double(placeSearchAppleKeywordRadius) },
-                            set: { placeSearchAppleKeywordRadius = Int($0) }
-                        ), in: 1000...50000, step: 1000)
-                    }
 
                     VStack(alignment: .leading) {
                         HStack {
