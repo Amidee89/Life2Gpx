@@ -135,6 +135,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func scheduleDeadMansSwitchNotification() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch"]) 
+        
+        guard SettingsManager.shared.enableDeadMansSwitch else {
+            return
+        }
 
         let content = UNMutableNotificationContent()
         content.title = "Recording Stopped"
@@ -237,7 +241,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.requestAlwaysAuthorization()
         locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.desiredAccuracy = SettingsManager.shared.movingLocationAccuracyLevel.clLocationAccuracy
         //if the filter is set, the background location updates will be absolutely unreliable. 
         //https://developer.apple.com/forums/thread/776698?answerId=829420022#829420022
         //maybe it could be set to other values when the app is in the foreground. 
@@ -425,8 +429,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         stopStationaryStepsUpdateTimer()
         self.cancelUnknownPlaceCheckInNotification()
         locationManager.stopUpdatingLocation()
-        FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. Accuracy: Best, DistanceFilter: 20m.", verbosity: 4)
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. DistanceFilter: 20m.", verbosity: 4)
+        locationManager.desiredAccuracy = SettingsManager.shared.movingLocationAccuracyLevel.clLocationAccuracy
         locationManager.startUpdatingLocation()
         customDistanceFilter = movingDistanceFilterConstant
         resetLocationUpdateTimer()
@@ -489,7 +493,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         appendLocationToFile(type: .stationary)
         UserDefaults.standard.set(LocationUpdateType.stationary.rawValue, forKey: "lastUpdateType")
         locationManager.stopUpdatingLocation()
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.desiredAccuracy = SettingsManager.shared.stationaryLocationAccuracyLevel.clLocationAccuracy
         locationManager.startUpdatingLocation()
 
     }

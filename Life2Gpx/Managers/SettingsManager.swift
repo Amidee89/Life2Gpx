@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 /// How the app decides whether MapKit is using GCJ-02 (Gaode) or WGS-84 tiles.
 enum MapCoordinateSystemMode: String, CaseIterable, Identifiable {
@@ -87,6 +88,7 @@ enum ShowCurrentPositionMode: String, CaseIterable, Identifiable {
     }
 }
 
+
 class SettingsManager {
     static let shared = SettingsManager()
     private let defaults = UserDefaults.standard
@@ -131,6 +133,9 @@ class SettingsManager {
     private let activitySummaryVisibilityKey = "activitySummaryVisibility"
     private let activitySummaryDistanceThresholdKey = "activitySummaryDistanceThreshold"
     private let timelineLocalTimeModeKey = "timelineLocalTimeMode"
+    private let enableDeadMansSwitchKey = "enableDeadMansSwitch"
+    private let stationaryLocationAccuracyKey = "stationaryLocationAccuracy"
+    private let movingLocationAccuracyKey = "movingLocationAccuracy"
     
     private init() {
         registerDefaults()
@@ -178,7 +183,10 @@ class SettingsManager {
             iCloudBackupIntervalUnitKey: "days",
             activitySummaryVisibilityKey: ActivitySummaryVisibility.onPullDown.rawValue,
             activitySummaryDistanceThresholdKey: 100,
-            timelineLocalTimeModeKey: TimelineLocalTimeMode.never.rawValue
+            timelineLocalTimeModeKey: TimelineLocalTimeMode.never.rawValue,
+            enableDeadMansSwitchKey: true,
+            stationaryLocationAccuracyKey: LocationAccuracyLevel.medium.rawValue,
+            movingLocationAccuracyKey: LocationAccuracyLevel.best.rawValue
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -536,6 +544,29 @@ class SettingsManager {
     var lastICloudBackupDate: Date? {
         get { return defaults.object(forKey: lastICloudBackupDateKey) as? Date }
         set { defaults.set(newValue, forKey: lastICloudBackupDateKey) }
+    }
+
+    var enableDeadMansSwitch: Bool {
+        get { return defaults.bool(forKey: enableDeadMansSwitchKey) }
+        set { defaults.set(newValue, forKey: enableDeadMansSwitchKey) }
+    }
+
+    var stationaryLocationAccuracy: Int {
+        get { return defaults.integer(forKey: stationaryLocationAccuracyKey) }
+        set { defaults.set(max(0, min(newValue, 5)), forKey: stationaryLocationAccuracyKey) }
+    }
+
+    var movingLocationAccuracy: Int {
+        get { return defaults.integer(forKey: movingLocationAccuracyKey) }
+        set { defaults.set(max(0, min(newValue, 5)), forKey: movingLocationAccuracyKey) }
+    }
+
+    var stationaryLocationAccuracyLevel: LocationAccuracyLevel {
+        return LocationAccuracyLevel(rawValue: stationaryLocationAccuracy) ?? .medium
+    }
+
+    var movingLocationAccuracyLevel: LocationAccuracyLevel {
+        return LocationAccuracyLevel(rawValue: movingLocationAccuracy) ?? .best
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

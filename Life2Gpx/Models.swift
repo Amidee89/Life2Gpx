@@ -34,6 +34,39 @@ enum LocationUpdateType: String, Codable {
     case stationary = "Stationary"
 }
 
+enum LocationAccuracyLevel: Int, CaseIterable, Identifiable {
+    case veryLow = 0
+    case low = 1
+    case medium = 2
+    case high = 3
+    case best = 4
+    case extreme = 5
+
+    var id: Int { rawValue }
+
+    var clLocationAccuracy: CLLocationAccuracy {
+        switch self {
+        case .veryLow: return kCLLocationAccuracyThreeKilometers
+        case .low: return kCLLocationAccuracyKilometer
+        case .medium: return kCLLocationAccuracyHundredMeters
+        case .high: return kCLLocationAccuracyNearestTenMeters
+        case .best: return kCLLocationAccuracyBest
+        case .extreme: return kCLLocationAccuracyBestForNavigation
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .veryLow: return "Very Low"
+        case .low: return "Low"
+        case .medium: return "Medium"
+        case .high: return "High"
+        case .best: return "Best"
+        case .extreme: return "Extreme"
+        }
+    }
+}
+
 class TimelineObject: Identifiable, ObservableObject {
     let id = UUID()
     var type: TimelineObjectType

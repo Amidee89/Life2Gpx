@@ -39,9 +39,11 @@ struct SettingsView: View {
     @AppStorage("disableTracking") private var disableTracking: Bool = SettingsManager.shared.disableTracking
     @AppStorage("iCloudBackupEnabled") private var iCloudBackupEnabled: Bool = SettingsManager.shared.iCloudBackupEnabled
     @AppStorage("iCloudBackupMode") private var iCloudBackupMode: String = SettingsManager.shared.iCloudBackupMode
-    @State private var iCloudBackupDailyTime: Date = SettingsManager.shared.iCloudBackupDailyTime
     @AppStorage("iCloudBackupIntervalValue") private var iCloudBackupIntervalValue: Int = SettingsManager.shared.iCloudBackupIntervalValue
     @AppStorage("iCloudBackupIntervalUnit") private var iCloudBackupIntervalUnit: String = SettingsManager.shared.iCloudBackupIntervalUnit
+    @AppStorage("enableDeadMansSwitch") private var enableDeadMansSwitch: Bool = SettingsManager.shared.enableDeadMansSwitch
+    @AppStorage("stationaryLocationAccuracy") private var stationaryLocationAccuracy: Int = SettingsManager.shared.stationaryLocationAccuracy
+    @AppStorage("movingLocationAccuracy") private var movingLocationAccuracy: Int = SettingsManager.shared.movingLocationAccuracy
     
     @ObservedObject private var backupManager = iCloudBackupManager.shared
 
@@ -49,6 +51,7 @@ struct SettingsView: View {
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
     @State private var diagnosticReportError: String?
     @State private var showDiagnosticReportError = false
+    @State private var iCloudBackupDailyTime: Date = SettingsManager.shared.iCloudBackupDailyTime
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
     
@@ -187,6 +190,9 @@ struct SettingsView: View {
             }
             
             Section(header: Text("Location Tracking")) {
+                Toggle("Warn me if the app seems to have crashed or kicked out of memory", isOn: $enableDeadMansSwitch)
+                    .padding(.bottom, 8)
+                    
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading) {
                         HStack {
@@ -199,6 +205,12 @@ struct SettingsView: View {
                             get: { Double(minimumUpdateInterval) },
                             set: { minimumUpdateInterval = Int($0) }
                         ), in: 10...120, step: 5)
+                        
+                        if minimumUpdateInterval < 30 {
+                            Text("Low values will create big GPX files on long tracks at high battery cost")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
                     }
 
                     VStack(alignment: .leading) {
@@ -226,6 +238,46 @@ struct SettingsView: View {
                             get: { Double(stationaryStepsUpdateInterval) },
                             set: { stationaryStepsUpdateInterval = Int($0) }
                         ), in: 0...60, step: 1)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Stationary Location Accuracy")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            let level = LocationAccuracyLevel(rawValue: stationaryLocationAccuracy) ?? .medium
+                            Text(level.displayName)
+                                .foregroundColor(stationaryLocationAccuracy == LocationAccuracyLevel.medium.rawValue ? Color.green.opacity(0.8) : .primary)
+                        }
+                        Slider(value: Binding(
+                            get: { Double(stationaryLocationAccuracy) },
+                            set: { stationaryLocationAccuracy = Int($0) }
+                        ), in: 0...5, step: 1)
+                        if stationaryLocationAccuracy > LocationAccuracyLevel.medium.rawValue {
+                            Text("Higher than default settings will significantly increase battery consumption.")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                    }
+
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Moving Location Accuracy")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            let level = LocationAccuracyLevel(rawValue: movingLocationAccuracy) ?? .best
+                            Text(level.displayName)
+                                .foregroundColor(movingLocationAccuracy == LocationAccuracyLevel.best.rawValue ? Color.green.opacity(0.8) : .primary)
+                        }
+                        Slider(value: Binding(
+                            get: { Double(movingLocationAccuracy) },
+                            set: { movingLocationAccuracy = Int($0) }
+                        ), in: 0...5, step: 1)
+                        if movingLocationAccuracy > LocationAccuracyLevel.best.rawValue {
+                            Text("Higher than default settings will significantly increase battery consumption.")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
                     }
                 }
                 .padding(.vertical)
