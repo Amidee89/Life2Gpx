@@ -67,6 +67,80 @@ enum LocationAccuracyLevel: Int, CaseIterable, Identifiable {
     }
 }
 
+enum GPXExtensionType {
+    case string
+    case double
+    case integer
+    case boolean
+    case activityConfidence
+}
+
+enum GPXExtensionKey: String, CaseIterable, Identifiable {
+    case debug = "Debug"
+    case activityConfidence = "ActivityConfidence"
+    case walking = "Walking"
+    case running = "Running"
+    case cycling = "Cycling"
+    case automotive = "Automotive"
+    case stationary = "Stationary"
+    case address = "Address"
+    case facebookPlaceId = "FacebookPlaceId"
+    case mapboxPlaceId = "MapboxPlaceId"
+    case foursquareVenueId = "FoursquareVenueId"
+    case foursquareCategoryId = "FoursquareCategoryId"
+    case googlePlacesId = "GooglePlacesId"
+    case yelpId = "YelpId"
+    case applePlaceId = "ApplePlaceId"
+    case osmNodeId = "OsmNodeId"
+    case herePlaceId = "HerePlaceId"
+    case gaodePlaceId = "GaodePlaceId"
+    case placeId = "PlaceId"
+    case timezoneOffset = "TimezoneOffset"
+    case steps = "Steps"
+    case horizontalPrecision = "HorizontalPrecision"
+    case verticalPrecision = "VerticalPrecision"
+    case speed = "Speed"
+    case speedAccuracy = "SpeedAccuracy"
+    case course = "Course"
+    case courseAccuracy = "CourseAccuracy"
+
+    static var waypointCases: [GPXExtensionKey] {
+        return [.address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId, .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId, .timezoneOffset, .horizontalPrecision, .verticalPrecision, .debug]
+    }
+    
+    static var trackpointCases: [GPXExtensionKey] {
+        return [.activityConfidence, .walking, .running, .cycling, .automotive, .stationary, .timezoneOffset, .steps, .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy, .debug]
+    }
+
+    var id: String { rawValue }
+    
+    var valueType: GPXExtensionType {
+        switch self {
+        case .debug, .address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId,
+             .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId,
+             .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId:
+            return .string
+        case .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy:
+            return .double
+        case .timezoneOffset, .steps:
+            return .integer
+        case .walking, .running, .cycling, .automotive, .stationary:
+            return .boolean
+        case .activityConfidence:
+            return .activityConfidence
+        }
+    }
+}
+
+enum ActivityConfidenceValue: String, CaseIterable, Identifiable {
+    case low = "Low"
+    case medium = "Medium"
+    case high = "High"
+    case unknown = "Unknown"
+    
+    var id: String { rawValue }
+}
+
 class TimelineObject: Identifiable, ObservableObject {
     let id = UUID()
     var type: TimelineObjectType
@@ -451,6 +525,13 @@ class ManagePlacesViewModel: ObservableObject {
 extension String {
     func trim() -> String {
         return self.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+extension Double {
+    func roundedTo5DecimalPlaces() -> Double {
+        let divisor = pow(10.0, Double(5))
+        return (self * divisor).rounded() / divisor
     }
 }
 

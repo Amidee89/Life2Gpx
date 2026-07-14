@@ -20,7 +20,6 @@ struct EditVisitView: View {
     @State private var latitudeString: String = ""
     @State private var longitudeString: String = ""
     @State private var elevationString: String = ""
-    @State private var stepsString: String = ""
     @State private var showingDeleteConfirmation = false
     @State private var workingWaypoint: GPXWaypoint?
     @State private var showingPlaceSearch = false
@@ -28,6 +27,8 @@ struct EditVisitView: View {
     @State private var pendingSearchResult: PlaceSearchResult?
     @State private var wasOriginallyUnknown: Bool = false
     @State private var showingSecondsPicker = false
+    @State private var editedExtensions: [String: String] = [:]
+    @State private var showingAllExtensions = false
     @FocusState private var isInputActive: Bool
     
     private var originalLatitude: Double?
@@ -53,7 +54,19 @@ struct EditVisitView: View {
         _latitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.latitude ?? 0))
         _longitudeString = State(initialValue: String(format: "%.6f", self.originalWaypoint?.longitude ?? 0))
         _elevationString = State(initialValue: String(format: "%.1f", self.originalWaypoint?.elevation ?? 0))
-        _stepsString = State(initialValue: self.originalWaypoint?.extensions?["Steps"].text ?? "0")
+        
+        var extDict = [String: String]()
+        if let extensions = self.originalWaypoint?.extensions {
+            for child in extensions.children {
+                if let text = child.text {
+                    extDict[child.name] = text
+                }
+            }
+        }
+        if extDict[GPXExtensionKey.timezoneOffset.rawValue] == nil {
+            extDict[GPXExtensionKey.timezoneOffset.rawValue] = String(TimeZone.current.secondsFromGMT())
+        }
+        _editedExtensions = State(initialValue: extDict)
         
         // Create a working copy of the waypoint (but need to assign it in onAppear)
         _workingWaypoint = State(initialValue: nil)
@@ -95,143 +108,162 @@ struct EditVisitView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                List {
-                    if let coordinate = currentCoordinate {
-                        Section("Visit Details") {
-                            // Split the date and time components
-                            HStack {
-                                // Date picker
-                                DatePicker("Date", 
-                                     selection: $visitDate,
-                                     displayedComponents: [.date])
-                            }
+            List {
+                if let coordinate = currentCoordinate {
+                    Section("Visit Details") {
+                        // Split the date and time components
+                        HStack {
+                            // Date picker
+                            DatePicker("Date", 
+                                 selection: $visitDate,
+                                 displayedComponents: [.date])
+                        }
+                        
+                        HStack {
+                            DatePicker("Time", 
+                                 selection: $visitDate,
+                                 displayedComponents: [.hourAndMinute])
                             
-                            HStack {
-                                DatePicker("Time", 
-                                     selection: $visitDate,
-                                     displayedComponents: [.hourAndMinute])
-                                
-                                let seconds = calendar.component(.second, from: visitDate)
-                                Text(":")
-                                    .font(.system(size: 17, weight: .regular))
-                                
-                                Button(action: {
-                                    showingSecondsPicker = true
-                                }) {
-                                    Text(String(format: "%02d", seconds))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(Color(UIColor.tertiarySystemFill))
-                                        .cornerRadius(6)
-                                        .foregroundColor(.primary)
-                                }
-                                .popover(isPresented: $showingSecondsPicker) {
-                                    Picker("Seconds", selection: Binding(
-                                        get: { seconds },
-                                        set: { newSeconds in
-                                            var components = calendar.dateComponents(
-                                                [.year, .month, .day, .hour, .minute],
-                                                from: visitDate
-                                            )
-                                            components.second = newSeconds
-                                            
-                                            if let newDate = calendar.date(from: components) {
-                                                visitDate = newDate
-                                                if let waypoint = workingWaypoint {
-                                                    waypoint.time = newDate
-                                                }
+                            let seconds = calendar.component(.second, from: visitDate)
+                            Text(":")
+                                .font(.system(size: 17, weight: .regular))
+                            
+                            Button(action: {
+                                showingSecondsPicker = true
+                            }) {
+                                Text(String(format: "%02d", seconds))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color(UIColor.tertiarySystemFill))
+                                    .cornerRadius(6)
+                                    .foregroundColor(.primary)
+                            }
+                            .popover(isPresented: $showingSecondsPicker) {
+                                Picker("Seconds", selection: Binding(
+                                    get: { seconds },
+                                    set: { newSeconds in
+                                        var components = calendar.dateComponents(
+                                            [.year, .month, .day, .hour, .minute],
+                                            from: visitDate
+                                        )
+                                        components.second = newSeconds
+                                        
+                                        if let newDate = calendar.date(from: components) {
+                                            visitDate = newDate
+                                            if let waypoint = workingWaypoint {
+                                                waypoint.time = newDate
                                             }
                                         }
-                                    )) {
-                                        ForEach(0..<60) { second in
-                                            Text(String(format: "%02d", second)).tag(second)
-                                        }
                                     }
-                                    .pickerStyle(.wheel)
-                                    .labelsHidden()
-                                    .frame(width: 80, height: 120)
-                                    .padding(.vertical, 16)
-                                    .padding(.horizontal, 8)
-                                    .presentationCompactAdaptation(.popover)
+                                )) {
+                                    ForEach(0..<60) { second in
+                                        Text(String(format: "%02d", second)).tag(second)
+                                    }
                                 }
-                            }
-                            
-                            LabeledContent("Latitude:") {
-                                TextField("", text: $latitudeString)
-                                    .keyboardType(.decimalPad)
-                                    .focused($isInputActive)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            
-                            LabeledContent("Longitude:") {
-                                TextField("", text: $longitudeString)
-                                    .keyboardType(.decimalPad)
-                                    .focused($isInputActive)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            
-                            LabeledContent("Elevation (m):") {
-                                TextField("", text: $elevationString)
-                                    .keyboardType(.decimalPad)
-                                    .focused($isInputActive)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            
-                            LabeledContent("Steps:") {
-                                TextField("", text: $stepsString)
-                                    .keyboardType(.numberPad)
-                                    .focused($isInputActive)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                            
-                            if let place = selectedPlace {
-                                Button(action: {
-                                    // Update coordinates with place's coordinates
-                                    latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
-                                    longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
-                                    
-                                    // Update the waypoint coordinates
-                                    if let waypoint = workingWaypoint {
-                                        waypoint.latitude = place.centerCoordinate.latitude
-                                        waypoint.longitude = place.centerCoordinate.longitude
-                                    }
-                                    
-                                    // Update the map region to center on the place
-                                    withAnimation {
-                                        region = MKCoordinateRegion(
-                                            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
-                                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                                        )
-                                    }
-                                }) {
-                                    Label("Use Place Coordinates", systemImage: "location.fill")
-                                        .foregroundColor(.blue)
-                                }
-                                .padding(.vertical, 4)
-                            }
+                                .pickerStyle(.wheel)
+                                .labelsHidden()
+                                .frame(width: 80, height: 120)
+                                .padding(.vertical, 16)
+                            .padding(.horizontal, 8)
+                            .presentationCompactAdaptation(.popover)
+                        }
+                    }
+                    
+                    HStack {
+                        Text("Timezone")
+                        Spacer()
+                        let binding = Binding<String>(
+                            get: { editedExtensions[GPXExtensionKey.timezoneOffset.rawValue] ?? "" },
+                            set: { editedExtensions[GPXExtensionKey.timezoneOffset.rawValue] = $0 }
+                        )
+                        SimpleTimezoneEditor(secondsOffsetString: binding, referenceDate: visitDate)
+                    }
+                    
+                    LabeledContent("Latitude:") {
+                            TextField("", text: $latitudeString)
+                                .keyboardType(.decimalPad)
+                                .focused($isInputActive)
+                                .multilineTextAlignment(.trailing)
                         }
                         
-                        placeDetailsSection
+                        LabeledContent("Longitude:") {
+                            TextField("", text: $longitudeString)
+                                .keyboardType(.decimalPad)
+                                .focused($isInputActive)
+                                .multilineTextAlignment(.trailing)
+                        }
                         
-                        changePlaceSection(coordinate: coordinate)
-                    }
-
-                    // Add this new section at the end of the List
-                    Section {
+                        LabeledContent("Elevation (m):") {
+                            TextField("", text: $elevationString)
+                                .keyboardType(.decimalPad)
+                                .focused($isInputActive)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        
+                        if let place = selectedPlace {
+                            Button(action: {
+                                // Update coordinates with place's coordinates
+                                latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
+                                longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
+                                
+                                // Update the waypoint coordinates
+                                if let waypoint = workingWaypoint {
+                                    waypoint.latitude = place.centerCoordinate.latitude
+                                    waypoint.longitude = place.centerCoordinate.longitude
+                                }
+                                
+                                // Update the map region to center on the place
+                                withAnimation {
+                                    region = MKCoordinateRegion(
+                                        center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
+                                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                                    )
+                                }
+                            }) {
+                                Label("Use Place Coordinates", systemImage: "location.fill")
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        
                         Button(action: {
-                            showingDeleteConfirmation = true
+                            withAnimation {
+                                showingAllExtensions.toggle()
+                            }
                         }) {
                             HStack {
+                                Text(showingAllExtensions ? "Hide all extensions..." : "Edit all extensions...")
                                 Spacer()
-                                Text("Delete Visit")
-                                    .foregroundColor(.red)
-                                Spacer()
+                                Image(systemName: showingAllExtensions ? "chevron.up" : "chevron.down")
                             }
+                            .foregroundColor(.blue)
+                        }
+                        .padding(.vertical, 4)
+                        
+                        if showingAllExtensions {
+                            extensionsList
                         }
                     }
-                    .listRowBackground(Color.red.opacity(0.1))
+                    
+                    placeDetailsSection
+                    
+                    changePlaceSection(coordinate: coordinate)
                 }
+
+                // Add this new section at the end of the List
+                Section {
+                    Button(action: {
+                        showingDeleteConfirmation = true
+                    }) {
+                        HStack {
+                            Spacer()
+                            Text("Delete Visit")
+                                .foregroundColor(.red)
+                            Spacer()
+                        }
+                    }
+                }
+                .listRowBackground(Color.red.opacity(0.1))
             }
             .navigationTitle("Edit Visit")
             .navigationBarItems(
@@ -246,8 +278,11 @@ struct EditVisitView: View {
                     waypoint.time = visitDate
                     waypoint.elevation = Double(elevationString) ?? 0
                     
-                    if let steps = Int(stepsString), steps > 0 {
-                        GPXUtils.updateExtension(for: waypoint, with: ["Steps": stepsString])
+                    waypoint.extensions = nil
+                    if !editedExtensions.isEmpty {
+                        let newExtensions = GPXExtensions()
+                        newExtensions.append(at: nil, contents: editedExtensions)
+                        waypoint.extensions = newExtensions
                     }
                     
                     let finalWaypoint: GPXWaypoint
@@ -255,26 +290,6 @@ struct EditVisitView: View {
                         finalWaypoint = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
                     } else {
                         waypoint.name = nil
-                        let placeKeys: Set<String> = [
-                            "PlaceId", "Address", "FacebookPlaceId", "MapboxPlaceId",
-                            "FoursquareVenueId", "FoursquareCategoryId", "GooglePlacesId",
-                            "YelpId", "ApplePlaceId", "OsmNodeId", "HerePlaceId", "GaodePlaceId"
-                        ]
-                        if let existingExtensions = waypoint.extensions {
-                            var remainingData = [String: String]()
-                            for child in existingExtensions.children {
-                                if !placeKeys.contains(child.name), let value = child.text, !child.name.isEmpty {
-                                    remainingData[child.name] = value
-                                }
-                            }
-                            if remainingData.isEmpty {
-                                waypoint.extensions = nil
-                            } else {
-                                let newExtensions = GPXExtensions()
-                                newExtensions.append(at: nil, contents: remainingData)
-                                waypoint.extensions = newExtensions
-                            }
-                        }
                         finalWaypoint = waypoint
                     }
                     
@@ -306,6 +321,7 @@ struct EditVisitView: View {
                         Spacer()
                         Button("Done") {
                             isInputActive = false
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -592,6 +608,86 @@ struct EditVisitView: View {
             }
         }
     }
+    
+    @ViewBuilder
+    private var extensionsList: some View {
+        ForEach(GPXExtensionKey.waypointCases, id: \.self) { (key: GPXExtensionKey) in
+            let hasValue = editedExtensions.keys.contains(key.rawValue)
+            let binding = Binding<String>(
+                get: { editedExtensions[key.rawValue] ?? "" },
+                set: { newValue in
+                    if newValue.isEmpty {
+                        editedExtensions.removeValue(forKey: key.rawValue)
+                    } else {
+                        editedExtensions[key.rawValue] = newValue
+                    }
+                }
+            )
+            
+            HStack {
+                if hasValue {
+                    Button(action: {
+                        editedExtensions.removeValue(forKey: key.rawValue)
+                    }) {
+                        Image(systemName: "minus.circle.fill").foregroundColor(.red)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                } else {
+                    Button(action: {
+                        if key == .timezoneOffset {
+                            editedExtensions[key.rawValue] = String(TimeZone.current.secondsFromGMT())
+                        } else {
+                            switch key.valueType {
+                            case .boolean:
+                                editedExtensions[key.rawValue] = "True"
+                            case .activityConfidence:
+                                editedExtensions[key.rawValue] = ActivityConfidenceValue.high.rawValue
+                            case .integer:
+                                editedExtensions[key.rawValue] = "0"
+                            case .double:
+                                editedExtensions[key.rawValue] = "0.0"
+                            default:
+                                editedExtensions[key.rawValue] = "New Value"
+                            }
+                        }
+                    }) {
+                        Image(systemName: "plus.circle.fill").foregroundColor(.green)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                }
+                
+                LabeledContent(key.rawValue) {
+                    if !hasValue {
+                        Text("nil").foregroundColor(.secondary)
+                    } else if key == .timezoneOffset {
+                        SimpleTimezoneEditor(secondsOffsetString: binding, referenceDate: visitDate)
+                    } else {
+                        switch key.valueType {
+                        case .boolean:
+                            Picker("", selection: binding) {
+                                Text("True").tag("True")
+                                Text("False").tag("False")
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                        case .activityConfidence:
+                            Picker("", selection: binding) {
+                                ForEach(ActivityConfidenceValue.allCases) { conf in
+                                    Text(conf.rawValue).tag(conf.rawValue)
+                                }
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                        default:
+                            TextField("Value", text: binding)
+                                .focused($isInputActive)
+                                .multilineTextAlignment(.trailing)
+                                .foregroundColor(.secondary)
+                                .keyboardType(key.valueType == .double || key.valueType == .integer ? .numbersAndPunctuation : .default)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     private func selectedPlaceRow(place: Place) -> some View {
         VStack(spacing: 0) {
@@ -744,4 +840,93 @@ struct EditVisitView_Previews: PreviewProvider {
             )
         }
     }
-} 
+}
+
+struct SimpleTimezoneEditor: View {
+    @Binding var secondsOffsetString: String
+    var referenceDate: Date?
+    
+    @FocusState private var isInputActive: Bool
+    @State private var showingPicker = false
+    
+    private var commonOffsets: [Int] {
+        let allOffsets = TimeZone.knownTimeZoneIdentifiers.compactMap { TimeZone(identifier: $0)?.secondsFromGMT() }
+        return Array(Set(allOffsets)).sorted()
+    }
+    
+    private func formatOffset(_ offset: Int) -> String {
+        let hours = offset / 3600
+        let minutes = abs((offset % 3600) / 60)
+        let sign = hours >= 0 && offset >= 0 ? "+" : ""
+        if minutes == 0 {
+            return "GMT\(sign)\(hours)"
+        } else {
+            return String(format: "GMT%@%d:%02d", sign, hours, minutes)
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            HStack {
+                TextField("Seconds", text: $secondsOffsetString)
+                    .keyboardType(.numbersAndPunctuation)
+                    .multilineTextAlignment(.trailing)
+                    .submitLabel(.done)
+                    .focused($isInputActive)
+                
+                Button(action: {
+                    showingPicker = true
+                }) {
+                    HStack(spacing: 4) {
+                        if let offset = Int(secondsOffsetString) {
+                            if commonOffsets.contains(offset) || offset % 3600 == 0 {
+                                Text("\(formatOffset(offset))")
+                            } else {
+                                Text("Custom")
+                            }
+                        } else if !secondsOffsetString.isEmpty {
+                            Text("Invalid")
+                        } else {
+                            Text("Select")
+                        }
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 10))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(UIColor.tertiarySystemFill))
+                    .cornerRadius(6)
+                    .foregroundColor(.primary)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                .popover(isPresented: $showingPicker) {
+                    Picker("GMT Offset", selection: Binding(
+                        get: { Int(secondsOffsetString) ?? TimeZone.current.secondsFromGMT() },
+                        set: { secondsOffsetString = String($0) }
+                    )) {
+                        ForEach(commonOffsets, id: \.self) { offset in
+                            Text(formatOffset(offset)).tag(offset)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .labelsHidden()
+                    .frame(width: 150, height: 180)
+                    .padding()
+                    .presentationCompactAdaptation(.popover)
+                }
+            }
+            if let date = referenceDate, let offset = Int(secondsOffsetString), let tz = TimeZone(secondsFromGMT: offset) {
+                Text("local time: \(formattedDate(date, timeZone: tz))")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func formattedDate(_ date: Date, timeZone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = timeZone
+        return formatter.string(from: date)
+    }
+}

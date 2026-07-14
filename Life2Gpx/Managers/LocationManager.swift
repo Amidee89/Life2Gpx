@@ -594,39 +594,39 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 {
                     self.cancelUnknownPlaceCheckInNotification()
                     let newTrackPoint = GPXTrackPoint(
-                        latitude: location.coordinate.latitude,
-                        longitude: location.coordinate.longitude
+                        latitude: location.coordinate.latitude.roundedTo5DecimalPlaces(),
+                        longitude: location.coordinate.longitude.roundedTo5DecimalPlaces()
                     )
                     newTrackPoint.time = Date()
-                    newTrackPoint.elevation = location.altitude
+                    newTrackPoint.elevation = location.altitude.roundedTo5DecimalPlaces()
                     
                     var customExtensionData: [String: String] = [
-                        "HorizontalPrecision": String(location.horizontalAccuracy),
-                        "VerticalPrecision": String(location.verticalAccuracy),
-                        "Speed": String(location.speed),
-                        "SpeedAccuracy": String(location.speedAccuracy),
-                        "TimezoneOffset": String(TimeZone.current.secondsFromGMT())
+                        GPXExtensionKey.horizontalPrecision.rawValue: String(location.horizontalAccuracy.roundedTo5DecimalPlaces()),
+                        GPXExtensionKey.verticalPrecision.rawValue: String(location.verticalAccuracy.roundedTo5DecimalPlaces()),
+                        GPXExtensionKey.speed.rawValue: String(location.speed.roundedTo5DecimalPlaces()),
+                        GPXExtensionKey.speedAccuracy.rawValue: String(location.speedAccuracy.roundedTo5DecimalPlaces()),
+                        GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT())
                     ]
                     
                     if debug != "" {
-                        customExtensionData["Debug"] = debug
+                        customExtensionData[GPXExtensionKey.debug.rawValue] = debug
                     }
                     if let activity = self.latestActivity {
                         let activityConfidence: String = {
                             switch activity.confidence {
-                            case .low: return "Low"
-                            case .medium: return "Medium"
-                            case .high: return "High"
-                            @unknown default: return "Unknown"
+                            case .low: return ActivityConfidenceValue.low.rawValue
+                            case .medium: return ActivityConfidenceValue.medium.rawValue
+                            case .high: return ActivityConfidenceValue.high.rawValue
+                            @unknown default: return ActivityConfidenceValue.unknown.rawValue
                             }
                         }()
-                        customExtensionData["ActivityConfidence"] = activityConfidence
+                        customExtensionData[GPXExtensionKey.activityConfidence.rawValue] = activityConfidence
                         
-                        if activity.walking { customExtensionData["Walking"] = "True" }
-                        if activity.running { customExtensionData["Running"] = "True" }
-                        if activity.cycling { customExtensionData["Cycling"] = "True" }
-                        if activity.automotive { customExtensionData["Automotive"] = "True" }
-                        if activity.stationary { customExtensionData["Stationary"] = "True" }
+                        if activity.walking { customExtensionData[GPXExtensionKey.walking.rawValue] = "True" }
+                        if activity.running { customExtensionData[GPXExtensionKey.running.rawValue] = "True" }
+                        if activity.cycling { customExtensionData[GPXExtensionKey.cycling.rawValue] = "True" }
+                        if activity.automotive { customExtensionData[GPXExtensionKey.automotive.rawValue] = "True" }
+                        if activity.stationary { customExtensionData[GPXExtensionKey.stationary.rawValue] = "True" }
                     }
                     
                     let extensions = GPXExtensions()
@@ -705,38 +705,38 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
 
                     let newWaypoint = GPXWaypoint(
-                        latitude: location.coordinate.latitude,
-                        longitude: location.coordinate.longitude
+                        latitude: location.coordinate.latitude.roundedTo5DecimalPlaces(),
+                        longitude: location.coordinate.longitude.roundedTo5DecimalPlaces()
                     )
                     newWaypoint.time = Date()
-                    newWaypoint.elevation = location.altitude
+                    newWaypoint.elevation = location.altitude.roundedTo5DecimalPlaces()
                     
                     if let matchingPlace = PlaceManager.shared.findPlaceAtCoordinates(for: location.coordinate) {
                         self.cancelUnknownPlaceCheckInNotification()
                         newWaypoint.name = matchingPlace.name
                         
                         var customExtensionData: [String: String] = [
-                            "HorizontalPrecision": String(location.horizontalAccuracy),
-                            "VerticalPrecision": String(location.verticalAccuracy),
-                            "PlaceId": matchingPlace.placeId,
-                            "TimezoneOffset": String(TimeZone.current.secondsFromGMT())
+                            GPXExtensionKey.horizontalPrecision.rawValue: String(location.horizontalAccuracy.roundedTo5DecimalPlaces()),
+                            GPXExtensionKey.verticalPrecision.rawValue: String(location.verticalAccuracy.roundedTo5DecimalPlaces()),
+                            GPXExtensionKey.placeId.rawValue: matchingPlace.placeId,
+                            GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT())
                         ]
                         
                         if let address = matchingPlace.streetAddress {
-                            customExtensionData["Address"] = address
+                            customExtensionData[GPXExtensionKey.address.rawValue] = address
                         }
                         if let fbId = matchingPlace.facebookPlaceId {
-                            customExtensionData["FacebookPlaceId"] = fbId
+                            customExtensionData[GPXExtensionKey.facebookPlaceId.rawValue] = fbId
                         }
                         if let mapboxId = matchingPlace.mapboxPlaceId {
-                            customExtensionData["MapboxPlaceId"] = mapboxId
+                            customExtensionData[GPXExtensionKey.mapboxPlaceId.rawValue] = mapboxId
                         }
                         if let foursquareId = matchingPlace.foursquareVenueId {
-                            customExtensionData["FoursquareVenueId"] = foursquareId
+                            customExtensionData[GPXExtensionKey.foursquareVenueId.rawValue] = foursquareId
                         }
                         
                         if debug != "" {
-                            customExtensionData["Debug"] = debug
+                            customExtensionData[GPXExtensionKey.debug.rawValue] = debug
                         }
                         
                         let extensions = GPXExtensions()
@@ -744,12 +744,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         newWaypoint.extensions = extensions
                     } else {
                         var customExtensionData: [String: String] = [
-                            "HorizontalPrecision": String(location.horizontalAccuracy),
-                            "VerticalPrecision": String(location.verticalAccuracy),
-                            "TimezoneOffset": String(TimeZone.current.secondsFromGMT())
+                            GPXExtensionKey.horizontalPrecision.rawValue: String(location.horizontalAccuracy.roundedTo5DecimalPlaces()),
+                            GPXExtensionKey.verticalPrecision.rawValue: String(location.verticalAccuracy.roundedTo5DecimalPlaces()),
+                            GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT())
                         ]
                         if debug != "" {
-                            customExtensionData["Debug"] = debug
+                            customExtensionData[GPXExtensionKey.debug.rawValue] = debug
                         }
                         let extensions = GPXExtensions()
                         extensions.append(at: nil, contents: customExtensionData)
