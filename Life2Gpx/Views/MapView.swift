@@ -20,6 +20,7 @@ struct MapView: View {
     
     @AppStorage("showCurrentPositionMode") private var showCurrentPositionModeString: String = SettingsManager.shared.showCurrentPositionMode.rawValue
 
+    @Environment(\.scenePhase) var scenePhase
     @EnvironmentObject var locationManager: LocationManager
     @State private var mapHeading: Double = 0.0
     @State private var lastRawMapHeading: Double?
@@ -145,7 +146,8 @@ struct MapView: View {
                 position: $cameraPosition,
                 interactionModes: [.pan, .zoom, .rotate]
             ) {
-                if shouldShowPosition,
+                if scenePhase == .active || scenePhase == .inactive {
+                    if shouldShowPosition,
                    let location = locationManager.currentRawLocation?.coordinate
                 {
                     Annotation(coordinate: location) {
@@ -238,6 +240,7 @@ struct MapView: View {
                         }
 
                     }
+                }
                 }
             }
             .mapControls {
