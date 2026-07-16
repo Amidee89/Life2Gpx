@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var groupingMinutes: Double = 0
     @State private var showGroupingSlider = false
     @State private var currentGpxShareURL: URL?
+    @AppStorage("mapPanelHeightProportion") private var mapPanelHeightProportion: Double = -1.0
     @State private var mapPanelHeight: CGFloat?
     @State private var mapPanelDragOffset: CGFloat?
     @State private var lastMapSize: CGSize = .zero
@@ -481,16 +482,20 @@ struct ContentView: View {
         let maxHeight = maximumMapPanelHeight(in: geometry)
         guard maxHeight > 0 else { return 0 }
 
-        guard let mapPanelHeight else {
-            let defaultHeight = geometry.size.height * 0.45
-            return min(defaultHeight, maxHeight)
+        let effectiveHeight: CGFloat
+        if let mapPanelHeight {
+            effectiveHeight = mapPanelHeight
+        } else if mapPanelHeightProportion >= 0 {
+            effectiveHeight = maxHeight * CGFloat(mapPanelHeightProportion)
+        } else {
+            effectiveHeight = geometry.size.height * 0.45
         }
 
-        if mapPanelHeight <= mapCollapseThreshold(in: geometry) {
+        if effectiveHeight <= mapCollapseThreshold(in: geometry) {
             return 0
         }
 
-        return min(mapPanelHeight, maxHeight)
+        return min(effectiveHeight, maxHeight)
     }
 
     private func updateMapPanelHeight(for fingerY: CGFloat, in geometry: GeometryProxy) {
@@ -502,16 +507,21 @@ struct ContentView: View {
         beginMapPanelDragIfNeeded(at: fingerY, in: geometry)
         let clamped = clampedMapPanelHeight(adjustedMapPanelSplitY(for: fingerY), in: geometry)
         mapPanelDragOffset = nil
+        let maxHeight = maximumMapPanelHeight(in: geometry)
+        let proportion = maxHeight > 0 ? Double(clamped / maxHeight) : -1.0
+        
         if clamped <= 0 {
             // Skip animation when collapsing to avoid mid-animation layout conflicts
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
                 mapPanelHeight = clamped
+                mapPanelHeightProportion = proportion
             }
         } else {
             withAnimation(.easeOut(duration: 0.18)) {
                 mapPanelHeight = clamped
+                mapPanelHeightProportion = proportion
             }
         }
     }
