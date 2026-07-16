@@ -18,6 +18,14 @@ class iCloudBackupManager: ObservableObject {
     
     private init() {}
     
+    func checkAndRunBackupIfNeeded() {
+        if isBackupDue() && !isBackupRunning {
+            Task {
+                await runBackup()
+            }
+        }
+    }
+    
     /// The local documents directory.
     private var localDocumentsURL: URL? {
         fileManager.urls(for: .documentDirectory, in: .userDomainMask).first

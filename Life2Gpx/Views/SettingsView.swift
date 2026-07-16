@@ -49,7 +49,6 @@ struct SettingsView: View {
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
     @State private var diagnosticReportError: String?
     @State private var showDiagnosticReportError = false
-    @State private var iCloudBackupDailyTime: Date = SettingsManager.shared.iCloudBackupDailyTime
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
     
@@ -134,7 +133,10 @@ struct SettingsView: View {
                     .pickerStyle(SegmentedPickerStyle())
                     
                     if iCloudBackupMode == "daily" {
-                        DatePicker("Backup Time", selection: $iCloudBackupDailyTime, displayedComponents: .hourAndMinute)
+                        DatePicker("Backup Time", selection: Binding(
+                            get: { SettingsManager.shared.iCloudBackupDailyTime },
+                            set: { SettingsManager.shared.iCloudBackupDailyTime = $0 }
+                        ), displayedComponents: .hourAndMinute)
                     } else {
                         VStack(alignment: .leading) {
                             Text("Backup Interval")
@@ -599,9 +601,6 @@ struct SettingsView: View {
                     valueFieldIsFocused = false
                 }
             }
-        }
-        .onChange(of: iCloudBackupDailyTime) { _, newValue in
-            SettingsManager.shared.iCloudBackupDailyTime = newValue
         }
         .onChange(of: timelineLocalTimeMode) { _, newValue in
             SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .never

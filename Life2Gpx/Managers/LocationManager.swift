@@ -40,6 +40,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     private var lastAppendCall: Date?
     private var notificationResetTimer: Timer?
+    private var lastBackgroundTaskCheck: Date = Date.distantPast
     private var locationManagerCallCount = 0
     private var lastLocationManagerCallTimestamp: Date?
     private var locationHistory: [(location: CLLocation, receivedAt: Date)] = []
@@ -276,6 +277,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.currentRawLocation = newLocation
         }
         CoordinateConverter.updateDeviceLocation(newLocation.coordinate)
+        checkBackgroundTasks()
            
         var shouldProcessThisLocation: Bool
         locationHistoryLock.lock()
@@ -774,6 +776,17 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
     }
+
+    private func checkBackgroundTasks() {
+        let now = Date()
+        if now.timeIntervalSince(lastBackgroundTaskCheck) > 60 {
+            lastBackgroundTaskCheck = now
+            DispatchQueue.main.async {
+                iCloudBackupManager.shared.checkAndRunBackupIfNeeded()
+            }
+        }
+    }
+
     private func shouldFilterAsRoundTrip(
         newLocation: CLLocation,
         gpxWaypoints: inout [GPXWaypoint],

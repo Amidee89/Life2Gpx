@@ -56,6 +56,7 @@ struct Life2GpxApp: App {
                     detail: "Scene phase \(oldPhase) -> active at \(currentTime)."
                 )
                 checkAndLoadTodayIfNeeded()
+                iCloudBackupManager.shared.checkAndRunBackupIfNeeded()
             case .inactive:
                 FileManagerUtil.logData(context: "AppLifecycle", content: "Scene became inactive.", verbosity: 3)
                 ResourceDiagnostics.logRuntime(
