@@ -723,19 +723,7 @@ struct ContentView: View {
             return
         }
 
-        let configuration = UIActivityItemsConfiguration(objects: [fileURL as NSURL])
-        configuration.supportedInteractions = [.share]
-        configuration.metadataProvider = { key in
-            if key == .title {
-                return fileURL.lastPathComponent
-            }
-            if #available(iOS 18.0, *), key == .collaborationModeRestrictions {
-                return [UIActivityViewController.CollaborationModeRestriction(disabledMode: .collaborate)]
-            }
-            return nil
-        }
-
-        let controller = UIActivityViewController(activityItemsConfiguration: configuration)
+        let controller = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
 
         if let popover = controller.popoverPresentationController {
             popover.sourceView = presenter.view
