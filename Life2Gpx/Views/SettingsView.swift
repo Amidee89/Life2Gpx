@@ -14,6 +14,9 @@ struct SettingsView: View {
     @AppStorage("filterSmallRoundTrips") private var filterSmallRoundTrips: Bool = SettingsManager.shared.filterSmallRoundTrips
     @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
+    @AppStorage("automaticallyMergeUnknownToKnownTypeTracks") private var automaticallyMergeUnknownToKnownTypeTracks: Bool = SettingsManager.shared.automaticallyMergeUnknownToKnownTypeTracks
+    @AppStorage("automaticMergeUnknownTrackMaxPoints") private var automaticMergeUnknownTrackMaxPoints: Int = SettingsManager.shared.automaticMergeUnknownTrackMaxPoints
+    @AppStorage("automaticMergeKnownTrackMinimumPoints") private var automaticMergeKnownTrackMinimumPoints: Int = SettingsManager.shared.automaticMergeKnownTrackMinimumPoints
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeMode: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
@@ -71,6 +74,7 @@ struct SettingsView: View {
                     
                     Text("Disable all realtime tracking from the app")
                         .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         .foregroundColor(.gray)
                 }
             }
@@ -92,11 +96,17 @@ struct SettingsView: View {
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text("0: None - No logs").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         Text("1: Errors - Only critical errors").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         Text("2: Warnings - Errors and warnings").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         Text("3: Info - Basic operational information").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         Text("4: Debug - Detailed debugging information").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         Text("5: Trace - Highly detailed tracing").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundColor(.gray)
                     .padding(.top, 5)
@@ -106,6 +116,7 @@ struct SettingsView: View {
                         
                         Text("Record detailed battery, memory, and CPU usage during background activities over time.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                         
                         NavigationLink(destination: ResourceUsageView()) {
@@ -173,12 +184,14 @@ struct SettingsView: View {
                         
                         Text("Last backup: \(formattedLastBackupDate)")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
                     
                     if backupManager.isBackupRunning || !backupManager.backupStatusMessage.isEmpty {
                         Text(backupManager.backupStatusMessage)
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(backupManager.isBackupRunning ? .blue : .gray)
                     }
                 }
@@ -186,6 +199,7 @@ struct SettingsView: View {
                 let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "UnknownDevice"
                 Text("Backups are saved to iCloud Drive/Life2Gpx/\(deviceID)")
                     .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.gray)
             }
             
@@ -209,6 +223,7 @@ struct SettingsView: View {
                         if minimumUpdateInterval < 30 {
                             Text("Low values will create big GPX files on long tracks at high battery cost")
                                 .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .foregroundColor(.red)
                         }
                     }
@@ -256,6 +271,7 @@ struct SettingsView: View {
                         if stationaryLocationAccuracy > LocationAccuracyLevel.medium.rawValue {
                             Text("Higher than default settings will significantly increase battery consumption.")
                                 .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .foregroundColor(.red)
                         }
                     }
@@ -276,6 +292,7 @@ struct SettingsView: View {
                         if movingLocationAccuracy > LocationAccuracyLevel.best.rawValue {
                             Text("Higher than default settings will significantly increase battery consumption.")
                                 .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .foregroundColor(.red)
                         }
                     }
@@ -310,6 +327,7 @@ struct SettingsView: View {
                         
                         Text("The app will load today's data if it has been in the background for longer than this interval.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
                     
@@ -391,6 +409,7 @@ struct SettingsView: View {
                                 
                                 Text("Activities below this distance will not be included in the summary.")
                                     .font(.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
                                     .foregroundColor(.gray)
                             }
                             .padding(.top, 8)
@@ -428,6 +447,7 @@ struct SettingsView: View {
                         
                         Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
 
@@ -436,6 +456,7 @@ struct SettingsView: View {
                         
                         Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
 
@@ -457,6 +478,7 @@ struct SettingsView: View {
                         
                         Text("A notification will be sent when you are in an unknown place for longer than this duration.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
                 }
@@ -485,6 +507,7 @@ struct SettingsView: View {
 
                 Text(mapCoordinateSystemHelpText)
                     .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.gray)
             }
             
@@ -504,6 +527,7 @@ struct SettingsView: View {
                         
                         Text("Radius used when searching for nearby places without a keyword.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
                     
@@ -521,6 +545,7 @@ struct SettingsView: View {
                         
                         Text("Radius used when searching for places with a specific keyword.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
 
@@ -540,7 +565,58 @@ struct SettingsView: View {
                         
                         Text("Number of results to load per page.")
                             .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
+            }
+
+            Section(header: Text("Automatic Track Merging")) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Toggle("Automatically merge unknown to known type tracks", isOn: $automaticallyMergeUnknownToKnownTypeTracks)
+
+                    Text("When a known track becomes reliable, merge a small adjacent unknown track into it.")
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundColor(.gray)
+
+                    if automaticallyMergeUnknownToKnownTypeTracks {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Maximum unknown track points")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(automaticMergeUnknownTrackMaxPoints)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(automaticMergeUnknownTrackMaxPoints) },
+                                set: { automaticMergeUnknownTrackMaxPoints = Int($0) }
+                            ), in: 1...10, step: 1)
+
+                            Text("Unknown tracks with up to this many points can be merged.")
+                                .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundColor(.gray)
+                        }
+
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Known track minimum points")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(automaticMergeKnownTrackMinimumPoints)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(automaticMergeKnownTrackMinimumPoints) },
+                                set: { automaticMergeKnownTrackMinimumPoints = Int($0) }
+                            ), in: 1...10, step: 1)
+
+                            Text("Wait until the recognized track reaches this many points before merging.")
+                                .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundColor(.gray)
+                        }
                     }
                 }
                 .padding(.vertical)
@@ -552,6 +628,7 @@ struct SettingsView: View {
                     
                     Text("Do not save small tracks that end up in the same place as the starting point (often caused by GPS location errors).")
                         .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
                         .foregroundColor(.gray)
                     
                     if filterSmallRoundTrips {
@@ -569,6 +646,7 @@ struct SettingsView: View {
                             
                             Text("Round trip tracks above this number of points will be saved.")
                                 .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .foregroundColor(.gray)
                         }
                         
@@ -586,6 +664,7 @@ struct SettingsView: View {
                             
                             Text("Radius from a starting unknown location to consider track as a round trip.")
                                 .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .foregroundColor(.gray)
                         }
                     }

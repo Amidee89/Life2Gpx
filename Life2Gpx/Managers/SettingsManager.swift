@@ -101,6 +101,9 @@ class SettingsManager {
     private let filterSmallRoundTripsKey = "filterSmallRoundTrips"
     private let roundTripMaxPointsKey = "roundTripMaxPoints"
     private let roundTripUnknownRadiusKey = "roundTripUnknownRadius"
+    private let automaticallyMergeUnknownToKnownTypeTracksKey = "automaticallyMergeUnknownToKnownTypeTracks"
+    private let automaticMergeUnknownTrackMaxPointsKey = "automaticMergeUnknownTrackMaxPoints"
+    private let automaticMergeKnownTrackMinimumPointsKey = "automaticMergeKnownTrackMinimumPoints"
     private let askToOrganizeGpxFilesKey = "askToOrganizeGpxFiles"
     private let gpxOverwriteExistingKey = "gpxOverwriteExisting"
     private let gpxConflictResolutionKey = "gpxConflictResolution"
@@ -152,6 +155,9 @@ class SettingsManager {
             filterSmallRoundTripsKey: true,
             roundTripMaxPointsKey: 3,
             roundTripUnknownRadiusKey: 100,
+            automaticallyMergeUnknownToKnownTypeTracksKey: true,
+            automaticMergeUnknownTrackMaxPointsKey: 2,
+            automaticMergeKnownTrackMinimumPointsKey: 3,
             askToOrganizeGpxFilesKey: true,
             gpxOverwriteExistingKey: false,
             gpxConflictResolutionKey: "keepExisting",
@@ -307,6 +313,21 @@ class SettingsManager {
             let clampedValue = max(10, min(newValue, 1000))
             defaults.set(clampedValue, forKey: roundTripUnknownRadiusKey)
         }
+    }
+
+    var automaticallyMergeUnknownToKnownTypeTracks: Bool {
+        get { defaults.bool(forKey: automaticallyMergeUnknownToKnownTypeTracksKey) }
+        set { defaults.set(newValue, forKey: automaticallyMergeUnknownToKnownTypeTracksKey) }
+    }
+
+    var automaticMergeUnknownTrackMaxPoints: Int {
+        get { max(1, min(defaults.integer(forKey: automaticMergeUnknownTrackMaxPointsKey), 10)) }
+        set { defaults.set(max(1, min(newValue, 10)), forKey: automaticMergeUnknownTrackMaxPointsKey) }
+    }
+
+    var automaticMergeKnownTrackMinimumPoints: Int {
+        get { max(1, min(defaults.integer(forKey: automaticMergeKnownTrackMinimumPointsKey), 10)) }
+        set { defaults.set(max(1, min(newValue, 10)), forKey: automaticMergeKnownTrackMinimumPointsKey) }
     }
 
     var placeProviderOrder: [PlaceProvider] {

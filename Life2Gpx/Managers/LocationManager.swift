@@ -687,6 +687,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         }
                         gpxTracks.append(newTrack)
                     }
+
+                    let settings = SettingsManager.shared
+                    if settings.automaticallyMergeUnknownToKnownTypeTracks,
+                       let mergeResult = AutomaticTrackMerger.mergePreviousUnknownTrackIfEligible(
+                            tracks: &gpxTracks,
+                            waypoints: gpxWaypoints,
+                            maximumUnknownPoints: settings.automaticMergeUnknownTrackMaxPoints,
+                            minimumKnownPoints: settings.automaticMergeKnownTrackMinimumPoints
+                       ) {
+                        FileManagerUtil.logData(
+                            context: "AutomaticTrackMerge",
+                            content: "[\(appendId)] Merged \(mergeResult.unknownPointCount)-point unknown track into \(mergeResult.knownType) track after it reached \(mergeResult.knownPointCount) known points.",
+                            verbosity: 3
+                        )
+                    }
                 }
                 else if type == .stationary {
                     if self.shouldFilterAsRoundTrip(
@@ -919,5 +934,75 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             executionTime: executionTime, 
             extraInfo: ["TrueHeading": String(newHeading.trueHeading), "MagneticHeading": String(newHeading.magneticHeading)]
         )
+    }
+}
+
+enum AutomaticTrackMerger {
+    struct MergeResult {
+        let unknownPointCount: Int
+        let knownPointCount: Int
+        let knownType: String
+    }
+
+    static func mergePreviousUnknownTrackIfEligible(
+        tracks: inout [GPXTrack],
+        waypoints: [GPXWaypoint],
+        maximumUnknownPoints: Int,
+        minimumKnownPoints: Int
+    ) -> MergeResult? {
+        guard tracks.count >= 2 else { return nil }
+
+        let knownTrackIndex = tracks.count - 1
+        let unknownTrackIndex = knownTrackIndex - 1
+        let knownTrack = tracks[knownTrackIndex]
+        let unknownTrack = tracks[unknownTrackIndex]
+
+        guard let knownType = normalizedKnownType(knownTrack.type),
+              isUnknownType(unknownTrack.type)
+        else {
+            return nil
+        }
+
+        let knownPointCount = pointCount(in: knownTrack)
+        let unknownPointCount = pointCount(in: unknownTrack)
+        guard knownPointCount >= minimumKnownPoints,
+              unknownPointCount > 0,
+              unknownPointCount <= maximumUnknownPoints,
+              let unknownEndTime = unknownTrack.segments.last?.points.last?.time,
+              let knownStartTime = knownTrack.segments.first?.points.first?.time,
+              unknownEndTime <= knownStartTime
+        else {
+            return nil
+        }
+
+        if let mostRecentWaypointTime = waypoints.compactMap(\.time).max(),
+           mostRecentWaypointTime > unknownEndTime {
+            return nil
+        }
+
+        knownTrack.segments.insert(contentsOf: unknownTrack.segments, at: 0)
+        tracks.remove(at: unknownTrackIndex)
+
+        return MergeResult(
+            unknownPointCount: unknownPointCount,
+            knownPointCount: knownPointCount,
+            knownType: knownType
+        )
+    }
+
+    private static func pointCount(in track: GPXTrack) -> Int {
+        track.segments.reduce(0) { $0 + $1.points.count }
+    }
+
+    private static func normalizedKnownType(_ type: String?) -> String? {
+        let normalized = type?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !normalized.isEmpty, normalized.caseInsensitiveCompare("unknown") != .orderedSame else {
+            return nil
+        }
+        return normalized
+    }
+
+    private static func isUnknownType(_ type: String?) -> Bool {
+        normalizedKnownType(type) == nil
     }
 }
