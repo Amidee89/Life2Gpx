@@ -458,11 +458,6 @@ struct EditTrackView: View {
                     if let customSave = customSaveAction {
                         customSave(updatedTrack)
                     } else {
-                        do {
-                            try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                        } catch {
-                            return
-                        }
                         GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
                         onSaveChanges()
                     }
@@ -544,13 +539,6 @@ struct EditTrackView: View {
             Button("Delete Track", role: .destructive) {
                 guard let originalTrack = timelineObject.track else {
                     print("Error: Original track is missing.")
-                    return
-                }
-
-                do {
-                    try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                } catch {
-                    print("Error backing up GPX file: \(error)")
                     return
                 }
 

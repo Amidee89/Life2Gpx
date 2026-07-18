@@ -137,7 +137,10 @@ class SettingsManager {
     private let enableDeadMansSwitchKey = "enableDeadMansSwitch"
     private let stationaryLocationAccuracyKey = "stationaryLocationAccuracy"
     private let movingLocationAccuracyKey = "movingLocationAccuracy"
-    
+    private let localBackupSaveCopyOnEditsKey = "localBackupSaveCopyOnEdits"
+    private let localBackupRetentionDaysKey = "localBackupRetentionDays"
+    private let localBackupRetentionVersionsKey = "localBackupRetentionVersions"
+    private let localBackupAlwaysRetainOriginalKey = "localBackupAlwaysRetainOriginal"    
     private init() {
         registerDefaults()
         migrateOldSettings()
@@ -188,7 +191,12 @@ class SettingsManager {
             timelineLocalTimeModeKey: TimelineLocalTimeMode.never.rawValue,
             enableDeadMansSwitchKey: true,
             stationaryLocationAccuracyKey: LocationAccuracyLevel.medium.rawValue,
-            movingLocationAccuracyKey: LocationAccuracyLevel.best.rawValue
+            movingLocationAccuracyKey: LocationAccuracyLevel.best.rawValue,
+            localBackupSaveCopyOnEditsKey: true,
+            localBackupRetentionDaysKey: -1,
+            localBackupRetentionVersionsKey: -1,
+            localBackupAlwaysRetainOriginalKey: true
+
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -577,6 +585,27 @@ class SettingsManager {
     var movingLocationAccuracyLevel: LocationAccuracyLevel {
         return LocationAccuracyLevel(rawValue: movingLocationAccuracy) ?? .best
     }
+
+    var localBackupSaveCopyOnEdits: Bool {
+        get { return defaults.bool(forKey: localBackupSaveCopyOnEditsKey) }
+        set { defaults.set(newValue, forKey: localBackupSaveCopyOnEditsKey) }
+    }
+
+    var localBackupRetentionDays: Int {
+        get { return defaults.integer(forKey: localBackupRetentionDaysKey) }
+        set { defaults.set(newValue, forKey: localBackupRetentionDaysKey) }
+    }
+
+    var localBackupRetentionVersions: Int {
+        get { return defaults.integer(forKey: localBackupRetentionVersionsKey) }
+        set { defaults.set(newValue, forKey: localBackupRetentionVersionsKey) }
+    }
+
+    var localBackupAlwaysRetainOriginal: Bool {
+        get { return defaults.bool(forKey: localBackupAlwaysRetainOriginalKey) }
+        set { defaults.set(newValue, forKey: localBackupAlwaysRetainOriginalKey) }
+    }
+
 
     func apiKey(for provider: PlaceProvider) -> String {
         return defaults.string(forKey: provider.settingsKey) ?? ""

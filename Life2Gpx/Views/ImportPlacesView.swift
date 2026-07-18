@@ -419,7 +419,7 @@ struct ImportProgressView: View {
                     progress = "Creating backup..."
                     progressValue = 0.1
                 }
-                try FileManagerUtil.shared.backupFile(placesUrl)
+                LocalBackupManager.shared.backupFileBeforeEdit(originalFileURL: placesUrl, date: Date(), backupType: "Places")
             }
             timer.addTime("Backup", Date().timeIntervalSince(backupStart))
             

@@ -45,6 +45,10 @@ struct SettingsView: View {
     @AppStorage("enableDeadMansSwitch") private var enableDeadMansSwitch: Bool = SettingsManager.shared.enableDeadMansSwitch
     @AppStorage("stationaryLocationAccuracy") private var stationaryLocationAccuracy: Int = SettingsManager.shared.stationaryLocationAccuracy
     @AppStorage("movingLocationAccuracy") private var movingLocationAccuracy: Int = SettingsManager.shared.movingLocationAccuracy
+    @AppStorage("localBackupSaveCopyOnEdits") private var localBackupSaveCopyOnEdits: Bool = SettingsManager.shared.localBackupSaveCopyOnEdits
+    @AppStorage("localBackupRetentionDays") private var localBackupRetentionDays: Int = SettingsManager.shared.localBackupRetentionDays
+    @AppStorage("localBackupRetentionVersions") private var localBackupRetentionVersions: Int = SettingsManager.shared.localBackupRetentionVersions
+    @AppStorage("localBackupAlwaysRetainOriginal") private var localBackupAlwaysRetainOriginal: Bool = SettingsManager.shared.localBackupAlwaysRetainOriginal
     
     @ObservedObject private var backupManager = iCloudBackupManager.shared
 
@@ -54,6 +58,17 @@ struct SettingsView: View {
     @State private var showDiagnosticReportError = false
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
+    
+    private let daysSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 60, 180, 365, -1]
+    private let versionsSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, -1]
+
+    private func indexForDays(_ value: Int) -> Double {
+        return Double(daysSteps.firstIndex(of: value) ?? (daysSteps.count - 1))
+    }
+    
+    private func indexForVersions(_ value: Int) -> Double {
+        return Double(versionsSteps.firstIndex(of: value) ?? (versionsSteps.count - 1))
+    }
     
     private var formattedLastBackupDate: String {
         if let date = SettingsManager.shared.lastICloudBackupDate {
@@ -198,6 +213,58 @@ struct SettingsView: View {
                 
                 let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "UnknownDevice"
                 Text("Backups are saved to iCloud Drive/Life2Gpx/\(deviceID)")
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundColor(.gray)
+            }
+            
+            Section(header: Text("Local Backup")) {
+                Toggle("Save copy on edits", isOn: $localBackupSaveCopyOnEdits)
+                Text("Creates automatically a copy of the gpx file in the backups folder before any edit is applied.")
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundColor(.gray)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Retention Days")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Text(localBackupRetentionDays == -1 ? "Infinite" : "\(localBackupRetentionDays)")
+                    }
+                    Slider(value: Binding(
+                        get: { indexForDays(localBackupRetentionDays) },
+                        set: { localBackupRetentionDays = daysSteps[Int($0)] }
+                    ), in: 0...Double(daysSteps.count - 1), step: 1)
+                    
+                    Text("Max days backup files are retained.")
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundColor(.gray)
+                }
+                .padding(.vertical, 4)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Retention Versions")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Text(localBackupRetentionVersions == -1 ? "Infinite" : "\(localBackupRetentionVersions)")
+                    }
+                    Slider(value: Binding(
+                        get: { indexForVersions(localBackupRetentionVersions) },
+                        set: { localBackupRetentionVersions = versionsSteps[Int($0)] }
+                    ), in: 0...Double(versionsSteps.count - 1), step: 1)
+                    
+                    Text("How many versions of the same file are kept.")
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundColor(.gray)
+                }
+                .padding(.vertical, 4)
+
+                Toggle("Always retain original file", isOn: $localBackupAlwaysRetainOriginal)
+                Text("The first version of a file is always kept no matter the retention options.")
                     .font(.caption)
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.gray)

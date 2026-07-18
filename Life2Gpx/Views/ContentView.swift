@@ -777,13 +777,6 @@ struct ContentView: View {
         let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
         guard !selectedItems.isEmpty else { return }
 
-        do {
-            try FileManagerUtil.shared.backupFile(forDate: selectedDate)
-        } catch {
-            print("Error backing up GPX file: \(error)")
-            return
-        }
-
         let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
         GPXManager.shared.deleteItems(waypointsToDelete: waypoints, tracksToDelete: tracks, forDate: selectedDate)
 
@@ -795,13 +788,6 @@ struct ContentView: View {
     private func performMergeTrackSave(updatedTrack: GPXTrack) {
         let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
         let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
-
-        do {
-            try FileManagerUtil.shared.backupFile(forDate: selectedDate)
-        } catch {
-            print("Error backing up GPX file: \(error)")
-            return
-        }
 
         GPXManager.shared.replaceItems(
             deleteWaypoints: waypoints,
@@ -820,13 +806,6 @@ struct ContentView: View {
     private func performMergeVisitSave(updatedWaypoint: GPXWaypoint) {
         let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }
         let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
-
-        do {
-            try FileManagerUtil.shared.backupFile(forDate: selectedDate)
-        } catch {
-            print("Error backing up GPX file: \(error)")
-            return
-        }
 
         GPXManager.shared.replaceItems(
             deleteWaypoints: waypoints,

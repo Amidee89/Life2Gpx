@@ -296,14 +296,6 @@ struct EditVisitView: View {
                     if let customSave = customSaveAction {
                         customSave(finalWaypoint, selectedPlace, wasOriginallyUnknown)
                     } else {
-                        // First, backup the current GPX file
-                        do {
-                            try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                        } catch {
-                            print("Error backing up GPX file: \(error)")
-                            return
-                        }
-                        
                         timelineObject.startDate = visitDate
                         
                         if let originalWaypoint = self.originalWaypoint {
@@ -427,14 +419,6 @@ struct EditVisitView: View {
             isPresented: $showingDeleteConfirmation
         ) {
             Button("Delete Visit", role: .destructive) {
-                // First, backup the current GPX file
-                do {
-                    try FileManagerUtil.shared.backupFile(forDate: fileDate)
-                } catch {
-                    print("Error backing up GPX file: \(error)")
-                    return
-                }
-                
                 // Delete the waypoint using the original waypoint
                 if let originalWaypoint = self.originalWaypoint {
                     GPXManager.shared.deleteWaypoint(originalWaypoint: originalWaypoint, forDate: fileDate)

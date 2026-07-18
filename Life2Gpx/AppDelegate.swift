@@ -159,6 +159,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         task.expirationHandler = {
             operation.cancel()
+            task.setTaskCompleted(success: false)
         }
     }
 

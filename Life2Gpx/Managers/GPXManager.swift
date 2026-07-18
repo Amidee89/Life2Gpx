@@ -33,6 +33,12 @@ class GPXManager {
             if !fileManager.fileExists(atPath: parentDir.path) {
                 try fileManager.createDirectory(at: parentDir, withIntermediateDirectories: true)
             }
+            
+            // Backup the existing file before overwriting it with edits
+            if fileManager.fileExists(atPath: fileURL.path) {
+                LocalBackupManager.shared.backupFileBeforeEdit(originalFileURL: fileURL, date: date)
+            }
+            
             let gpxString = gpx.gpx()
             try gpxString.write(to: fileURL, atomically: true, encoding: .utf8)
             FileManagerUtil.logData(context: "GPXManager", content: "GPX data saved successfully to \(fileName).", verbosity: 3)

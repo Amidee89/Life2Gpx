@@ -81,26 +81,7 @@ class FileManagerUtil {
                          userInfo: [NSLocalizedDescriptionKey: "Could not find 'Import' in path"])
         }
     }
-    
-    func backupFile(_ fileUrl: URL) throws {
-        let fileManager = FileManager.default
-        let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = dateFormatter.string(from: Date())
-        let backupType = fileUrl.pathExtension == "gpx" ? "GPX" : "Places"
-        let backupFolder = documentsUrl.appendingPathComponent("Backups/\(backupType)/\(timestamp)")
-        try fileManager.createDirectory(at: backupFolder, withIntermediateDirectories: true)
-        let backupUrl = backupFolder.appendingPathComponent(fileUrl.lastPathComponent)
-        try fileManager.copyItem(at: fileUrl, to: backupUrl)
-        FileManagerUtil.logData(context: "Backup", content: "Backed up \(fileUrl.lastPathComponent) to \(backupUrl.path)", verbosity: 3)
-    }
-    
-    func backupFile(forDate date: Date) throws {
-        let fileUrl = GPXManager.shared.resolvedFileURL(forDate: date)
-        try backupFile(fileUrl)
-    }
-    
+
     func cleanupEmptyFolders(in baseFolder: String) throws {
         let fileManager = FileManager.default
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
