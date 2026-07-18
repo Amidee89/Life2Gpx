@@ -49,6 +49,8 @@ struct SettingsView: View {
     @AppStorage("localBackupRetentionDays") private var localBackupRetentionDays: Int = SettingsManager.shared.localBackupRetentionDays
     @AppStorage("localBackupRetentionVersions") private var localBackupRetentionVersions: Int = SettingsManager.shared.localBackupRetentionVersions
     @AppStorage("localBackupAlwaysRetainOriginal") private var localBackupAlwaysRetainOriginal: Bool = SettingsManager.shared.localBackupAlwaysRetainOriginal
+    @AppStorage("logRetentionDays") private var logRetentionDays: Int = SettingsManager.shared.logRetentionDays
+    @AppStorage("logSizeLimitMB") private var logSizeLimitMB: Int = SettingsManager.shared.logSizeLimitMB
     
     @ObservedObject private var backupManager = iCloudBackupManager.shared
 
@@ -61,6 +63,7 @@ struct SettingsView: View {
     
     private let daysSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 60, 180, 365, -1]
     private let versionsSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, -1]
+    private let sizeStepsMB = [1, 2, 5, 10, 20, 50, 100, -1]
 
     private func indexForDays(_ value: Int) -> Double {
         return Double(daysSteps.firstIndex(of: value) ?? (daysSteps.count - 1))
@@ -68,6 +71,10 @@ struct SettingsView: View {
     
     private func indexForVersions(_ value: Int) -> Double {
         return Double(versionsSteps.firstIndex(of: value) ?? (versionsSteps.count - 1))
+    }
+
+    private func indexForSizeMB(_ value: Int) -> Double {
+        return Double(sizeStepsMB.firstIndex(of: value) ?? (sizeStepsMB.count - 1))
     }
     
     private var formattedLastBackupDate: String {
@@ -125,6 +132,44 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.gray)
                     .padding(.top, 5)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Retention Days")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text(logRetentionDays == -1 ? "Infinite" : "\(logRetentionDays)")
+                        }
+                        Slider(value: Binding(
+                            get: { indexForDays(logRetentionDays) },
+                            set: { logRetentionDays = daysSteps[Int($0)] }
+                        ), in: 0...Double(daysSteps.count - 1), step: 1)
+                        
+                        Text("Max days log files are retained.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 4)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Max Size (MB)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text(logSizeLimitMB == -1 ? "Infinite" : "\(logSizeLimitMB)")
+                        }
+                        Slider(value: Binding(
+                            get: { indexForSizeMB(logSizeLimitMB) },
+                            set: { logSizeLimitMB = sizeStepsMB[Int($0)] }
+                        ), in: 0...Double(sizeStepsMB.count - 1), step: 1)
+                        
+                        Text("Limit the size of log files.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 4)
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Track resource usage", isOn: $trackResourceUsage)
@@ -752,7 +797,7 @@ struct SettingsView: View {
             SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .never
         }
         .onChange(of: timelinePictureDisplayMode) { _, newValue in
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Settings changed timeline picture display mode to \(newValue)",
                 verbosity: 4
@@ -784,7 +829,7 @@ struct SettingsView: View {
 
     private func requestPhotoLibraryAccessIfNeeded() {
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Settings photo permission check. Current status: \(status.timelineLogDescription)",
             verbosity: 4
@@ -794,13 +839,13 @@ struct SettingsView: View {
             return
         }
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Settings requesting photo library authorization.",
             verbosity: 4
         )
         PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Settings photo library authorization response: \(status.timelineLogDescription)",
                 verbosity: 4
@@ -820,7 +865,7 @@ struct SettingsView: View {
         } catch {
             diagnosticReportError = error.localizedDescription
             showDiagnosticReportError = true
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: "Diagnostics",
                 content: "Failed to write resource log report: \(error.localizedDescription)",
                 verbosity: 1

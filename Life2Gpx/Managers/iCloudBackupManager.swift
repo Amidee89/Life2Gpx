@@ -34,7 +34,7 @@ class iCloudBackupManager: ObservableObject {
     /// The root iCloud Documents directory for the app.
     private var iCloudDocumentsURL: URL? {
         guard let containerURL = fileManager.url(forUbiquityContainerIdentifier: containerIdentifier) else {
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Failed to get iCloud container URL. Ensure iCloud Documents capability is enabled and signed in.", verbosity: 1)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Failed to get iCloud container URL. Ensure iCloud Documents capability is enabled and signed in.", verbosity: 1)
             return nil
         }
         return containerURL.appendingPathComponent("Documents")
@@ -121,10 +121,10 @@ class iCloudBackupManager: ObservableObject {
             self.backupStatusMessage = "Starting iCloud backup..."
         }
         
-        FileManagerUtil.logData(context: "iCloudBackup", content: "Starting iCloud backup...", verbosity: 3)
+        LogManager.shared.logData(context: "iCloudBackup", content: "Starting iCloud backup...", verbosity: 3)
         
         guard let localDocs = localDocumentsURL else {
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Could not find local documents directory.", verbosity: 1)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Could not find local documents directory.", verbosity: 1)
             DispatchQueue.main.async {
                 self.backupStatusMessage = "Failed: Could not find local directory."
                 self.isBackupRunning = false
@@ -133,7 +133,7 @@ class iCloudBackupManager: ObservableObject {
         }
         
         guard let iCloudBackupFolder = iCloudBackupFolderURL else {
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Could not find iCloud backup directory. Is iCloud configured?", verbosity: 1)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Could not find iCloud backup directory. Is iCloud configured?", verbosity: 1)
             DispatchQueue.main.async {
                 self.backupStatusMessage = "Failed: iCloud not configured."
                 self.isBackupRunning = false
@@ -145,7 +145,7 @@ class iCloudBackupManager: ObservableObject {
         do {
             try fileManager.createDirectory(at: iCloudBackupFolder, withIntermediateDirectories: true, attributes: nil)
         } catch {
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Failed to create iCloud backup directory: \(error)", verbosity: 1)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Failed to create iCloud backup directory: \(error)", verbosity: 1)
             DispatchQueue.main.async {
                 self.backupStatusMessage = "Failed: \(error.localizedDescription)"
                 self.isBackupRunning = false
@@ -173,14 +173,14 @@ class iCloudBackupManager: ObservableObject {
                 do {
                     try await syncFolder(localURL: localFolder, remoteURL: remoteFolder)
                 } catch {
-                    FileManagerUtil.logData(context: "iCloudBackup", content: "Failed to sync folder \(folderName): \(error)", verbosity: 1)
+                    LogManager.shared.logData(context: "iCloudBackup", content: "Failed to sync folder \(folderName): \(error)", verbosity: 1)
                 }
             } else {
-                FileManagerUtil.logData(context: "iCloudBackup", content: "Local folder \(folderName) does not exist, skipping.", verbosity: 4)
+                LogManager.shared.logData(context: "iCloudBackup", content: "Local folder \(folderName) does not exist, skipping.", verbosity: 4)
             }
         }
         
-        FileManagerUtil.logData(context: "iCloudBackup", content: "iCloud backup finished. \(totalSyncedFiles) files synced, \(totalFailedFiles) failed.", verbosity: 3)
+        LogManager.shared.logData(context: "iCloudBackup", content: "iCloud backup finished. \(totalSyncedFiles) files synced, \(totalFailedFiles) failed.", verbosity: 3)
         
         DispatchQueue.main.async {
             self.backupStatusMessage = "Finished: \(self.totalSyncedFiles) files synced, \(self.totalFailedFiles) failed."
@@ -213,7 +213,7 @@ class iCloudBackupManager: ObservableObject {
                     self.totalSyncedFiles += 1
                 } catch {
                     self.totalFailedFiles += 1
-                    FileManagerUtil.logData(context: "iCloudBackup", content: "Failed to sync file \(localFile.lastPathComponent): \(error)", verbosity: 1)
+                    LogManager.shared.logData(context: "iCloudBackup", content: "Failed to sync file \(localFile.lastPathComponent): \(error)", verbosity: 1)
                 }
             }
         }
@@ -251,13 +251,13 @@ class iCloudBackupManager: ObservableObject {
                         try fileManager.removeItem(at: newURL)
                         try fileManager.copyItem(at: localURL, to: newURL)
                     } catch {
-                        FileManagerUtil.logData(context: "iCloudBackup", content: "Failed to overwrite file: \(localURL.lastPathComponent)", verbosity: 1)
+                        LogManager.shared.logData(context: "iCloudBackup", content: "Failed to overwrite file: \(localURL.lastPathComponent)", verbosity: 1)
                     }
                 }
                 if let error = fileCoordinatorError {
                     throw error
                 }
-                FileManagerUtil.logData(context: "iCloudBackup", content: "Updated file: \(localURL.lastPathComponent)", verbosity: 5)
+                LogManager.shared.logData(context: "iCloudBackup", content: "Updated file: \(localURL.lastPathComponent)", verbosity: 5)
             }
         } else {
             // File does not exist remotely, just copy
@@ -266,13 +266,13 @@ class iCloudBackupManager: ObservableObject {
                 do {
                     try fileManager.copyItem(at: localURL, to: newURL)
                 } catch {
-                    FileManagerUtil.logData(context: "iCloudBackup", content: "Failed to copy file: \(localURL.lastPathComponent)", verbosity: 1)
+                    LogManager.shared.logData(context: "iCloudBackup", content: "Failed to copy file: \(localURL.lastPathComponent)", verbosity: 1)
                 }
             }
             if let error = fileCoordinatorError {
                 throw error
             }
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Copied new file: \(localURL.lastPathComponent)", verbosity: 5)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Copied new file: \(localURL.lastPathComponent)", verbosity: 5)
         }
     }
 }

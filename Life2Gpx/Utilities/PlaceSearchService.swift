@@ -162,7 +162,7 @@ class PlaceSearchService {
     private init() {}
 
     private func log(_ provider: PlaceProvider, _ message: String, verbosity: Int) {
-        FileManagerUtil.logData(context: "PlaceSearch-\(provider.rawValue)", content: message, verbosity: verbosity)
+        LogManager.shared.logData(context: "PlaceSearch-\(provider.rawValue)", content: message, verbosity: verbosity)
     }
 
     private func formatCoordinate(_ coordinate: CLLocationCoordinate2D) -> String {

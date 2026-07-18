@@ -115,7 +115,7 @@ final class TimelinePhotoStore: ObservableObject {
         fullImageCache.totalCostLimit = 160 * 1024 * 1024
         isSceneSuspended = UIApplication.shared.applicationState != .active
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Photo store initialized. Initial authorization status: \(authorizationStatus.timelineLogDescription)",
             verbosity: 4
@@ -152,7 +152,7 @@ final class TimelinePhotoStore: ObservableObject {
             for (_, requestID) in inFlightRequestIDs {
                 imageManager.cancelImageRequest(requestID)
             }
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cancelling \(inFlightCount) in-flight PhotoKit image request(s) because scene photo loading suspended. reason=\(reason)",
                 verbosity: 2
@@ -172,7 +172,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         if stateChanged || suspended {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Photo scene suspension changed. suspended=\(suspended), reason=\(reason), appState=\(UIApplication.shared.applicationState.rawValue)",
                 verbosity: 4
@@ -187,7 +187,7 @@ final class TimelinePhotoStore: ObservableObject {
         let inFlightRequests = inFlightRequestIDs.count
 
         if inFlightRequests > 0 {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cancelling \(inFlightRequests) in-flight PhotoKit requests (\(inFlightThumbnails) thumbnails, \(inFlightFullImages) full images) during cache clear.",
                 verbosity: 2
@@ -201,7 +201,7 @@ final class TimelinePhotoStore: ObservableObject {
             }
         }
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Clearing photo cache. Cached intervals: \(photosByKey.count), loading intervals: \(loadingKeys.count), loading images: \(loadingImageKeys.count), loading full images: \(loadingFullImageIDs.count)",
             verbosity: 4
@@ -234,7 +234,7 @@ final class TimelinePhotoStore: ObservableObject {
             return cachedImage
         }
         guard !loadingImageKeys.contains(cacheKey) else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Thumbnail load blocked for asset \(photo.id.prefix(12)): already in flight (\(loadingImageKeys.count) total). Repeated blocks suggest a hung PhotoKit callback.",
                 verbosity: 2
@@ -256,7 +256,7 @@ final class TimelinePhotoStore: ObservableObject {
 
         let authorizationStatus = await requestAuthorizationIfNeeded()
         guard authorizationStatus == .authorized || authorizationStatus == .limited else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cannot load thumbnail for asset \(photo.id.prefix(12)): authorization status is \(authorizationStatus.timelineLogDescription)",
                 verbosity: 4
@@ -265,7 +265,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         guard let asset = fetchAsset(localIdentifier: photo.id) else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cannot load thumbnail for asset \(photo.id.prefix(12)): PHAsset not found.",
                 verbosity: 4
@@ -274,7 +274,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         let targetSize = pixelTargetSize(for: displaySize)
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Requesting visible thumbnail for asset \(photo.id.prefix(12)). Display: \(Int(displaySize.width))x\(Int(displaySize.height)), target: \(Int(targetSize.width))x\(Int(targetSize.height))",
             verbosity: 5
@@ -286,7 +286,7 @@ final class TimelinePhotoStore: ObservableObject {
         diagnosticsSignposter.endInterval("PhotoKit thumbnail", signpostState)
 
         guard let image else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Visible thumbnail request returned nil for asset \(photo.id.prefix(12))",
                 verbosity: 4
@@ -306,7 +306,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         if let cachedImage = fullImageCache.object(forKey: photo.id as NSString) {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Skipping full image load for asset \(photo.id.prefix(12)): cache hit.",
                 verbosity: 5
@@ -314,7 +314,7 @@ final class TimelinePhotoStore: ObservableObject {
             return cachedImage
         }
         guard !loadingFullImageIDs.contains(photo.id) else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Full image load blocked for asset \(photo.id.prefix(12)): already in flight (\(loadingFullImageIDs.count) total). Repeated blocks suggest a hung PhotoKit callback.",
                 verbosity: 2
@@ -335,7 +335,7 @@ final class TimelinePhotoStore: ObservableObject {
 
         let authorizationStatus = await requestAuthorizationIfNeeded()
         guard authorizationStatus == .authorized || authorizationStatus == .limited else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cannot load full image for asset \(photo.id.prefix(12)): authorization status is \(authorizationStatus.timelineLogDescription)",
                 verbosity: 4
@@ -344,7 +344,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         guard let asset = fetchAsset(localIdentifier: photo.id) else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cannot load full image for asset \(photo.id.prefix(12)): PHAsset not found.",
                 verbosity: 4
@@ -352,7 +352,7 @@ final class TimelinePhotoStore: ObservableObject {
             return nil
         }
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Requesting full image for asset \(photo.id.prefix(12)), size \(asset.pixelWidth)x\(asset.pixelHeight)",
             verbosity: 4
@@ -366,14 +366,14 @@ final class TimelinePhotoStore: ObservableObject {
         if let image {
             fullImageCache.setObject(image, forKey: photo.id as NSString, cost: image.memoryCost)
             previewCache.setObject(image, forKey: photo.id as NSString, cost: image.memoryCost)
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Loaded full image for asset \(photo.id.prefix(12)). Returned size: \(Int(image.size.width))x\(Int(image.size.height))",
                 verbosity: 4
             )
             return image
         } else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Full image request returned nil for asset \(photo.id.prefix(12))",
                 verbosity: 4
@@ -388,7 +388,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         guard let asset = fetchAsset(localIdentifier: photo.id) else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Cannot load video for asset \(photo.id.prefix(12)): PHAsset not found.",
                 verbosity: 4
@@ -396,7 +396,7 @@ final class TimelinePhotoStore: ObservableObject {
             return nil
         }
         
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Requesting AVPlayerItem for asset \(photo.id.prefix(12)), network={\(NetworkDiagnostics.shared.snapshot())}",
             verbosity: 4
@@ -408,7 +408,7 @@ final class TimelinePhotoStore: ObservableObject {
             options.deliveryMode = .highQualityFormat
             options.progressHandler = { progress, error, _, info in
                 let errorDescription = error?.localizedDescription ?? "nil"
-                FileManagerUtil.logData(
+                LogManager.shared.logData(
                     context: TimelinePhotoLog.context,
                     content: "PhotoKit video network progress for asset \(photo.id.prefix(12)): \(Int(progress * 100))%, error=\(errorDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                     verbosity: error == nil ? 5 : 4
@@ -421,13 +421,13 @@ final class TimelinePhotoStore: ObservableObject {
                 guard !didResume else { return }
                 didResume = true
                 if let error = info?[PHImageErrorKey] as? Error {
-                    FileManagerUtil.logData(
+                    LogManager.shared.logData(
                         context: TimelinePhotoLog.context,
                         content: "Video request failed for asset \(photo.id.prefix(12)): \(error.localizedDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                         verbosity: 4
                     )
                 }
-                FileManagerUtil.logData(
+                LogManager.shared.logData(
                     context: TimelinePhotoLog.context,
                     content: "Video request completed for asset \(photo.id.prefix(12)). playerItem=\(playerItem != nil), \(timelinePhotoKitInfoSummary(info))",
                     verbosity: 5
@@ -441,7 +441,7 @@ final class TimelinePhotoStore: ObservableObject {
     func requestAuthorizationIfNeeded() async -> PHAuthorizationStatus {
         let currentStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         authorizationStatus = currentStatus
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Authorization check. Current status: \(currentStatus.timelineLogDescription)",
             verbosity: 5
@@ -452,14 +452,14 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         if let authorizationRequestTask {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Authorization request already in progress. Awaiting existing request.",
                 verbosity: 5
             )
             let status = await authorizationRequestTask.value
             authorizationStatus = status
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Existing authorization request completed with status: \(status.timelineLogDescription)",
                 verbosity: 4
@@ -467,7 +467,7 @@ final class TimelinePhotoStore: ObservableObject {
             return status
         }
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Requesting photo library authorization.",
             verbosity: 4
@@ -484,7 +484,7 @@ final class TimelinePhotoStore: ObservableObject {
         let status = await requestTask.value
         authorizationRequestTask = nil
         authorizationStatus = status
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Photo library authorization response: \(status.timelineLogDescription)",
             verbosity: 4
@@ -549,7 +549,7 @@ final class TimelinePhotoStore: ObservableObject {
         }
 
         photosByKey[key] = filteredPhotos
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Finished loading photo metadata for \(shortKey). Records: \(filteredPhotos.count)",
             verbosity: 4
@@ -559,7 +559,7 @@ final class TimelinePhotoStore: ObservableObject {
     private func canStartPhotoWork(_ operation: String) -> Bool {
         let appState = UIApplication.shared.applicationState
         guard !isSceneSuspended, appState == .active else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Skipping PhotoKit \(operation): scene photo loading is suspended=\(isSceneSuspended), appState=\(appState.rawValue).",
                 verbosity: 4
@@ -641,7 +641,7 @@ final class TimelinePhotoStore: ObservableObject {
 
 
     private func requestImage(for asset: PHAsset, targetSize: CGSize, contentMode: PHImageContentMode, allowsNetworkAccess: Bool, cacheKey: String) async -> UIImage? {
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Request image target for asset \(asset.localIdentifier.prefix(12)): \(Int(targetSize.width))x\(Int(targetSize.height)), contentMode: \(contentMode.rawValue), allowsNetworkAccess=\(allowsNetworkAccess), network={\(NetworkDiagnostics.shared.snapshot())}",
             verbosity: 5
@@ -657,7 +657,7 @@ final class TimelinePhotoStore: ObservableObject {
                 options.isNetworkAccessAllowed = allowsNetworkAccess
                 options.progressHandler = { progress, error, _, info in
                     let errorDescription = error?.localizedDescription ?? "nil"
-                    FileManagerUtil.logData(
+                    LogManager.shared.logData(
                         context: TimelinePhotoLog.context,
                         content: "PhotoKit thumbnail network progress for asset \(assetLabel): \(Int(progress * 100))%, error=\(errorDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                         verbosity: error == nil ? 5 : 4
@@ -680,14 +680,14 @@ final class TimelinePhotoStore: ObservableObject {
                     let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
                     let isInCloud = info?[PHImageResultIsInCloudKey] as? Bool ?? false
                     if isInCloud {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "PhotoKit thumbnail callback indicates asset \(assetLabel) is iCloud-backed. \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                             verbosity: 5
                         )
                     }
                     if cancelled || hasError {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "Image request failed for asset \(assetLabel). \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                             verbosity: 4
@@ -698,7 +698,7 @@ final class TimelinePhotoStore: ObservableObject {
                     }
 
                     if image == nil, isDegraded {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "PhotoKit returned nil degraded thumbnail for asset \(assetLabel) — waiting for final callback; if none arrives timeout will cancel after \(Self.requestTimeoutSeconds)s.",
                             verbosity: 2
@@ -708,7 +708,7 @@ final class TimelinePhotoStore: ObservableObject {
 
                     if let image {
                         let elapsed = Int(Date().timeIntervalSince(startedAt))
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "Image request succeeded for asset \(assetLabel). Returned size: \(Int(image.size.width))x\(Int(image.size.height)), degraded: \(isDegraded), elapsed: \(elapsed)s, \(timelinePhotoKitInfoSummary(info))",
                             verbosity: 5
@@ -731,7 +731,7 @@ final class TimelinePhotoStore: ObservableObject {
                     didResume = true
                     self.imageManager.cancelImageRequest(requestID)
                     self.inFlightRequestIDs.removeValue(forKey: cacheKey)
-                    FileManagerUtil.logData(
+                    LogManager.shared.logData(
                         context: TimelinePhotoLog.context,
                         content: "⚠️ PhotoKit thumbnail request TIMED OUT after \(Self.requestTimeoutSeconds)s for asset \(assetLabel). Request cancelled to unblock further loads.",
                         verbosity: 2
@@ -764,7 +764,7 @@ final class TimelinePhotoStore: ObservableObject {
                 options.isNetworkAccessAllowed = true
                 options.progressHandler = { progress, error, _, info in
                     let errorDescription = error?.localizedDescription ?? "nil"
-                    FileManagerUtil.logData(
+                    LogManager.shared.logData(
                         context: TimelinePhotoLog.context,
                         content: "PhotoKit full-image network progress for asset \(assetLabel): \(Int(progress * 100))%, error=\(errorDescription), \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                         verbosity: error == nil ? 5 : 4
@@ -788,7 +788,7 @@ final class TimelinePhotoStore: ObservableObject {
                     let isInCloud = info?[PHImageResultIsInCloudKey] as? Bool ?? false
 
                     if isInCloud {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "PhotoKit full-image callback indicates asset \(assetLabel) is iCloud-backed. \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                             verbosity: 5
@@ -796,7 +796,7 @@ final class TimelinePhotoStore: ObservableObject {
                     }
 
                     if cancelled || hasError {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "Full image request failed for asset \(assetLabel). \(timelinePhotoKitInfoSummary(info)), network={\(NetworkDiagnostics.shared.snapshot())}",
                             verbosity: 4
@@ -807,7 +807,7 @@ final class TimelinePhotoStore: ObservableObject {
                     }
 
                     if isDegraded {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "PhotoKit returned degraded full-image preview for asset \(assetLabel) (hasImage=\(image != nil)) - waiting for high-quality callback; timeout after \(Self.requestTimeoutSeconds)s. \(timelinePhotoKitInfoSummary(info))",
                             verbosity: 2
@@ -816,7 +816,7 @@ final class TimelinePhotoStore: ObservableObject {
 
                     if let image, !isDegraded {
                         let elapsed = Int(Date().timeIntervalSince(startedAt))
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: TimelinePhotoLog.context,
                             content: "Full image loaded for asset \(assetLabel), elapsed: \(elapsed)s, \(timelinePhotoKitInfoSummary(info))",
                             verbosity: 4
@@ -839,7 +839,7 @@ final class TimelinePhotoStore: ObservableObject {
                     didResume = true
                     self.imageManager.cancelImageRequest(requestID)
                     self.inFlightRequestIDs.removeValue(forKey: fullCacheKey)
-                    FileManagerUtil.logData(
+                    LogManager.shared.logData(
                         context: TimelinePhotoLog.context,
                         content: "⚠️ PhotoKit full-image request TIMED OUT after \(Self.requestTimeoutSeconds)s for asset \(assetLabel). Request cancelled to unblock further loads.",
                         verbosity: 2
@@ -982,7 +982,7 @@ struct TimelineView: View {
         if let topVisibleItem = displayItems.first(where: { visibleIDs.contains($0.id) }) {
             let topId = topVisibleItem.id
             if activeScrollID != topId {
-                FileManagerUtil.logData(context: "TimelineScroll", content: "[updateActiveScrollID] Top visible item ID determined to be: \(topId)", verbosity: 4)
+                LogManager.shared.logData(context: "TimelineScroll", content: "[updateActiveScrollID] Top visible item ID determined to be: \(topId)", verbosity: 4)
                 activeScrollID = topId
             }
         }
@@ -1024,10 +1024,10 @@ struct TimelineView: View {
         let key = selectedDayKey
         let displayedKey = displayedObjectsDayKey
         
-        FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Starting scroll restoration. selectedDate key: \(key), displayed items key: \(displayedKey ?? "nil"), saved positions count: \(scrollPositions.count)", verbosity: 4)
+        LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Starting scroll restoration. selectedDate key: \(key), displayed items key: \(displayedKey ?? "nil"), saved positions count: \(scrollPositions.count)", verbosity: 4)
         
         if timelineObjects.isEmpty {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Timeline is empty. Resetting activeScrollID to nil.", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Timeline is empty. Resetting activeScrollID to nil.", verbosity: 4)
             activeScrollID = nil
             scrolledDateKey = key
             return
@@ -1035,27 +1035,27 @@ struct TimelineView: View {
         
         // We only restore/set scroll position if the displayed objects actually match the selected day.
         guard let displayedKey = displayedKey, displayedKey == key else {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Displayed items key (\(displayedKey ?? "nil")) does not match selectedDate key (\(key)). Delaying scroll restoration.", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Displayed items key (\(displayedKey ?? "nil")) does not match selectedDate key (\(key)). Delaying scroll restoration.", verbosity: 4)
             return
         }
         
         let targetId: String?
         if let savedId = scrollPositions[key], displayItems.contains(where: { $0.id == savedId }) {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Restoring saved scroll position: \(savedId) for day: \(key)", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Restoring saved scroll position: \(savedId) for day: \(key)", verbosity: 4)
             targetId = savedId
         } else if let firstId = displayItems.first?.id {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] No saved position or saved ID not found. Scrolling to first item: \(firstId) for day: \(key)", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] No saved position or saved ID not found. Scrolling to first item: \(firstId) for day: \(key)", verbosity: 4)
             targetId = firstId
             scrollPositions[key] = firstId
         } else {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] List is empty. Resetting activeScrollID to nil.", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] List is empty. Resetting activeScrollID to nil.", verbosity: 4)
             targetId = nil
         }
         
         scrolledDateKey = key
         
         if let targetId = targetId {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[applyScrollPosition] Setting pendingScrollTarget: \(targetId) for day: \(key)", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Setting pendingScrollTarget: \(targetId) for day: \(key)", verbosity: 4)
             pendingScrollTarget = targetId
         }
     }
@@ -1279,20 +1279,20 @@ struct TimelineView: View {
         }
         .listStyle(PlainListStyle())
         .onAppear {
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[onAppear] TimelineView appeared. selectedDate: \(selectedDate)", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[onAppear] TimelineView appeared. selectedDate: \(selectedDate)", verbosity: 4)
             photoStore.setSceneSuspended(scenePhase != .active, reason: "TimelineView appeared with scenePhase=\(scenePhaseDescription(scenePhase))")
             recordTimelineDiagnostics(reason: "TimelineView appeared")
             applyScrollPositionForCurrentDay()
         }
         .onChange(of: selectedDate) { oldDate, newDate in
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange selectedDate] selectedDate changed from \(oldDate) to \(newDate). Locking scroll updates.", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[onChange selectedDate] selectedDate changed from \(oldDate) to \(newDate). Locking scroll updates.", verbosity: 4)
             recordTimelineDiagnostics(reason: "Selected date changed \(oldDate) -> \(newDate)")
             scrolledDateKey = nil // Lock scroll updates during transition
             visibleIDs.removeAll() // Clear visible IDs
             activeScrollID = nil // Reset activeScrollID
         }
         .onChange(of: timelineObjects.map { $0.id }) { oldIds, newIds in
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange timelineObjects] IDs changed. Old count: \(oldIds.count), New count: \(newIds.count). Restoring scroll position.", verbosity: 4)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[onChange timelineObjects] IDs changed. Old count: \(oldIds.count), New count: \(newIds.count). Restoring scroll position.", verbosity: 4)
             recordTimelineDiagnostics(reason: "Timeline object IDs changed \(oldIds.count) -> \(newIds.count)")
             applyScrollPositionForCurrentDay()
             updateTimeZoneInfo()
@@ -1307,29 +1307,29 @@ struct TimelineView: View {
             let key = selectedDayKey
             let displayedKey = displayedObjectsDayKey
             
-            FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] activeScrollID changed from \(oldId ?? "nil") to \(newId ?? "nil"). scrolledDateKey: \(scrolledDateKey ?? "nil"), selectedDayKey: \(key), displayedKey: \(displayedKey ?? "nil")", verbosity: 5)
+            LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] activeScrollID changed from \(oldId ?? "nil") to \(newId ?? "nil"). scrolledDateKey: \(scrolledDateKey ?? "nil"), selectedDayKey: \(key), displayedKey: \(displayedKey ?? "nil")", verbosity: 5)
             
             // Only save if scroll-tracking is unlocked and matches the currently displayed day
             guard let displayedKey = displayedKey,
                   scrolledDateKey == key,
                   displayedKey == key else {
-                FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update (scrolledDateKey mismatch or still transitioning)", verbosity: 4)
+                LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update (scrolledDateKey mismatch or still transitioning)", verbosity: 4)
                 return
             }
             
             if let newId = newId {
                 if displayItems.contains(where: { $0.id == newId }) {
-                    FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Saving scroll position: \(newId) under key: \(key)", verbosity: 4)
+                    LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Saving scroll position: \(newId) under key: \(key)", verbosity: 4)
                     scrollPositions[key] = newId
                 } else {
-                    FileManagerUtil.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update because ID \(newId) is not in current displayItems", verbosity: 4)
+                    LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update because ID \(newId) is not in current displayItems", verbosity: 4)
                 }
             }
         }
         .onChange(of: pendingScrollTarget) { _, targetId in
             // This onChange runs inside the ScrollViewReader closure where proxy is guaranteed valid.
             if let targetId = targetId {
-                FileManagerUtil.logData(context: "TimelineScroll", content: "[pendingScrollTarget] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
+                LogManager.shared.logData(context: "TimelineScroll", content: "[pendingScrollTarget] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
                 proxy.scrollTo(targetId, anchor: .top)
                 pendingScrollTarget = nil
             }
@@ -1346,7 +1346,7 @@ struct TimelineView: View {
                     return obj.id == newId
                 }
             }) {
-                FileManagerUtil.logData(context: "TimelineScroll", content: "[selectedTimelineObjectID] Scrolling to display item: \(displayItem.id) for selected object: \(newId)", verbosity: 4)
+                LogManager.shared.logData(context: "TimelineScroll", content: "[selectedTimelineObjectID] Scrolling to display item: \(displayItem.id) for selected object: \(newId)", verbosity: 4)
                 withAnimation {
                     proxy.scrollTo(displayItem.id, anchor: .center)
                 }
@@ -1396,7 +1396,7 @@ struct TimelineView: View {
             expandedGroupIDs.removeAll()
         }
         .onChange(of: selectedDate) {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Selected date changed to \(TimelinePhotoLog.dateString(selectedDate)). Clearing timeline photo cache.",
                 verbosity: 4
@@ -1404,7 +1404,7 @@ struct TimelineView: View {
             photoStore.clear()
         }
         .onChange(of: timelineObjects.map { $0.id }) {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Timeline object IDs changed. Object count: \(timelineObjects.count). Clearing timeline photo cache.",
                 verbosity: 4
@@ -1412,7 +1412,7 @@ struct TimelineView: View {
             photoStore.clear()
         }
         .onChange(of: timelinePictureDisplayModeRaw) {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Timeline picture display mode changed to \(timelinePictureDisplayModeRaw). Clearing timeline photo cache.",
                 verbosity: 4
@@ -1425,7 +1425,7 @@ struct TimelineView: View {
             recordTimelineDiagnostics(reason: "TimelineView scene phase \(scenePhaseDescription(oldPhase)) -> \(scenePhaseDescription(newPhase))")
         }
         .task(id: "\(timelinePictureDisplayModeRaw)-\(scenePhaseDescription(scenePhase))") {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Timeline photo task started. Mode: \(timelinePictureDisplayModeRaw), scenePhase: \(scenePhaseDescription(scenePhase)), selectedDate: \(TimelinePhotoLog.dateString(selectedDate)), timelineObjects: \(timelineObjects.count), displayItems: \(displayItems.count)",
                 verbosity: 4
@@ -1433,13 +1433,13 @@ struct TimelineView: View {
             if scenePhase == .active, timelinePictureDisplayMode != .none {
                 await photoStore.requestAuthorizationIfNeeded()
             } else if scenePhase != .active {
-                FileManagerUtil.logData(
+                LogManager.shared.logData(
                     context: TimelinePhotoLog.context,
                     content: "Timeline photo task skipped authorization because scene is \(scenePhaseDescription(scenePhase)).",
                     verbosity: 4
                 )
             } else {
-                FileManagerUtil.logData(
+                LogManager.shared.logData(
                     context: TimelinePhotoLog.context,
                     content: "Timeline photo task skipped authorization because mode is none.",
                     verbosity: 4
@@ -1684,7 +1684,7 @@ struct TimelineView: View {
             intervalsByID[item.id] = DateInterval(start: startDate, end: endDate)
         }
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Computed photo intervals once for render. Timeline objects: \(timelineObjects.count), intervals: \(intervalsByID.count)",
             verbosity: 5

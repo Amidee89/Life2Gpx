@@ -72,13 +72,13 @@ struct TimelinePhotoAttachmentView: View {
     }
 
     private func loadPhotos() async {
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Photo attachment load started. Mode: \(displayMode.rawValue), key: \(TimelinePhotoLog.shortKey(cacheKey)), auth: \(photoStore.authorizationStatus.timelineLogDescription), interval: \(TimelinePhotoLog.intervalString(interval))",
             verbosity: 4
         )
         await photoStore.loadPhotos(for: cacheKey, interval: interval)
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Photo attachment load finished. Mode: \(displayMode.rawValue), key: \(TimelinePhotoLog.shortKey(cacheKey)), visible photos: \(photos.count), loaded: \(hasLoadedPhotos), auth: \(photoStore.authorizationStatus.timelineLogDescription)",
             verbosity: 4
@@ -101,7 +101,7 @@ struct TimelinePhotoAttachmentView: View {
         .buttonStyle(BorderlessButtonStyle())
         .accessibilityLabel("Open photo permission settings")
         .task(id: cacheKey) {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Photo permission button mounted. Mode: \(displayMode.rawValue), key: \(TimelinePhotoLog.shortKey(cacheKey)), auth: \(photoStore.authorizationStatus.timelineLogDescription)",
                 verbosity: 4
@@ -115,14 +115,14 @@ struct TimelinePhotoAttachmentView: View {
 
     private func openPhotoSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: TimelinePhotoLog.context,
                 content: "Could not build app settings URL for photo permissions.",
                 verbosity: 4
             )
             return
         }
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: TimelinePhotoLog.context,
             content: "Opening app settings from photo permission button.",
             verbosity: 4

@@ -49,7 +49,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     override init() {
         super.init()
-        FileManagerUtil.logData(context: "LocationManagerInit", content: "Initializing LocationManager.", verbosity: 3)
+        LogManager.shared.logData(context: "LocationManagerInit", content: "Initializing LocationManager.", verbosity: 3)
         let center = UNUserNotificationCenter.current()
         center.removeDeliveredNotifications(withIdentifiers: ["DeadMansSwitch"])
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
@@ -84,7 +84,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch", "UnknownPlaceCheckIn"])
         
-        FileManagerUtil.logData(context: "LocationManager", content: "All tracking stopped.", verbosity: 2)
+        LogManager.shared.logData(context: "LocationManager", content: "All tracking stopped.", verbosity: 2)
     }
 
     func startAllTracking() {
@@ -93,7 +93,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         scheduleMidnightUpdate()
         scheduleDeadMansSwitchNotification()
         startNotificationResetTimer()
-        FileManagerUtil.logData(context: "LocationManager", content: "All tracking started.", verbosity: 2)
+        LogManager.shared.logData(context: "LocationManager", content: "All tracking started.", verbosity: 2)
     }
     private func scheduleMidnightUpdate() {
             let calendar = Calendar.current
@@ -108,7 +108,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             let timeIntervalUntilMidnight = midnight.timeIntervalSince(now)
             //extra grace period in case clock ran a little bit too fast. It happened.
             let adjustedInterval = (timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400) + midnightUpdateGracePeriod
-            FileManagerUtil.logData(context: "LocationManager", content: "Scheduling midnight update in \(adjustedInterval) seconds.", verbosity: 4)
+            LogManager.shared.logData(context: "LocationManager", content: "Scheduling midnight update in \(adjustedInterval) seconds.", verbosity: 4)
             midnightTimer = Timer.scheduledTimer(withTimeInterval: adjustedInterval, repeats: false) { [weak self] _ in
                 self?.forceMidnightUpdate()
             }
@@ -118,9 +118,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if currentFilteredLocation == nil {
             if let location = locationManager.location {
                 currentFilteredLocation = location
-                FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Using last known locationmanager location.", verbosity: 4)
+                LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: Using last known locationmanager location.", verbosity: 4)
             } else {
-                FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: No current location available to force update.", verbosity: 2)
+                LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: No current location available to force update.", verbosity: 2)
                 scheduleMidnightUpdate() // Reschedule if we couldn't update
                 return
             }
@@ -128,7 +128,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         currentDate = Date()
         let rawType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? ""
         let updateType = LocationUpdateType(rawValue: rawType) ?? .stationary
-        FileManagerUtil.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType.rawValue).", verbosity: 3)
+        LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType.rawValue).", verbosity: 3)
         appendLocationToFile(type: updateType, debug: "Midnight Update")
         scheduleMidnightUpdate()
     }
@@ -173,12 +173,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func cancelUnknownPlaceCheckInNotification() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["UnknownPlaceCheckIn"])
-        FileManagerUtil.logData(context: "LocationManager", content: "Cancelled pending UnknownPlaceCheckIn notification.", verbosity: 4)
+        LogManager.shared.logData(context: "LocationManager", content: "Cancelled pending UnknownPlaceCheckIn notification.", verbosity: 4)
     }
 
     private func scheduleUnknownPlaceCheckInNotification(for waypoint: GPXWaypoint) {
         guard SettingsManager.shared.sendNotificationOnUnknownPlace else {
-            FileManagerUtil.logData(context: "LocationManager", content: "Skip scheduling UnknownPlaceCheckIn: setting is disabled.", verbosity: 4)
+            LogManager.shared.logData(context: "LocationManager", content: "Skip scheduling UnknownPlaceCheckIn: setting is disabled.", verbosity: 4)
             return
         }
         
@@ -207,9 +207,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         center.add(request) { error in
             if let error = error {
-                FileManagerUtil.logData(context: "LocationManager", content: "Error scheduling UnknownPlaceCheckIn: \(error.localizedDescription)", verbosity: 2)
+                LogManager.shared.logData(context: "LocationManager", content: "Error scheduling UnknownPlaceCheckIn: \(error.localizedDescription)", verbosity: 2)
             } else {
-                FileManagerUtil.logData(context: "LocationManager", content: "Scheduled UnknownPlaceCheckIn in \(minutes) minutes (\(triggerSeconds)s) for waypoint at \(waypointTime).", verbosity: 3)
+                LogManager.shared.logData(context: "LocationManager", content: "Scheduled UnknownPlaceCheckIn in \(minutes) minutes (\(triggerSeconds)s) for waypoint at \(waypointTime).", verbosity: 3)
             }
         }
     }
@@ -237,7 +237,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func setupLocationManager() {
-        FileManagerUtil.logData(context: "LocationManager", content: "Setting up location manager.", verbosity: 5)
+        LogManager.shared.logData(context: "LocationManager", content: "Setting up location manager.", verbosity: 5)
         locationManager.delegate = self
         locationManager.requestAlwaysAuthorization()
         locationManager.allowsBackgroundLocationUpdates = true
@@ -257,12 +257,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     func startHeadingUpdates() {
         locationManager.startUpdatingHeading()
-        FileManagerUtil.logData(context: "LocationManager", content: "Started updating heading.", verbosity: 4)
+        LogManager.shared.logData(context: "LocationManager", content: "Started updating heading.", verbosity: 4)
     }
 
     func stopHeadingUpdates() {
         locationManager.stopUpdatingHeading()
-        FileManagerUtil.logData(context: "LocationManager", content: "Stopped updating heading.", verbosity: 4)
+        LogManager.shared.logData(context: "LocationManager", content: "Stopped updating heading.", verbosity: 4)
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -270,7 +270,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let currentTime = Date()
 
         locationManagerCallCount += 1
-        FileManagerUtil.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
+        LogManager.shared.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 
         guard let newLocation = locations.last else { return }
         DispatchQueue.main.async {
@@ -284,14 +284,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let lastEntryInHistory = locationHistory.last {
             if currentTime.timeIntervalSince(lastEntryInHistory.receivedAt) > locationUpdateDebounceInterval {
                 shouldProcessThisLocation = true
-                FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: currentTime \(currentTime) > \(locationUpdateDebounceInterval)s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
+                LogManager.shared.logData(context: "LocationManager", content: "Proceeding: currentTime \(currentTime) > \(locationUpdateDebounceInterval)s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
             } else {
                 shouldProcessThisLocation = false
-                FileManagerUtil.logData(context: "LocationManager", content: "Debouncing: currentTime \(currentTime) NOT > \(locationUpdateDebounceInterval)s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
+                LogManager.shared.logData(context: "LocationManager", content: "Debouncing: currentTime \(currentTime) NOT > \(locationUpdateDebounceInterval)s after last history item receivedAt \(lastEntryInHistory.receivedAt). Interval: \(String(format: "%.3f", currentTime.timeIntervalSince(lastEntryInHistory.receivedAt)))s.", verbosity: 5)
             }
         } else {
             shouldProcessThisLocation = true
-            FileManagerUtil.logData(context: "LocationManager", content: "Proceeding: History empty, allowing first entry at \(currentTime).", verbosity: 5)
+            LogManager.shared.logData(context: "LocationManager", content: "Proceeding: History empty, allowing first entry at \(currentTime).", verbosity: 5)
         }
            
         if shouldProcessThisLocation {
@@ -300,36 +300,36 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 locationHistory.removeFirst()
             }
             locationHistoryLock.unlock()
-            FileManagerUtil.logData(context: "LocationManager", content: "Location added to history. LocTS: \(newLocation.timestamp), RecTS: \(currentTime). History size: \(locationHistory.count).", verbosity: 5)
+            LogManager.shared.logData(context: "LocationManager", content: "Location added to history. LocTS: \(newLocation.timestamp), RecTS: \(currentTime). History size: \(locationHistory.count).", verbosity: 5)
         } else {
-            FileManagerUtil.logData(context: "LocationManager", content: "Debouncing location update.", verbosity: 5)
+            LogManager.shared.logData(context: "LocationManager", content: "Debouncing location update.", verbosity: 5)
             locationHistoryLock.unlock()
             return
         }
 
            
         let newUpdateDate = Date()
-        FileManagerUtil.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)
+        LogManager.shared.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)
 
         //forcing update if it's the new day and somehow midnight scheduler has screwed.
         if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
             let calendar = Calendar.current
             let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
             if newUpdateDate.timeIntervalSince(startOfNewDay) >= midnightUpdateGracePeriod {
-                FileManagerUtil.logData(context: "LocationManager", content: "New day detected (after grace period), forcing midnight update.", verbosity: 2)
+                LogManager.shared.logData(context: "LocationManager", content: "New day detected (after grace period), forcing midnight update.", verbosity: 2)
                 forceMidnightUpdate()
             } else {
-                FileManagerUtil.logData(context: "LocationManager", content: "New day detected, but within grace period. Not forcing midnight update yet. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
+                LogManager.shared.logData(context: "LocationManager", content: "New day detected, but within grace period. Not forcing midnight update yet. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
             }
         }
         // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval.
         let timeSinceLastUpdate = abs(lastUpdateTimestamp.map { newUpdateDate.timeIntervalSince($0) } ?? minimumUpdateInterval + 1)
-        FileManagerUtil.logData(context: "LocationManager", content: "Time since last update: \(timeSinceLastUpdate) seconds.", verbosity: 5)
-        FileManagerUtil.logData(context: "LocationManager", content: "Using lastUpdateTimestamp: \(String(describing: lastUpdateTimestamp)) for calculation.", verbosity: 5)
+        LogManager.shared.logData(context: "LocationManager", content: "Time since last update: \(timeSinceLastUpdate) seconds.", verbosity: 5)
+        LogManager.shared.logData(context: "LocationManager", content: "Using lastUpdateTimestamp: \(String(describing: lastUpdateTimestamp)) for calculation.", verbosity: 5)
 
         
         if previousSavedLocation == nil {
-            FileManagerUtil.logData(context: "LocationManager", content: "No previous location saved, loading file.", verbosity: 4)
+            LogManager.shared.logData(context: "LocationManager", content: "No previous location saved, loading file.", verbosity: 4)
             GPXManager.shared.loadFile(forDate: Date()) { [weak self] loadedGpxWaypoints, loadedGpxTracks in
                 var allLocations: [(location: CLLocation, date: Date)] = []
 
@@ -357,11 +357,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         if let previousSavedLocation = previousSavedLocation
         {
             let distanceFromPrevious = previousSavedLocation.distance(from: newLocation) - ((newLocation.horizontalAccuracy + newLocation.verticalAccuracy)/2)
-            FileManagerUtil.logData(context: "LocationManager", content: "Distance from previous saved location (adjusted): \(distanceFromPrevious) meters.", verbosity: 5)
+            LogManager.shared.logData(context: "LocationManager", content: "Distance from previous saved location (adjusted): \(distanceFromPrevious) meters.", verbosity: 5)
 
             if distanceFromPrevious >= customDistanceFilter && timeSinceLastUpdate >= minimumUpdateInterval
             {
-                FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m >= \(customDistanceFilter)m) and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) thresholds met.", verbosity: 4)
+                LogManager.shared.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m >= \(customDistanceFilter)m) and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) thresholds met.", verbosity: 4)
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
                 self.previousSavedLocation = newLocation
@@ -372,7 +372,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
                 if !self.filteredByPositionQueue.isEmpty {
                     self.filteredByPositionQueue.removeAll()
-                    FileManagerUtil.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added.", verbosity: 4)
+                    LogManager.shared.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added.", verbosity: 4)
                 }
             } else {
                 if distanceFromPrevious < customDistanceFilter {
@@ -380,13 +380,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     if self.filteredByPositionQueue.count > filteredPositionQueueMaxSize {
                         self.filteredByPositionQueue.removeFirst()
                     }
-                    FileManagerUtil.logData(context: "LocationManager", content: "Added location to filteredByPositionQueue. Queue size: \(self.filteredByPositionQueue.count).", verbosity: 4)
+                    LogManager.shared.logData(context: "LocationManager", content: "Added location to filteredByPositionQueue. Queue size: \(self.filteredByPositionQueue.count).", verbosity: 4)
                 }
-                 FileManagerUtil.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m < \(customDistanceFilter)m) or Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
+                 LogManager.shared.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m < \(customDistanceFilter)m) or Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
                  
                 let intervalMinutes = SettingsManager.shared.stationaryStepsUpdateInterval
                 if intervalMinutes > 0, let lastCheck = self.lastPedometerCheckDate, Date().timeIntervalSince(lastCheck) >= Double(intervalMinutes * 60) {
-                    FileManagerUtil.logData(context: "LocationManager", content: "Triggering steps update from background location update since we are skipping points.", verbosity: 4)
+                    LogManager.shared.logData(context: "LocationManager", content: "Triggering steps update from background location update since we are skipping points.", verbosity: 4)
                     self.updateStationarySteps()
                 }
             }
@@ -396,7 +396,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             // No previous location means this is the first update ever
             if timeSinceLastUpdate >= minimumUpdateInterval
             {
-                FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) threshold met.", verbosity: 4)
+                LogManager.shared.logData(context: "LocationManager", content: "Decision: Adding Moving point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s >= \(minimumUpdateInterval)s) threshold met.", verbosity: 4)
                 adjustSettingsForMovement()
                 currentFilteredLocation = newLocation
                 appendLocationToFile(type: .moving, debug: "No PreviousLocation")
@@ -406,10 +406,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
                 if !self.filteredByPositionQueue.isEmpty {
                     self.filteredByPositionQueue.removeAll()
-                    FileManagerUtil.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added (no previous location).", verbosity: 4)
+                    LogManager.shared.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added (no previous location).", verbosity: 4)
                 }
             } else {
-                FileManagerUtil.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
+                LogManager.shared.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
             }
             self.previousSavedLocation = newLocation
         }
@@ -419,7 +419,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let executionTime = endTime.timeIntervalSince(functionStartTime)
         let executionTimeString = String(format: "%.10f", executionTime)
         let logContent = "Execution time: \(executionTimeString) seconds - Call count: \(locationManagerCallCount)"
-        FileManagerUtil.logData(context: "LocationUpdate", content: logContent, verbosity: 5)
+        LogManager.shared.logData(context: "LocationUpdate", content: logContent, verbosity: 5)
         
         ResourceTracker.shared.logResourceEvent(
             context: "LocationUpdate", 
@@ -431,7 +431,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         stopStationaryStepsUpdateTimer()
         self.cancelUnknownPlaceCheckInNotification()
         locationManager.stopUpdatingLocation()
-        FileManagerUtil.logData(context: "LocationManager", content: "Adjusting settings for movement. DistanceFilter: 20m.", verbosity: 4)
+        LogManager.shared.logData(context: "LocationManager", content: "Adjusting settings for movement. DistanceFilter: 20m.", verbosity: 4)
         locationManager.desiredAccuracy = SettingsManager.shared.movingLocationAccuracyLevel.clLocationAccuracy
         locationManager.startUpdatingLocation()
         customDistanceFilter = movingDistanceFilterConstant
@@ -470,7 +470,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 let steps = pedometerData.numberOfSteps.intValue
                 DispatchQueue.main.async {
                     if steps > 0 {
-                        FileManagerUtil.logData(context: "LocationManager", content: "Stationary steps update: fetched \(steps) steps.", verbosity: 4)
+                        LogManager.shared.logData(context: "LocationManager", content: "Stationary steps update: fetched \(steps) steps.", verbosity: 4)
                         GPXManager.shared.loadFile(forDate: Date()) { loadedGpxWaypoints, loadedGpxTracks in
                             if let lastElement = self.getMostRecentGPXElement(waypoints: loadedGpxWaypoints, tracks: loadedGpxTracks) {
                                 let existingSteps = Int(lastElement.extensions?["Steps"].text ?? "0") ?? 0
@@ -483,7 +483,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     self.lastPedometerCheckDate = Date()
                 }
             } else {
-                FileManagerUtil.logData(context: "LocationManager", content: "Stationary steps update error: \(error?.localizedDescription ?? "unknown error")", verbosity: 2)
+                LogManager.shared.logData(context: "LocationManager", content: "Stationary steps update error: \(error?.localizedDescription ?? "unknown error")", verbosity: 2)
             }
         }
     }
@@ -491,7 +491,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func adjustSettingsForStationary() {
         startStationaryStepsUpdateTimer()
         customDistanceFilter = stationaryDistanceFilterConstant // Reset custom distance filter for stationary
-        FileManagerUtil.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
+        LogManager.shared.logData(context: "LocationManager", content: "Decision: Adding Stationary point. Reason: Timer expired. Adjusting distance filter to \(customDistanceFilter)m.", verbosity: 4)
         appendLocationToFile(type: .stationary)
         UserDefaults.standard.set(LocationUpdateType.stationary.rawValue, forKey: "lastUpdateType")
         locationManager.stopUpdatingLocation()
@@ -503,13 +503,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func appendLocationToFile(type: LocationUpdateType, debug: String = "") {
         guard var location = currentFilteredLocation else {
             print("No location to save")
-            FileManagerUtil.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type.rawValue), Debug: '\(debug)'.", verbosity: 2)
+            LogManager.shared.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type.rawValue), Debug: '\(debug)'.", verbosity: 2)
             return
         }
 
         if type == .stationary, !filteredByPositionQueue.isEmpty {
             let queueSize = filteredByPositionQueue.count
-            FileManagerUtil.logData(context: "GPXAppend", content: "Averaging location for stationary point from a queue of \(queueSize) points.", verbosity: 4)
+            LogManager.shared.logData(context: "GPXAppend", content: "Averaging location for stationary point from a queue of \(queueSize) points.", verbosity: 4)
             let count = Double(queueSize)
             let avgLatitude = filteredByPositionQueue.reduce(0.0) { $0 + $1.coordinate.latitude } / count
             let avgLongitude = filteredByPositionQueue.reduce(0.0) { $0 + $1.coordinate.longitude } / count
@@ -528,14 +528,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         let appendAttemptTime = Date()
         let appendId = UUID().uuidString.prefix(8)
-        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type.rawValue), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
+        LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Attempting to append point at \(appendAttemptTime). Type: \(type.rawValue), Location: (\(location.coordinate.latitude), \(location.coordinate.longitude)), Debug: '\(debug)'.", verbosity: 3)
 
         if lastAppendCall != nil {
             let timeSinceLastAppend = appendAttemptTime.timeIntervalSince(lastAppendCall!)
-            FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounce check: Current time \(appendAttemptTime), lastAppendCall \(String(describing: lastAppendCall)), difference: \(timeSinceLastAppend) seconds.", verbosity: 5)
+            LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Debounce check: Current time \(appendAttemptTime), lastAppendCall \(String(describing: lastAppendCall)), difference: \(timeSinceLastAppend) seconds.", verbosity: 5)
             if timeSinceLastAppend < gpxAppendDebounceInterval {
                 print ("Cowardly refusing to double append – debouncing.")
-                FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type.rawValue).", verbosity: 4)
+                LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type.rawValue).", verbosity: 4)
                 return
             }
         }
@@ -551,21 +551,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     dispatchGroup.leave()
                 }
                 
-                FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Querying pedometer data from \(startDate) to \(Date()).", verbosity: 4)
+                LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Querying pedometer data from \(startDate) to \(Date()).", verbosity: 4)
                 if let pedometerData = data, error == nil {
                     self.latestPedometerSteps = pedometerData.numberOfSteps.intValue
                 } else {
                     print("Pedometer data error: \(error?.localizedDescription ?? "unknown error")")
                     self.latestPedometerSteps = -1
-                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Pedometer data error: \(error?.localizedDescription ?? "unknown error")", verbosity: 2)
+                    LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Pedometer data error: \(error?.localizedDescription ?? "unknown error")", verbosity: 2)
                 }
             }
         } else {
-            FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] No start date for pedometer query.", verbosity: 3)
+            LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] No start date for pedometer query.", verbosity: 3)
         }
         dispatchGroup.notify(queue: .main)
         {
-            FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Pedometer query finished. Proceeding with GPX file operations.", verbosity: 4)
+            LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Pedometer query finished. Proceeding with GPX file operations.", verbosity: 4)
             GPXManager.shared.loadFile(forDate: Date()) 
             {   loadedGpxWaypoints, loadedGpxTracks in
                
@@ -578,7 +578,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     stepsExtensionData["Steps"] = String(self.latestPedometerSteps)
                     if let lastElement = self.getMostRecentGPXElement(waypoints: gpxWaypoints, tracks: gpxTracks){
                         GPXUtils.updateExtension(for: lastElement, with: stepsExtensionData)
-                        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Added 'Steps' extension to last element: \(String(describing: lastElement.time)).", verbosity: 4)
+                        LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Added 'Steps' extension to last element: \(String(describing: lastElement.time)).", verbosity: 4)
                     }
                     self.lastPedometerCheckDate = Date()
                 }
@@ -586,9 +586,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     stepsExtensionData["Debug"] = "Steps error"
                     if let lastElement = self.getMostRecentGPXElement(waypoints: gpxWaypoints, tracks: gpxTracks){
                         GPXUtils.updateExtension(for: lastElement, with: stepsExtensionData)
-                        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Added 'Steps error' debug extension to last element: \(String(describing: lastElement.time)).", verbosity: 3)
+                        LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Added 'Steps error' debug extension to last element: \(String(describing: lastElement.time)).", verbosity: 3)
                     } else {
-                        FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Could not add 'Steps error' debug extension: No last element found.", verbosity: 2)
+                        LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Could not add 'Steps error' debug extension: No last element found.", verbosity: 2)
                     }
                 }
 
@@ -696,7 +696,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             maximumUnknownPoints: settings.automaticMergeUnknownTrackMaxPoints,
                             minimumKnownPoints: settings.automaticMergeKnownTrackMinimumPoints
                        ) {
-                        FileManagerUtil.logData(
+                        LogManager.shared.logData(
                             context: "AutomaticTrackMerge",
                             content: "[\(appendId)] Merged \(mergeResult.unknownPointCount)-point unknown track into \(mergeResult.knownType) track after it reached \(mergeResult.knownPointCount) known points.",
                             verbosity: 3
@@ -784,9 +784,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     userDefaults.synchronize()
                     self.dataHasBeenUpdated = true
                     self.lastUpdateTimestamp = Date.now
-                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type.rawValue). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
+                    LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Successfully appended point. Type: \(type.rawValue). Updated self.lastUpdateTimestamp to \(String(describing: self.lastUpdateTimestamp)).", verbosity: 3)
                 } else {
-                    FileManagerUtil.logData(context: "GPXAppend", content: "[\(appendId)] Failed to get UserDefaults.", verbosity: 2)
+                    LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Failed to get UserDefaults.", verbosity: 2)
                 }
             }
         }
@@ -821,7 +821,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         let totalTrackPoints = lastTrack.segments.reduce(0) { $0 + $1.points.count }
         guard totalTrackPoints <= settings.roundTripMaxPoints else {
-            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] Track has \(totalTrackPoints) points, exceeds max \(settings.roundTripMaxPoints). Not filtering.", verbosity: 4)
+            LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] Track has \(totalTrackPoints) points, exceeds max \(settings.roundTripMaxPoints). Not filtering.", verbosity: 4)
             return false
         }
 
@@ -829,7 +829,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
               let previousWaypointTime = previousWaypoint.time,
               previousWaypointTime < firstPointTime
         else {
-            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] No preceding waypoint found before the track. Not filtering.", verbosity: 4)
+            LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] No preceding waypoint found before the track. Not filtering.", verbosity: 4)
             return false
         }
 
@@ -849,7 +849,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let distance = newLocation.distance(from: previousLocation)
 
         guard distance <= radius else {
-            FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] New point is \(String(format: "%.1f", distance))m from previous waypoint, exceeds radius \(String(format: "%.1f", radius))m. Not filtering.", verbosity: 4)
+            LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] New point is \(String(format: "%.1f", distance))m from previous waypoint, exceeds radius \(String(format: "%.1f", radius))m. Not filtering.", verbosity: 4)
             return false
         }
 
@@ -868,7 +868,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         gpxTracks.removeLast()
 
-        FileManagerUtil.logData(context: "RoundTripFilter", content: "[\(appendId)] Round trip track filtered: \(totalTrackPoints) points, \(String(format: "%.1f", distance))m from previous waypoint (radius: \(String(format: "%.1f", radius))m). Transferred \(trackSteps) steps to previous waypoint (total: \(combinedSteps)). Track removed, new point not saved.", verbosity: 3)
+        LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] Round trip track filtered: \(totalTrackPoints) points, \(String(format: "%.1f", distance))m from previous waypoint (radius: \(String(format: "%.1f", radius))m). Transferred \(trackSteps) steps to previous waypoint (total: \(combinedSteps)). Track removed, new point not saved.", verbosity: 3)
 
         return true
     }
@@ -900,7 +900,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             mostRecentTime = trackpointTime
             elementType = "TrackPoint"
         }
-        FileManagerUtil.logData(context: "GPXUtil", content: "getMostRecentGPXElement found: Type: \(elementType), Time: \(String(describing: mostRecentTime)).", verbosity: 5)
+        LogManager.shared.logData(context: "GPXUtil", content: "getMostRecentGPXElement found: Type: \(elementType), Time: \(String(describing: mostRecentTime)).", verbosity: 5)
         return mostRecentElement
     }
 
@@ -927,7 +927,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let executionTime = endTime.timeIntervalSince(functionStartTime)
         let executionTimeString = String(format: "%.10f", executionTime)
         let logContent = "Execution time: \(executionTimeString) seconds"
-        FileManagerUtil.logData(context: "HeadingUpdate", content: logContent, verbosity: 5)
+        LogManager.shared.logData(context: "HeadingUpdate", content: logContent, verbosity: 5)
         
         ResourceTracker.shared.logResourceEvent(
             context: "HeadingUpdate", 

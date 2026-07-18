@@ -140,7 +140,10 @@ class SettingsManager {
     private let localBackupSaveCopyOnEditsKey = "localBackupSaveCopyOnEdits"
     private let localBackupRetentionDaysKey = "localBackupRetentionDays"
     private let localBackupRetentionVersionsKey = "localBackupRetentionVersions"
-    private let localBackupAlwaysRetainOriginalKey = "localBackupAlwaysRetainOriginal"    
+    private let localBackupAlwaysRetainOriginalKey = "localBackupAlwaysRetainOriginal"
+    private let logRetentionDaysKey = "logRetentionDays"
+    private let logSizeLimitMBKey = "logSizeLimitMB"
+    
     private init() {
         registerDefaults()
         migrateOldSettings()
@@ -195,8 +198,9 @@ class SettingsManager {
             localBackupSaveCopyOnEditsKey: true,
             localBackupRetentionDaysKey: -1,
             localBackupRetentionVersionsKey: -1,
-            localBackupAlwaysRetainOriginalKey: true
-
+            localBackupAlwaysRetainOriginalKey: true,
+            logRetentionDaysKey: -1,
+            logSizeLimitMBKey: 10
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -606,6 +610,21 @@ class SettingsManager {
         set { defaults.set(newValue, forKey: localBackupAlwaysRetainOriginalKey) }
     }
 
+    var logRetentionDays: Int {
+        get {
+            // Provide a default of -1 if it was registered but let's just return what defaults gives.
+            // Wait, registerDefaults already provides -1.
+            return defaults.integer(forKey: logRetentionDaysKey)
+        }
+        set { defaults.set(newValue, forKey: logRetentionDaysKey) }
+    }
+
+    var logSizeLimitMB: Int {
+        get {
+            return defaults.integer(forKey: logSizeLimitMBKey)
+        }
+        set { defaults.set(newValue, forKey: logSizeLimitMBKey) }
+    }
 
     func apiKey(for provider: PlaceProvider) -> String {
         return defaults.string(forKey: provider.settingsKey) ?? ""

@@ -95,7 +95,7 @@ struct ContentView: View {
                         .onChange(of: isMapVisible) { _, newValue in
                             let detail = "Map visibility changed. visible=\(newValue), scenePhase=\(scenePhase), isMapCollapsed=\(isMapCollapsed), currentMapHeight=\(optionalCGFloatDescription(currentMapHeight)), mapFrameHeight=\(optionalCGFloatDescription(mapFrameHeight)), topSlotHeight=\(optionalCGFloatDescription(topSlotHeight))"
                             DiagnosticsStateStore.shared.update(section: "MapRender", detail: detail)
-                            FileManagerUtil.logData(
+                            LogManager.shared.logData(
                                 context: "ContentView",
                                 content: detail,
                                 verbosity: 4
@@ -334,7 +334,7 @@ struct ContentView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
                 let currentTime = Date()
-                FileManagerUtil.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
+                LogManager.shared.logData(context: "ContentView", content: "🔔 Received loadTodayData notification at \(currentTime). Current selectedDate: \(selectedDate), switching to today's date.", verbosity: 1)
                 logContentSnapshot("Before handling loadTodayData notification")
                 selectedDate = Date()
                 scrollPositions.removeAll()
@@ -344,7 +344,7 @@ struct ContentView: View {
                 refreshData()
                 centerAllData()
                 logContentSnapshot("After handling loadTodayData notification")
-                FileManagerUtil.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
+                LogManager.shared.logData(context: "ContentView", content: "✅ Completed loading today's data.", verbosity: 1)
             }
         }
         .onAppear {
@@ -556,7 +556,7 @@ struct ContentView: View {
 
     private func centerAllData() {
         let allCoordinates = timelineObjects.flatMap { $0.identifiableCoordinates.flatMap { $0.coordinates } }
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "ContentView",
             content: "centerAllData called. coordinateCount=\(allCoordinates.count), lastMapSize=\(sizeDescription(lastMapSize)), network={\(NetworkDiagnostics.shared.snapshot())}",
             verbosity: 5
@@ -608,7 +608,7 @@ struct ContentView: View {
         let span = calculateSpan(for: displayCoords, mapSize: mapSize, buttonInset: mapButtonInset)
         
         cameraPosition = MapCameraPosition.region(MKCoordinateRegion(center: centerCoordinate, span: span))
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "ContentView",
             content: "Map recentered. coordinateCount=\(coordinates.count), center=(\(centerCoordinate.latitude),\(centerCoordinate.longitude)), span=(\(span.latitudeDelta),\(span.longitudeDelta)), mapSize=\(sizeDescription(mapSize))",
             verbosity: 5
@@ -627,13 +627,13 @@ struct ContentView: View {
             if let earliestDate = earliest, let latestDate = latest {
                 minDate = earliestDate
                 maxDate = latestDate
-                FileManagerUtil.logData(
+                LogManager.shared.logData(
                     context: "ContentView",
                     content: "Date range refreshed for \(requestedDate). minDate=\(earliestDate), maxDate=\(latestDate)",
                     verbosity: 5
                 )
             } else {
-                FileManagerUtil.logData(
+                LogManager.shared.logData(
                     context: "ContentView",
                     content: "Date range refresh returned empty range for \(requestedDate).",
                     verbosity: 5
@@ -649,7 +649,7 @@ struct ContentView: View {
                 .filter { $0.type == .track }
                 .flatMap(\.identifiableCoordinates)
                 .reduce(0) { $0 + $1.coordinates.count }
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: "ContentView",
                 content: "refreshData finished for \(requestedDate) in \(String(format: "%.3f", elapsed))s. objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), currentSelectedDate=\(selectedDate), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
                 verbosity: 4
@@ -667,7 +667,7 @@ struct ContentView: View {
 
         let snapshot = "\(reason). scenePhase=\(scenePhase), selectedDate=\(selectedDate), objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), selectedObject=\(selectedTimelineObjectID?.uuidString ?? "nil"), selectedGroups=\(selectedGroupIDs.count), settingsSheet=\(showSettings), organizePrompt=\(showOrganizePrompt), editMode=\(isEditMode), selectedEditItems=\(selectedEditItems.count), mapPanelHeight=\(optionalCGFloatDescription(mapPanelHeight)), lastMapSize=\(sizeDescription(lastMapSize)), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}"
         DiagnosticsStateStore.shared.update(section: "ContentView", detail: snapshot)
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "ContentView",
             content: snapshot,
             verbosity: verbosity
@@ -832,7 +832,7 @@ struct ContentView: View {
         guard let timestampVal = userInfo["waypointTimestamp"] as? TimeInterval else { return }
         let targetDate = Date(timeIntervalSince1970: timestampVal)
         
-        FileManagerUtil.logData(context: "ContentView", content: "Handling unknown place notification for timestamp: \(targetDate)", verbosity: 3)
+        LogManager.shared.logData(context: "ContentView", content: "Handling unknown place notification for timestamp: \(targetDate)", verbosity: 3)
         
         // 1. Set the selected date to match the target date
         self.selectedDate = targetDate
@@ -848,9 +848,9 @@ struct ContentView: View {
             }) {
                 // 4. Open the edit sheet
                 self.editingWaypointFromNotification = matchingObj
-                FileManagerUtil.logData(context: "ContentView", content: "Deep-linked to EditVisitView for waypoint: \(matchingObj.id)", verbosity: 3)
+                LogManager.shared.logData(context: "ContentView", content: "Deep-linked to EditVisitView for waypoint: \(matchingObj.id)", verbosity: 3)
             } else {
-                FileManagerUtil.logData(context: "ContentView", content: "Failed to find matching waypoint in loaded timeline for \(targetDate)", verbosity: 2)
+                LogManager.shared.logData(context: "ContentView", content: "Failed to find matching waypoint in loaded timeline for \(targetDate)", verbosity: 2)
             }
         }
     }

@@ -39,12 +39,12 @@ class LocalBackupManager {
             
             let backupURL = backupsDir.appendingPathComponent(backupFileName)
             try fileManager.copyItem(at: originalFileURL, to: backupURL)
-            FileManagerUtil.logData(context: "LocalBackupManager", content: "Created backup at \(backupType)/\(dateString)/\(backupFileName)", verbosity: 3)
+            LogManager.shared.logData(context: "LocalBackupManager", content: "Created backup at \(backupType)/\(dateString)/\(backupFileName)", verbosity: 3)
             
             enforceRetentionPolicies(forDate: date, backupType: backupType, fileExtension: fileExt)
             
         } catch {
-            FileManagerUtil.logData(context: "LocalBackupManager", content: "Failed to create backup: \(error)", verbosity: 1)
+            LogManager.shared.logData(context: "LocalBackupManager", content: "Failed to create backup: \(error)", verbosity: 1)
         }
     }
     
@@ -112,7 +112,7 @@ class LocalBackupManager {
             do {
                 try fileManager.removeItem(at: backupsDir)
             } catch {
-                FileManagerUtil.logData(context: "LocalBackupManager", content: "Failed to delete empty backup directory: \(error)", verbosity: 1)
+                LogManager.shared.logData(context: "LocalBackupManager", content: "Failed to delete empty backup directory: \(error)", verbosity: 1)
             }
         }
     }
@@ -157,9 +157,9 @@ class LocalBackupManager {
     private func deleteFile(at url: URL) {
         do {
             try fileManager.removeItem(at: url)
-            FileManagerUtil.logData(context: "LocalBackupManager", content: "Deleted backup file due to retention policy: \(url.lastPathComponent)", verbosity: 4)
+            LogManager.shared.logData(context: "LocalBackupManager", content: "Deleted backup file due to retention policy: \(url.lastPathComponent)", verbosity: 4)
         } catch {
-            FileManagerUtil.logData(context: "LocalBackupManager", content: "Failed to delete old backup file: \(error)", verbosity: 1)
+            LogManager.shared.logData(context: "LocalBackupManager", content: "Failed to delete old backup file: \(error)", verbosity: 1)
         }
     }
 }

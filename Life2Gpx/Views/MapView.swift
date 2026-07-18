@@ -309,7 +309,7 @@ struct MapView: View {
 
         let snapshot = "\(reason). selectedDate=\(selectedDate), tracks=\(tracks.count), polylines=\(polylineCount), maxPolylinePoints=\(maxPolylinePoints), totalPolylinePoints=\(totalPolylinePoints), selectedTrackPoints=\(selectedTrackPoints), waypoints=\(waypointCount), selectedObject=\(selectedTimelineObjectID?.uuidString ?? "nil"), selectedGroups=\(selectedGroupIDs.count), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}"
         DiagnosticsStateStore.shared.update(section: "MapView", detail: snapshot)
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "MapView",
             content: snapshot,
             verbosity: 5

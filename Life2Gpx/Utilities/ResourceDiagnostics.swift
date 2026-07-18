@@ -95,7 +95,7 @@ enum ResourceDiagnostics {
             section: "Memory",
             detail: "\(context): \(detail) \(memorySnapshot())"
         )
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: context,
             content: "\(detail) \(memorySnapshot())",
             verbosity: verbosity
@@ -126,7 +126,7 @@ enum ResourceDiagnostics {
             section: "Runtime",
             detail: "\(context): \(detail) \(runtimeSnapshot())"
         )
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: context,
             content: "\(detail) \(runtimeSnapshot())",
             verbosity: verbosity
@@ -220,7 +220,7 @@ final class DiagnosticsStateStore {
 
 enum ResourceLogDumpBuilder {
     static func writeReport(trigger: String = "manual settings button") throws -> URL {
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "Diagnostics",
             content: "Resource log report requested. trigger=\(trigger)",
             verbosity: 1
@@ -235,7 +235,7 @@ enum ResourceLogDumpBuilder {
         let reportURL = reportsDirectory.appendingPathComponent("Life2Gpx-resource-dump-\(formatter.string(from: Date())).txt")
         try buildReport(trigger: trigger).write(to: reportURL, atomically: true, encoding: .utf8)
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "Diagnostics",
             content: "Resource log report written to \(reportURL.path)",
             verbosity: 1
@@ -420,7 +420,7 @@ final class NetworkDiagnostics {
         }
         monitor.start(queue: queue)
 
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "NetworkDiagnostics",
             content: "NWPathMonitor started. Initial path: \(snapshot())",
             verbosity: 4
@@ -448,7 +448,7 @@ final class NetworkDiagnostics {
         lock.unlock()
 
         let verbosity = previousSnapshot == "not-started" || previousSnapshot != newSnapshot ? 4 : 5
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "NetworkDiagnostics",
             content: "Path update: \(newSnapshot)",
             verbosity: verbosity
@@ -552,7 +552,7 @@ final class MemoryWatchdog {
         }
         source.resume()
         timer = source
-        FileManagerUtil.logData(
+        LogManager.shared.logData(
             context: "MemoryWatchdog",
             content: "Started. Sampling every \(Int(sampleInterval))s. Warning at <\(Int(warningThresholdMB))MB, critical at <\(Int(criticalThresholdMB))MB available.",
             verbosity: 4
@@ -575,19 +575,19 @@ final class MemoryWatchdog {
         let declining = samples.count == trendWindow && samples == samples.sorted(by: >)
 
         if available < criticalThresholdMB {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: "MemoryWatchdog",
                 content: "🚨 CRITICAL: available=\(String(format: "%.0f", available))MB resident=\(String(format: "%.0f", resident))MB — app likely to be terminated soon. Declining trend: \(declining)",
                 verbosity: 4
             )
         } else if available < warningThresholdMB {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: "MemoryWatchdog",
                 content: "⚠️ WARNING: available=\(String(format: "%.0f", available))MB resident=\(String(format: "%.0f", resident))MB — memory pressure building. Declining trend: \(declining)",
                 verbosity: 4
             )
         } else if declining {
-            FileManagerUtil.logData(
+            LogManager.shared.logData(
                 context: "MemoryWatchdog",
                 content: "Memory declining for \(trendWindow) consecutive samples: available=\(String(format: "%.0f", available))MB resident=\(String(format: "%.0f", resident))MB",
                 verbosity: 4
@@ -733,7 +733,7 @@ final class ResourceTracker {
                 }
             }
         } catch {
-            FileManagerUtil.logData(context: "ResourceTracker", content: "Failed to write resource event: \(error)", verbosity: 2)
+            LogManager.shared.logData(context: "ResourceTracker", content: "Failed to write resource event: \(error)", verbosity: 2)
         }
     }
 }

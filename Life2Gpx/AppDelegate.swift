@@ -17,20 +17,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func application(_ application: UIApplication, willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        FileManagerUtil.logData(context: "AppLifecycle", content: "WillFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
+        LogManager.shared.logData(context: "AppLifecycle", content: "WillFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
         return true
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        FileManagerUtil.logData(context: "AppLifecycle", content: "DidFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
+        LogManager.shared.logData(context: "AppLifecycle", content: "DidFinishLaunchingWithOptions called at \(Date())", verbosity: 1)
         NetworkDiagnostics.shared.start()
         ResourceDiagnostics.logRuntime(
             context: "AppLifecycle",
             detail: "Launch runtime snapshot."
         )
         if let options = launchOptions, options[.location] != nil {
-            FileManagerUtil.logData(context: "AppLifecycle", content: "App launched due to location update.", verbosity: 2)
+            LogManager.shared.logData(context: "AppLifecycle", content: "App launched due to location update.", verbosity: 2)
         }
         
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.DeltaCygniLabs.Life2Gpx.backup", using: nil) { task in
@@ -100,7 +100,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
-        FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationWillTerminate called at \(Date())", verbosity: 1)
+        LogManager.shared.logData(context: "AppLifecycle", content: "ApplicationWillTerminate called at \(Date())", verbosity: 1)
         ResourceDiagnostics.logRuntime(
             context: "AppLifecycle",
             detail: "ApplicationWillTerminate runtime snapshot."
@@ -110,11 +110,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // This is NOT called on a crash, which is exactly what we want.
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ["DeadMansSwitch"])
-        FileManagerUtil.logData(context: "AppLifecycle", content: "Cancelled DeadMansSwitch on manual termination.", verbosity: 2)
+        LogManager.shared.logData(context: "AppLifecycle", content: "Cancelled DeadMansSwitch on manual termination.", verbosity: 2)
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationDidEnterBackground called at \(Date())", verbosity: 2)
+        LogManager.shared.logData(context: "AppLifecycle", content: "ApplicationDidEnterBackground called at \(Date())", verbosity: 2)
         ResourceDiagnostics.logRuntime(
             context: "AppLifecycle",
             detail: "ApplicationDidEnterBackground runtime snapshot."
@@ -138,9 +138,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         do {
             try BGTaskScheduler.shared.submit(request)
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Scheduled backup task.", verbosity: 3)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Scheduled backup task.", verbosity: 3)
         } catch {
-            FileManagerUtil.logData(context: "iCloudBackup", content: "Could not schedule backup task: \(error)", verbosity: 1)
+            LogManager.shared.logData(context: "iCloudBackup", content: "Could not schedule backup task: \(error)", verbosity: 1)
         }
     }
 
@@ -164,7 +164,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-        FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationWillEnterForeground called at \(Date())", verbosity: 2)
+        LogManager.shared.logData(context: "AppLifecycle", content: "ApplicationWillEnterForeground called at \(Date())", verbosity: 2)
         ResourceDiagnostics.logRuntime(
             context: "AppLifecycle",
             detail: "ApplicationWillEnterForeground runtime snapshot."
@@ -172,7 +172,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationDidBecomeActive called at \(Date())", verbosity: 2)
+        LogManager.shared.logData(context: "AppLifecycle", content: "ApplicationDidBecomeActive called at \(Date())", verbosity: 2)
         ResourceDiagnostics.logRuntime(
             context: "AppLifecycle",
             detail: "ApplicationDidBecomeActive runtime snapshot."
@@ -180,7 +180,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
-        FileManagerUtil.logData(context: "AppLifecycle", content: "ApplicationWillResignActive called at \(Date())", verbosity: 2)
+        LogManager.shared.logData(context: "AppLifecycle", content: "ApplicationWillResignActive called at \(Date())", verbosity: 2)
         ResourceDiagnostics.logRuntime(
             context: "AppLifecycle",
             detail: "ApplicationWillResignActive runtime snapshot."
@@ -197,7 +197,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let identifier = response.notification.request.identifier
         let userInfo = response.notification.request.content.userInfo
         
-        FileManagerUtil.logData(context: "AppLifecycle", content: "Notification received. Identifier: \(identifier)", verbosity: 3)
+        LogManager.shared.logData(context: "AppLifecycle", content: "Notification received. Identifier: \(identifier)", verbosity: 3)
         
         if identifier == "UnknownPlaceCheckIn" {
             NotificationManager.shared.handleNotificationTap(userInfo: userInfo)
