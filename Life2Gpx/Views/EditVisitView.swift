@@ -480,6 +480,40 @@ struct EditVisitView: View {
             }
         }
         .onChange(of: selectedPlace) { _, newPlace in
+            let placeRelatedKeys = [
+                GPXExtensionKey.placeId.rawValue,
+                GPXExtensionKey.address.rawValue,
+                GPXExtensionKey.facebookPlaceId.rawValue,
+                GPXExtensionKey.mapboxPlaceId.rawValue,
+                GPXExtensionKey.foursquareVenueId.rawValue,
+                GPXExtensionKey.foursquareCategoryId.rawValue,
+                GPXExtensionKey.googlePlacesId.rawValue,
+                GPXExtensionKey.yelpId.rawValue,
+                GPXExtensionKey.applePlaceId.rawValue,
+                GPXExtensionKey.osmNodeId.rawValue,
+                GPXExtensionKey.herePlaceId.rawValue,
+                GPXExtensionKey.gaodePlaceId.rawValue
+            ]
+            
+            for key in placeRelatedKeys {
+                editedExtensions.removeValue(forKey: key)
+            }
+            
+            if let place = newPlace {
+                editedExtensions[GPXExtensionKey.placeId.rawValue] = place.placeId
+                if let address = place.streetAddress { editedExtensions[GPXExtensionKey.address.rawValue] = address }
+                if let fbId = place.facebookPlaceId { editedExtensions[GPXExtensionKey.facebookPlaceId.rawValue] = fbId }
+                if let mapboxId = place.mapboxPlaceId { editedExtensions[GPXExtensionKey.mapboxPlaceId.rawValue] = mapboxId }
+                if let foursquareId = place.foursquareVenueId { editedExtensions[GPXExtensionKey.foursquareVenueId.rawValue] = foursquareId }
+                if let categoryId = place.foursquareCategoryId { editedExtensions[GPXExtensionKey.foursquareCategoryId.rawValue] = categoryId }
+                if let googleId = place.googlePlacesId { editedExtensions[GPXExtensionKey.googlePlacesId.rawValue] = googleId }
+                if let yelpId = place.yelpId { editedExtensions[GPXExtensionKey.yelpId.rawValue] = yelpId }
+                if let appleId = place.applePlaceId { editedExtensions[GPXExtensionKey.applePlaceId.rawValue] = appleId }
+                if let osmId = place.osmNodeId { editedExtensions[GPXExtensionKey.osmNodeId.rawValue] = osmId }
+                if let hereId = place.herePlaceId { editedExtensions[GPXExtensionKey.herePlaceId.rawValue] = hereId }
+                if let gaodeId = place.gaodePlaceId { editedExtensions[GPXExtensionKey.gaodePlaceId.rawValue] = gaodeId }
+            }
+
             if let place = newPlace, let coordinate = currentCoordinate {
                 let displayCoord = CoordinateConverter.forMapDisplay(coordinate)
                 let displayPlace = CoordinateConverter.forMapDisplay(place.centerCoordinate)
