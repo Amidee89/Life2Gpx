@@ -199,8 +199,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         ]
         content.userInfo = userInfo
         
-        let minutes = SettingsManager.shared.unknownPlaceNotificationMinutes
-        let triggerSeconds = Double(minutes) * 60.0
+        let triggerSeconds = SettingsManager.shared.unknownPlaceNotificationSeconds
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: triggerSeconds, repeats: false)
         let request = UNNotificationRequest(identifier: "UnknownPlaceCheckIn", content: content, trigger: trigger)
@@ -209,7 +208,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if let error = error {
                 LogManager.shared.logData(context: "LocationManager", content: "Error scheduling UnknownPlaceCheckIn: \(error.localizedDescription)", verbosity: 2)
             } else {
-                LogManager.shared.logData(context: "LocationManager", content: "Scheduled UnknownPlaceCheckIn in \(minutes) minutes (\(triggerSeconds)s) for waypoint at \(waypointTime).", verbosity: 3)
+                LogManager.shared.logData(context: "LocationManager", content: "Scheduled UnknownPlaceCheckIn in \(SettingsManager.shared.unknownPlaceNotificationValue) \(SettingsManager.shared.unknownPlaceNotificationUnit) (\(triggerSeconds)s) for waypoint at \(waypointTime).", verbosity: 3)
             }
         }
     }

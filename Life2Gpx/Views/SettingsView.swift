@@ -26,7 +26,8 @@ struct SettingsView: View {
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
-    @AppStorage("unknownPlaceNotificationMinutes") private var unknownPlaceNotificationMinutes: Int = 10
+    @AppStorage("unknownPlaceNotificationValue") private var unknownPlaceNotificationValue: Int = SettingsManager.shared.unknownPlaceNotificationValue
+    @AppStorage("unknownPlaceNotificationUnit") private var unknownPlaceNotificationUnit: String = SettingsManager.shared.unknownPlaceNotificationUnit
     @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
     @AppStorage("minimumUpdateInterval") private var minimumUpdateInterval: Int = SettingsManager.shared.minimumUpdateInterval
     @AppStorage("stationaryDetectionTimer") private var stationaryDetectionTimer: Int = SettingsManager.shared.stationaryDetectionTimer
@@ -58,6 +59,7 @@ struct SettingsView: View {
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
     @State private var diagnosticReportError: String?
     @State private var showDiagnosticReportError = false
+    @State private var showAdvancedAppearance = false
 
     private let timeUnits = ["seconds", "minutes", "hours", "days"]
     
@@ -92,6 +94,8 @@ struct SettingsView: View {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Disable tracking", isOn: $disableTracking)
+
+                        .fixedSize(horizontal: false, vertical: true)
                         .tint(.red)
                     
                     Text("Disable all realtime tracking from the app")
@@ -102,99 +106,108 @@ struct SettingsView: View {
             }
             .listRowBackground(disableTracking ? Color.red.opacity(0.1) : nil)
             
-            Section(header: Text("Logging")) {
-                Text("Adjust the level of detail for application logs.")
-                
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("Verbosity Level:")
-                        Spacer()
-                        Text("\(debugLogVerbosity)")
+            Section(header: Text("Layout and appearance")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Show pictures in timeline")
+                        .foregroundColor(.primary)
+
+                    Picker("Show pictures in timeline", selection: $timelinePictureDisplayMode) {
+                        ForEach(TimelinePictureDisplayMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
                     }
-                    Slider(value: Binding(
-                        get: { Double(debugLogVerbosity) },
-                        set: { debugLogVerbosity = Int($0) }
-                    ), in: 0...5, step: 1)
+                    .pickerStyle(.segmented)
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("0: None - No logs").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
-                        Text("1: Errors - Only critical errors").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
-                        Text("2: Warnings - Errors and warnings").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
-                        Text("3: Info - Basic operational information").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
-                        Text("4: Debug - Detailed debugging information").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
-                        Text("5: Trace - Highly detailed tracing").font(.caption)
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .foregroundColor(.gray)
-                    .padding(.top, 5)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("Retention Days")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text(logRetentionDays == -1 ? "Infinite" : "\(logRetentionDays)")
+                    Button("Advanced...") {
+                        withAnimation {
+                            showAdvancedAppearance.toggle()
                         }
-                        Slider(value: Binding(
-                            get: { indexForDays(logRetentionDays) },
-                            set: { logRetentionDays = daysSteps[Int($0)] }
-                        ), in: 0...Double(daysSteps.count - 1), step: 1)
-                        
-                        Text("Max days log files are retained.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
                     }
-                    .padding(.vertical, 4)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("Max Size (MB)")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text(logSizeLimitMB == -1 ? "Infinite" : "\(logSizeLimitMB)")
-                        }
-                        Slider(value: Binding(
-                            get: { indexForSizeMB(logSizeLimitMB) },
-                            set: { logSizeLimitMB = sizeStepsMB[Int($0)] }
-                        ), in: 0...Double(sizeStepsMB.count - 1), step: 1)
-                        
-                        Text("Limit the size of log files.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.vertical, 4)
+                    .padding(.top, 4)
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Track resource usage", isOn: $trackResourceUsage)
-                        
-                        Text("Record detailed battery, memory, and CPU usage during background activities over time.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                        
-                        NavigationLink(destination: ResourceUsageView()) {
-                            Text("View Resource Usage")
+                    if showAdvancedAppearance {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Photo Cache Memory Limit (MB)")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(photoCacheMemoryMB)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(photoCacheMemoryMB) },
+                                set: { photoCacheMemoryMB = Int($0) }
+                            ), in: 16...1024, step: 16)
                         }
-                        .padding(.top, 4)
-                    }
-                    .padding(.top, 10)
-                }
-                .padding(.vertical)
+                        .padding(.top, 8)
 
-                Button(action: resourceLogDump) {
-                    Label("Resource log dump", systemImage: "doc.text.magnifyingglass")
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Full Photo Cache Count")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(photoCacheCountLimit)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(photoCacheCountLimit) },
+                                set: { photoCacheCountLimit = Int($0) }
+                            ), in: 1...20, step: 1)
+                        }
+                    }
                 }
+                .padding(.vertical, 8)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Show times in local time zone")
+                        .foregroundColor(.primary)
+
+                    Picker("Show times in local time zone", selection: $timelineLocalTimeMode) {
+                        ForEach(TimelineLocalTimeMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.vertical, 8)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Activity Summary")
+                        .foregroundColor(.primary)
+
+                    Picker("Activity Summary", selection: $activitySummaryVisibility) {
+                        ForEach(ActivitySummaryVisibility.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    if activitySummaryVisibility != ActivitySummaryVisibility.dontShow.rawValue {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Distance Threshold (meters)")
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(activitySummaryDistanceThreshold)")
+                            }
+                            Slider(value: Binding(
+                                get: { Double(activitySummaryDistanceThreshold) },
+                                set: { activitySummaryDistanceThreshold = Int($0) }
+                            ), in: 0...5000, step: 50)
+                            
+                            Text("Activities below this distance will not be included in the summary.")
+                                .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.top, 8)
+                    }
+                }
+                .padding(.vertical, 8)
             }
             
             Section(header: Text("iCloud Backup")) {
                 Toggle("Enable iCloud Backup", isOn: $iCloudBackupEnabled)
+
+                    .fixedSize(horizontal: false, vertical: true)
                 
                 if iCloudBackupEnabled {
                     Picker("Backup Frequency", selection: $iCloudBackupMode) {
@@ -265,10 +278,14 @@ struct SettingsView: View {
             
             Section(header: Text("Local Backup")) {
                 Toggle("Save copy on edits", isOn: $localBackupSaveCopyOnEdits)
+
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("Creates automatically a copy of the gpx file in the backups folder before any edit is applied.")
                     .font(.caption)
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.gray)
+
+                if localBackupSaveCopyOnEdits {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -309,16 +326,152 @@ struct SettingsView: View {
                 .padding(.vertical, 4)
 
                 Toggle("Always retain original file", isOn: $localBackupAlwaysRetainOriginal)
+
+
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("The first version of a file is always kept no matter the retention options.")
                     .font(.caption)
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.gray)
+            
+                }
+            }
+            
+            Section(header: Text("App Behaviour")) {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading) {
+                        Text("Auto-load current day after")
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 4) {
+                            TextField("Value", value: $loadCurrentDayOnRestoreAfterValue, format: .number)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                .frame(maxWidth: 80)
+                                .focused($valueFieldIsFocused) // Apply focus state
+                            
+                            Picker("", selection: $loadCurrentDayOnRestoreAfterUnit) {
+                                ForEach(timeUnits, id: \.self) { unit in
+                                    Text(unit).tag(unit)
+                                }
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                            .fixedSize(horizontal: true, vertical: false)
+                            .labelsHidden()
+                            
+                            Spacer()
+                        }
+                        
+                        Text("The app will load today's data if it has been in the background for longer than this interval.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Default new place radius (meters)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(defaultNewPlaceRadius)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(defaultNewPlaceRadius) },
+                            set: { defaultNewPlaceRadius = Int($0) }
+                        ), in: 10...1000, step: 10)
+                        Text("Default size of the circular region for a newly created place.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Find close places limit")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(findClosePlacesLimit)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(findClosePlacesLimit) },
+                            set: { findClosePlacesLimit = Int($0) }
+                        ), in: 1...50, step: 1)
+                        Text("Maximum number of nearby places to show when matching an unknown location.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
+
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Add up steps when merging to visit", isOn: $mergeVisitAddSteps)
+
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Send notification to check in unknown places", isOn: $sendNotificationOnUnknownPlace)
+
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        if sendNotificationOnUnknownPlace {
+                            HStack(spacing: 4) {
+                                Text("After")
+                                TextField("Value", value: $unknownPlaceNotificationValue, format: .number)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.numberPad)
+                                    .frame(maxWidth: 80)
+                                    .focused($valueFieldIsFocused)
+                                
+                                Picker("", selection: $unknownPlaceNotificationUnit) {
+                                    ForEach(timeUnits, id: \.self) { unit in
+                                        Text(unit).tag(unit)
+                                    }
+                                }
+                                .pickerStyle(MenuPickerStyle())
+                                .fixedSize(horizontal: true, vertical: false)
+                                .labelsHidden()
+                                
+                                Spacer()
+                            }
+                        }
+                        
+                        Text("A notification will be sent when you are in an unknown place for longer than this duration.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Notify if the app seems to have stopped", isOn: $enableDeadMansSwitch)
+
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Sends a local notification if background execution stops unexpectedly.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
             }
             
             Section(header: Text("Location Tracking")) {
-                Toggle("Warn me if the app seems to have crashed or kicked out of memory", isOn: $enableDeadMansSwitch)
-                    .padding(.bottom, 8)
-                    
+
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading) {
                         HStack {
@@ -412,191 +565,6 @@ struct SettingsView: View {
                 .padding(.vertical)
             }
             
-            Section(header: Text("App Behaviour")) {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading) {
-                        Text("Auto-load current day after")
-                            .foregroundColor(.primary)
-                        
-                        HStack(spacing: 4) {
-                            TextField("Value", value: $loadCurrentDayOnRestoreAfterValue, format: .number)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.numberPad)
-                                .frame(maxWidth: 80)
-                                .focused($valueFieldIsFocused) // Apply focus state
-                            
-                            Picker("", selection: $loadCurrentDayOnRestoreAfterUnit) {
-                                ForEach(timeUnits, id: \.self) { unit in
-                                    Text(unit).tag(unit)
-                                }
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                            .fixedSize(horizontal: true, vertical: false)
-                            .labelsHidden()
-                            
-                            Spacer()
-                        }
-                        
-                        Text("The app will load today's data if it has been in the background for longer than this interval.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        Text("Default new place radius (meters)")
-                            .foregroundColor(.primary)
-                        
-                        HStack {
-                            Text("\(defaultNewPlaceRadius)")
-                            Spacer()
-                        }
-                        Slider(value: Binding(
-                            get: { Double(defaultNewPlaceRadius) },
-                            set: { defaultNewPlaceRadius = Int($0) }
-                        ), in: 10...1000, step: 10)
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        Text("Find close places limit")
-                            .foregroundColor(.primary)
-                        
-                        HStack {
-                            Text("\(findClosePlacesLimit)")
-                            Spacer()
-                        }
-                        Slider(value: Binding(
-                            get: { Double(findClosePlacesLimit) },
-                            set: { findClosePlacesLimit = Int($0) }
-                        ), in: 1...50, step: 1)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Show pictures in timeline")
-                            .foregroundColor(.primary)
-
-                        Picker("Show pictures in timeline", selection: $timelinePictureDisplayMode) {
-                            ForEach(TimelinePictureDisplayMode.allCases) { mode in
-                                Text(mode.displayName).tag(mode.rawValue)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Show times in local time zone")
-                            .foregroundColor(.primary)
-
-                        Picker("Show times in local time zone", selection: $timelineLocalTimeMode) {
-                            ForEach(TimelineLocalTimeMode.allCases) { mode in
-                                Text(mode.displayName).tag(mode.rawValue)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Activity Summary")
-                            .foregroundColor(.primary)
-
-                        Picker("Activity Summary", selection: $activitySummaryVisibility) {
-                            ForEach(ActivitySummaryVisibility.allCases) { mode in
-                                Text(mode.displayName).tag(mode.rawValue)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        
-                        if activitySummaryVisibility != ActivitySummaryVisibility.dontShow.rawValue {
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Text("Distance Threshold (meters)")
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    Text("\(activitySummaryDistanceThreshold)")
-                                }
-                                Slider(value: Binding(
-                                    get: { Double(activitySummaryDistanceThreshold) },
-                                    set: { activitySummaryDistanceThreshold = Int($0) }
-                                ), in: 0...5000, step: 50)
-                                
-                                Text("Activities below this distance will not be included in the summary.")
-                                    .font(.caption)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.top, 8)
-                        }
-                    }
-
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Photo Cache Memory Limit (MB)")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(photoCacheMemoryMB)")
-                        }
-                        Slider(value: Binding(
-                            get: { Double(photoCacheMemoryMB) },
-                            set: { photoCacheMemoryMB = Int($0) }
-                        ), in: 16...1024, step: 16)
-                    }
-
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Full Photo Cache Count")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(photoCacheCountLimit)")
-                        }
-                        Slider(value: Binding(
-                            get: { Double(photoCacheCountLimit) },
-                            set: { photoCacheCountLimit = Int($0) }
-                        ), in: 1...20, step: 1)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
-                        
-                        Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Add up steps when merging to visit", isOn: $mergeVisitAddSteps)
-                        
-                        Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Send notification to check in unknown places", isOn: $sendNotificationOnUnknownPlace)
-                        
-                        if sendNotificationOnUnknownPlace {
-                            HStack(spacing: 4) {
-                                Text("After")
-                                TextField("Minutes", value: $unknownPlaceNotificationMinutes, format: .number)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .keyboardType(.numberPad)
-                                    .frame(maxWidth: 80)
-                                    .focused($valueFieldIsFocused)
-                                Text("minutes")
-                                Spacer()
-                            }
-                        }
-                        
-                        Text("A notification will be sent when you are in an unknown place for longer than this duration.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-                }
-                .padding(.vertical)
-            }
-
             Section(header: Text("Map")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Show current position on map")
@@ -683,10 +651,12 @@ struct SettingsView: View {
                 }
                 .padding(.vertical)
             }
-
+            
             Section(header: Text("Automatic Track Merging")) {
                 VStack(alignment: .leading, spacing: 16) {
                     Toggle("Automatically merge unknown to known type tracks", isOn: $automaticallyMergeUnknownToKnownTypeTracks)
+
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("When a known track becomes reliable, merge a small adjacent unknown track into it.")
                         .font(.caption)
@@ -737,6 +707,8 @@ struct SettingsView: View {
             Section(header: Text("Filter Small Round Trip Tracks")) {
                 VStack(alignment: .leading, spacing: 16) {
                     Toggle("Filter small round trip tracks", isOn: $filterSmallRoundTrips)
+
+                        .fixedSize(horizontal: false, vertical: true)
                     
                     Text("Do not save small tracks that end up in the same place as the starting point (often caused by GPS location errors).")
                         .font(.caption)
@@ -782,6 +754,91 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.vertical)
+            }
+            
+            Section(header: Text("Logging")) {
+                Text("Adjust the level of detail for application logs.")
+                
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("Verbosity Level:")
+                        Spacer()
+                        Text("\(debugLogVerbosity)")
+                    }
+                    Slider(value: Binding(
+                        get: { Double(debugLogVerbosity) },
+                        set: { debugLogVerbosity = Int($0) }
+                    ), in: 0...5, step: 1)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("0: None - No logs").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text("1: Errors - Only critical errors").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text("2: Warnings - Errors and warnings").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text("3: Info - Basic operational information").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text("4: Debug - Detailed debugging information").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        Text("5: Trace - Highly detailed tracing").font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundColor(.gray)
+                    .padding(.top, 5)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Retention Days")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text(logRetentionDays == -1 ? "Infinite" : "\(logRetentionDays)")
+                        }
+                        Slider(value: Binding(
+                            get: { indexForDays(logRetentionDays) },
+                            set: { logRetentionDays = daysSteps[Int($0)] }
+                        ), in: 0...Double(daysSteps.count - 1), step: 1)
+                        
+                    }
+                    .padding(.vertical, 4)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Max Size (MB)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text(logSizeLimitMB == -1 ? "Infinite" : "\(logSizeLimitMB)")
+                        }
+                        Slider(value: Binding(
+                            get: { indexForSizeMB(logSizeLimitMB) },
+                            set: { logSizeLimitMB = sizeStepsMB[Int($0)] }
+                        ), in: 0...Double(sizeStepsMB.count - 1), step: 1)
+                        
+                    }
+                    .padding(.vertical, 4)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Track resource usage", isOn: $trackResourceUsage)
+
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Record detailed battery, memory, and CPU usage during background activities over time.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                        
+                        NavigationLink(destination: ResourceUsageView()) {
+                            Text("View Resource Usage")
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(.top, 10)
+                }
+                .padding(.vertical)
+
+                Button(action: resourceLogDump) {
+                    Label("Resource log dump", systemImage: "doc.text.magnifyingglass")
+                }
             }
         }
         .navigationTitle("Settings")

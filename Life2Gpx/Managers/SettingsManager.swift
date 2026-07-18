@@ -112,7 +112,8 @@ class SettingsManager {
     private let suggestApplyToOtherPlacesKey = "suggestApplyToOtherPlaces"
     private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
     private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
-    private let unknownPlaceNotificationMinutesKey = "unknownPlaceNotificationMinutes"
+    private let unknownPlaceNotificationValueKey = "unknownPlaceNotificationValue"
+    private let unknownPlaceNotificationUnitKey = "unknownPlaceNotificationUnit"
     private let trackResourceUsageKey = "trackResourceUsage"
     private let minimumUpdateIntervalKey = "minimumUpdateInterval"
     private let stationaryDetectionTimerKey = "stationaryDetectionTimer"
@@ -167,12 +168,13 @@ class SettingsManager {
             askToOrganizeGpxFilesKey: true,
             gpxOverwriteExistingKey: false,
             gpxConflictResolutionKey: "keepExisting",
-            timelinePictureDisplayModeKey: TimelinePictureDisplayMode.small.rawValue,
+            timelinePictureDisplayModeKey: TimelinePictureDisplayMode.large.rawValue,
             mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue,
             suggestApplyToOtherPlacesKey: true,
             mergeVisitAddStepsKey: true,
             sendNotificationOnUnknownPlaceKey: true,
-            unknownPlaceNotificationMinutesKey: 10,
+            unknownPlaceNotificationValueKey: 10,
+            unknownPlaceNotificationUnitKey: "minutes",
             trackResourceUsageKey: false,
             minimumUpdateIntervalKey: 30,
             stationaryDetectionTimerKey: 120,
@@ -230,6 +232,15 @@ class SettingsManager {
             } else {
                 loadCurrentDayOnRestoreAfterValue = oldSeconds
                 loadCurrentDayOnRestoreAfterUnit = "seconds"
+            }
+        }
+        
+        if defaults.object(forKey: "unknownPlaceNotificationMinutes") != nil &&
+           defaults.object(forKey: unknownPlaceNotificationValueKey) == nil {
+            let oldMinutes = defaults.integer(forKey: "unknownPlaceNotificationMinutes")
+            if oldMinutes > 0 {
+                defaults.set(oldMinutes, forKey: unknownPlaceNotificationValueKey)
+                defaults.set("minutes", forKey: unknownPlaceNotificationUnitKey)
             }
         }
     }
@@ -396,8 +407,8 @@ class SettingsManager {
 
     var timelinePictureDisplayMode: TimelinePictureDisplayMode {
         get {
-            let raw = defaults.string(forKey: timelinePictureDisplayModeKey) ?? TimelinePictureDisplayMode.small.rawValue
-            return TimelinePictureDisplayMode(rawValue: raw) ?? .small
+            let raw = defaults.string(forKey: timelinePictureDisplayModeKey) ?? TimelinePictureDisplayMode.large.rawValue
+            return TimelinePictureDisplayMode(rawValue: raw) ?? .large
         }
         set {
             defaults.set(newValue.rawValue, forKey: timelinePictureDisplayModeKey)
@@ -468,9 +479,25 @@ class SettingsManager {
         set { defaults.set(newValue, forKey: sendNotificationOnUnknownPlaceKey) }
     }
 
-    var unknownPlaceNotificationMinutes: Int {
-        get { return max(1, defaults.integer(forKey: unknownPlaceNotificationMinutesKey)) }
-        set { defaults.set(max(1, newValue), forKey: unknownPlaceNotificationMinutesKey) }
+    var unknownPlaceNotificationValue: Int {
+        get { return max(1, defaults.integer(forKey: unknownPlaceNotificationValueKey)) }
+        set { defaults.set(max(1, newValue), forKey: unknownPlaceNotificationValueKey) }
+    }
+
+    var unknownPlaceNotificationUnit: String {
+        get { return defaults.string(forKey: unknownPlaceNotificationUnitKey) ?? "minutes" }
+        set { defaults.set(newValue, forKey: unknownPlaceNotificationUnitKey) }
+    }
+    
+    var unknownPlaceNotificationSeconds: Double {
+        let value = Double(unknownPlaceNotificationValue)
+        switch unknownPlaceNotificationUnit {
+        case "seconds": return value
+        case "minutes": return value * 60
+        case "hours": return value * 3600
+        case "days": return value * 86400
+        default: return value * 60
+        }
     }
 
     var trackResourceUsage: Bool {
