@@ -13,42 +13,76 @@ struct ManagementView: View {
     var body: some View {
         NavigationView {
             List {
-                NavigationLink(destination: ManagePlacesView()) {
-                    Text("Manage places")
+                Section {
+                    NavigationLink(destination: SettingsView()) {
+                        Text("Settings")
+                    }
                 }
-                NavigationLink(destination: FindDuplicatesView()) {
-                    Text("Find duplicate places")
+                
+                Section(header: Text("Places")) {
+                    NavigationLink(destination: ManagePlacesView()) {
+                        Text("Manage places")
+                    }
+                    NavigationLink(destination: FindDuplicatesView()) {
+                        Text("Find duplicate places")
+                    }
+                    NavigationLink(destination: APIKeysView()) {
+                        Text("Place data providers API keys")
+                    }
                 }
-                NavigationLink(destination: ImportPlacesView()) {
-                        Text("Import places")
+                
+                Section(header: Text("Customization")) {
+                    NavigationLink(destination: CategoryIconsView()) {
+                        Text("Category items")
+                    }
+                    NavigationLink(destination: TrackTypesSettingsView()) {
+                        Text("Track types")
+                    }
                 }
-                .overlay(alignment: .trailing) {
-                    
+                
+                Section {
+                    NavigationLink(destination: ImportSubmenuView()) {
+                        Text("Import")
+                    }
                 }
-                NavigationLink(destination: APIKeysView()) {
-                    Text("API Keys")
-                }
-                NavigationLink(destination: CategoryIconsView()) {
-                    Text("Category Icons")
-                }
-                NavigationLink(destination: TrackTypesSettingsView()) {
-                    Text("Track Types")
-                }
-                Text("Edit activity rules")
-                Text("GPX Tidy up")
-                NavigationLink(destination: FileManagementView()) {
-                    Text("File management")
-                }
-                NavigationLink(destination: SettingsView()) {
-                    Text("Settings")
-                }
-                Text("Data import instructions")
             }
             .navigationTitle("Options")
             .navigationBarItems(trailing: Button("Done") {
                 presentationMode.wrappedValue.dismiss()
             })
         }
+    }
+}
+
+struct ImportSubmenuView: View {
+    var body: some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Data import instructions")
+                        .font(.headline)
+                    Text("To start importing places, place Life2Gpx places.json files in the Import folder or the Place folder of an Arc backup in Import/Arc.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("To import GPX files, place them in the app's main folder. The GPX import will sort them into year folders.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            Section {
+                NavigationLink(destination: ImportPlacesView()) {
+                    Text("Import places")
+                }
+                NavigationLink(destination: FileManagementView()) {
+                    Text("Import GPX")
+                }
+                NavigationLink(destination: EmptyView()) {
+                    Text("Import Arc Backups")
+                }
+            }
+        }
+        .navigationTitle("Import")
     }
 }
 
