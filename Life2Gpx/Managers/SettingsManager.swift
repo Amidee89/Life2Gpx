@@ -136,7 +136,7 @@ struct GPXExportFields: Codable, Equatable {
     var comment: Bool = true
     var desc: Bool = true
     var source: Bool = true
-    var symbol: Bool = false
+    var symbol: Bool = true
     var type: Bool = true
     var fix: Bool = false
     var satellites: Bool = false
@@ -219,7 +219,7 @@ class SettingsManager {
     private let localBackupAlwaysRetainOriginalKey = "localBackupAlwaysRetainOriginal"
     private let logRetentionDaysKey = "logRetentionDays"
     private let logSizeLimitMBKey = "logSizeLimitMB"
-    private let gpxExportSettingsKey = "gpxExportSettingsV2"
+    private let gpxExportSettingsKey = "gpxExportSettings"
     
     private init() {
         registerDefaults()

@@ -503,6 +503,7 @@ class GPXUtils {
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
         LogManager.shared.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name).", verbosity: 4)
         updatedWaypoint.name = place.name
+        updatedWaypoint.symbol = place.icon
         
         var extensionData: [String: String] = [
             "PlaceId": place.placeId

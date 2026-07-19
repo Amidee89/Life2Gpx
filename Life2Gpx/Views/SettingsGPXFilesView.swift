@@ -2,7 +2,7 @@ import SwiftUI
 import CoreGPX
 
 struct SettingsGPXFilesView: View {
-    @AppStorage("gpxExportSettingsV2") private var exportSettings: GPXExportSettings = SettingsManager.shared.gpxExportSettings
+    @AppStorage("gpxExportSettings") private var exportSettings: GPXExportSettings = SettingsManager.shared.gpxExportSettings
     
     @State private var selectedElement: Int = 0
     
