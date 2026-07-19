@@ -7,94 +7,13 @@ private struct DiagnosticReportShareItem: Identifiable {
 }
 
 struct SettingsView: View {
-    @AppStorage("debugLogVerbosity") private var debugLogVerbosity: Int = SettingsManager.shared.debugLogVerbosity
-    @AppStorage("loadCurrentDayOnRestoreAfterValue") private var loadCurrentDayOnRestoreAfterValue: Int = SettingsManager.shared.loadCurrentDayOnRestoreAfterValue
-    @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
-    @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
-    @AppStorage("filterSmallRoundTrips") private var filterSmallRoundTrips: Bool = SettingsManager.shared.filterSmallRoundTrips
-    @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
-    @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
-    @AppStorage("automaticallyMergeUnknownToKnownTypeTracks") private var automaticallyMergeUnknownToKnownTypeTracks: Bool = SettingsManager.shared.automaticallyMergeUnknownToKnownTypeTracks
-    @AppStorage("automaticMergeUnknownTrackMaxPoints") private var automaticMergeUnknownTrackMaxPoints: Int = SettingsManager.shared.automaticMergeUnknownTrackMaxPoints
-    @AppStorage("automaticMergeKnownTrackMinimumPoints") private var automaticMergeKnownTrackMinimumPoints: Int = SettingsManager.shared.automaticMergeKnownTrackMinimumPoints
-    @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
-    @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeMode: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
-    @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
-    @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
-    @AppStorage("activitySummaryVisibility") private var activitySummaryVisibility: String = SettingsManager.shared.activitySummaryVisibility.rawValue
-    @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
-    @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
-    @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
-    @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
-    @AppStorage("unknownPlaceNotificationValue") private var unknownPlaceNotificationValue: Int = SettingsManager.shared.unknownPlaceNotificationValue
-    @AppStorage("unknownPlaceNotificationUnit") private var unknownPlaceNotificationUnit: String = SettingsManager.shared.unknownPlaceNotificationUnit
-    @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
-    @AppStorage("minimumUpdateInterval") private var minimumUpdateInterval: Int = SettingsManager.shared.minimumUpdateInterval
-    @AppStorage("stationaryDetectionTimer") private var stationaryDetectionTimer: Int = SettingsManager.shared.stationaryDetectionTimer
-    @AppStorage("stationaryStepsUpdateInterval") private var stationaryStepsUpdateInterval: Int = SettingsManager.shared.stationaryStepsUpdateInterval
-    @AppStorage("findClosePlacesLimit") private var findClosePlacesLimit: Int = SettingsManager.shared.findClosePlacesLimit
-    @AppStorage("placeSearchDefaultRadius") private var placeSearchDefaultRadius: Int = SettingsManager.shared.placeSearchDefaultRadius
-    @AppStorage("placeSearchKeywordRadius") private var placeSearchKeywordRadius: Int = SettingsManager.shared.placeSearchKeywordRadius
-    @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
-    @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
-    @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
     @AppStorage("disableTracking") private var disableTracking: Bool = SettingsManager.shared.disableTracking
-    @AppStorage("iCloudBackupEnabled") private var iCloudBackupEnabled: Bool = SettingsManager.shared.iCloudBackupEnabled
-    @AppStorage("iCloudBackupMode") private var iCloudBackupMode: String = SettingsManager.shared.iCloudBackupMode
-    @AppStorage("iCloudBackupIntervalValue") private var iCloudBackupIntervalValue: Int = SettingsManager.shared.iCloudBackupIntervalValue
-    @AppStorage("iCloudBackupIntervalUnit") private var iCloudBackupIntervalUnit: String = SettingsManager.shared.iCloudBackupIntervalUnit
-    @AppStorage("enableDeadMansSwitch") private var enableDeadMansSwitch: Bool = SettingsManager.shared.enableDeadMansSwitch
-    @AppStorage("stationaryLocationAccuracy") private var stationaryLocationAccuracy: Int = SettingsManager.shared.stationaryLocationAccuracy
-    @AppStorage("movingLocationAccuracy") private var movingLocationAccuracy: Int = SettingsManager.shared.movingLocationAccuracy
-    @AppStorage("localBackupSaveCopyOnEdits") private var localBackupSaveCopyOnEdits: Bool = SettingsManager.shared.localBackupSaveCopyOnEdits
-    @AppStorage("localBackupRetentionDays") private var localBackupRetentionDays: Int = SettingsManager.shared.localBackupRetentionDays
-    @AppStorage("localBackupRetentionVersions") private var localBackupRetentionVersions: Int = SettingsManager.shared.localBackupRetentionVersions
-    @AppStorage("localBackupAlwaysRetainOriginal") private var localBackupAlwaysRetainOriginal: Bool = SettingsManager.shared.localBackupAlwaysRetainOriginal
-    @AppStorage("logRetentionDays") private var logRetentionDays: Int = SettingsManager.shared.logRetentionDays
-    @AppStorage("logSizeLimitMB") private var logSizeLimitMB: Int = SettingsManager.shared.logSizeLimitMB
-    
-    @ObservedObject private var backupManager = iCloudBackupManager.shared
-
-    @FocusState private var valueFieldIsFocused: Bool
-    @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
-    @State private var diagnosticReportError: String?
-    @State private var showDiagnosticReportError = false
-    @State private var showAdvancedAppearance = false
-
-    private let timeUnits = ["seconds", "minutes", "hours", "days"]
-    
-    private let daysSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 60, 180, 365, -1]
-    private let versionsSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, -1]
-    private let sizeStepsMB = [1, 2, 5, 10, 20, 50, 100, -1]
-
-    private func indexForDays(_ value: Int) -> Double {
-        return Double(daysSteps.firstIndex(of: value) ?? (daysSteps.count - 1))
-    }
-    
-    private func indexForVersions(_ value: Int) -> Double {
-        return Double(versionsSteps.firstIndex(of: value) ?? (versionsSteps.count - 1))
-    }
-
-    private func indexForSizeMB(_ value: Int) -> Double {
-        return Double(sizeStepsMB.firstIndex(of: value) ?? (sizeStepsMB.count - 1))
-    }
-    
-    private var formattedLastBackupDate: String {
-        if let date = SettingsManager.shared.lastICloudBackupDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH:mm"
-            return formatter.string(from: date)
-        } else {
-            return "never"
-        }
-    }
 
     var body: some View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Disable tracking", isOn: $disableTracking)
-
                         .fixedSize(horizontal: false, vertical: true)
                         .tint(.red)
                     
@@ -106,6 +25,169 @@ struct SettingsView: View {
             }
             .listRowBackground(disableTracking ? Color.red.opacity(0.1) : nil)
             
+            Section {
+                NavigationLink("App behaviour and defaults", destination: SettingsAppBehaviourView())
+                NavigationLink("Timeline", destination: SettingsLayoutAppearanceView())
+                NavigationLink("Notifications", destination: SettingsNotificationsView())
+                NavigationLink("Backups", destination: SettingsBackupsView())
+                NavigationLink("Location and steps tracking", destination: SettingsLocationTrackingView())
+                NavigationLink("Place search and edit", destination: SettingsPlaceSearchView())
+                NavigationLink("Automatic cleanups", destination: SettingsAutomaticCleanupsView())
+                NavigationLink("Logging", destination: SettingsLoggingView())
+            }
+        }
+        .navigationTitle("Settings")
+    }
+}
+
+private let timeUnits = ["seconds", "minutes", "hours", "days"]
+private let daysSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 60, 180, 365, -1]
+private let versionsSteps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 50, -1]
+private let sizeStepsMB = [1, 2, 5, 10, 20, 50, 100, -1]
+
+private func indexForDays(_ value: Int) -> Double {
+    return Double(daysSteps.firstIndex(of: value) ?? (daysSteps.count - 1))
+}
+private func indexForVersions(_ value: Int) -> Double {
+    return Double(versionsSteps.firstIndex(of: value) ?? (versionsSteps.count - 1))
+}
+private func indexForSizeMB(_ value: Int) -> Double {
+    return Double(sizeStepsMB.firstIndex(of: value) ?? (sizeStepsMB.count - 1))
+}
+
+struct SettingsAppBehaviourView: View {
+    @AppStorage("loadCurrentDayOnRestoreAfterValue") private var loadCurrentDayOnRestoreAfterValue: Int = SettingsManager.shared.loadCurrentDayOnRestoreAfterValue
+    @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
+    @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
+    @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
+    @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
+    @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
+    @FocusState private var valueFieldIsFocused: Bool
+
+    var body: some View {
+        Form {
+            Section(header: Text("App Behaviour")) {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading) {
+                        Text("Auto-load current day after")
+                            .foregroundColor(.primary)
+                        
+                        HStack(spacing: 4) {
+                            TextField("Value", value: $loadCurrentDayOnRestoreAfterValue, format: .number)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                .frame(maxWidth: 80)
+                                .focused($valueFieldIsFocused)
+                            
+                            Picker("", selection: $loadCurrentDayOnRestoreAfterUnit) {
+                                ForEach(timeUnits, id: \.self) { unit in
+                                    Text(unit).tag(unit)
+                                }
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                            .fixedSize(horizontal: true, vertical: false)
+                            .labelsHidden()
+                            
+                            Spacer()
+                        }
+                        
+                        Text("The app will load today's data if it has been in the background for longer than this interval.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Default new place radius (meters)")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(defaultNewPlaceRadius)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(defaultNewPlaceRadius) },
+                            set: { defaultNewPlaceRadius = Int($0) }
+                        ), in: 10...1000, step: 10)
+                        Text("Default size of the circular region for a newly created place.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Add up steps when merging to visit", isOn: $mergeVisitAddSteps)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
+            }
+            
+            Section(header: Text("Map")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Show current position on map")
+                        .foregroundColor(.primary)
+
+                    Picker("Show current position on map", selection: $showCurrentPositionMode) {
+                        ForEach(ShowCurrentPositionMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.bottom, 8)
+                
+                Picker("Map coordinate system", selection: $mapCoordinateSystemMode) {
+                    ForEach(MapCoordinateSystemMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode.rawValue)
+                    }
+                }
+
+                Text(mapCoordinateSystemHelpText)
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundColor(.gray)
+            }
+        }
+        .navigationTitle("App Behaviour")
+        .toolbar { 
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    valueFieldIsFocused = false
+                }
+            }
+        }
+    }
+
+    private var mapCoordinateSystemHelpText: String {
+        switch MapCoordinateSystemMode(rawValue: mapCoordinateSystemMode) ?? .auto {
+        case .auto:
+            return "Automatic: shift tracks and places on the map when your device is in mainland China (Gaode tiles). GPS data is always stored as WGS-84."
+        case .forceGCJ02:
+            return "Always shift map overlays for China-style (GCJ-02) tiles. Useful for testing outside China."
+        case .forceWGS84:
+            return "Never shift map overlays. Use when viewing China data on standard WGS-84 maps abroad."
+        }
+    }
+}
+
+struct SettingsLayoutAppearanceView: View {
+    @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayMode: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
+    @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeMode: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
+    @AppStorage("activitySummaryVisibility") private var activitySummaryVisibility: String = SettingsManager.shared.activitySummaryVisibility.rawValue
+    @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
+    @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
+    @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
+
+    @State private var showAdvancedAppearance = false
+
+    var body: some View {
+        Form {
             Section(header: Text("Layout and appearance")) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Show pictures in timeline")
@@ -203,10 +285,146 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 8)
             }
-            
+
+        }
+        .navigationTitle("Timeline")
+        .onChange(of: timelineLocalTimeMode) { _, newValue in
+            SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .never
+        }
+        .onChange(of: timelinePictureDisplayMode) { _, newValue in
+            LogManager.shared.logData(
+                context: TimelinePhotoLog.context,
+                content: "Settings changed timeline picture display mode to \(newValue)",
+                verbosity: 4
+            )
+            if newValue != TimelinePictureDisplayMode.none.rawValue {
+                requestPhotoLibraryAccessIfNeeded()
+            }
+        }
+    }
+
+    private func requestPhotoLibraryAccessIfNeeded() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        LogManager.shared.logData(
+            context: TimelinePhotoLog.context,
+            content: "Settings photo permission check. Current status: \(status.timelineLogDescription)",
+            verbosity: 4
+        )
+
+        guard status == .notDetermined else {
+            return
+        }
+
+        LogManager.shared.logData(
+            context: TimelinePhotoLog.context,
+            content: "Settings requesting photo library authorization.",
+            verbosity: 4
+        )
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+            LogManager.shared.logData(
+                context: TimelinePhotoLog.context,
+                content: "Settings photo library authorization response: \(status.timelineLogDescription)",
+                verbosity: 4
+            )
+        }
+    }
+}
+
+struct SettingsNotificationsView: View {
+    @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
+    @AppStorage("unknownPlaceNotificationValue") private var unknownPlaceNotificationValue: Int = SettingsManager.shared.unknownPlaceNotificationValue
+    @AppStorage("unknownPlaceNotificationUnit") private var unknownPlaceNotificationUnit: String = SettingsManager.shared.unknownPlaceNotificationUnit
+    @AppStorage("enableDeadMansSwitch") private var enableDeadMansSwitch: Bool = SettingsManager.shared.enableDeadMansSwitch
+    @FocusState private var valueFieldIsFocused: Bool
+
+    var body: some View {
+        Form {
+            Section {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Send notification to check in unknown places", isOn: $sendNotificationOnUnknownPlace)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        if sendNotificationOnUnknownPlace {
+                            HStack(spacing: 4) {
+                                Text("After")
+                                TextField("Value", value: $unknownPlaceNotificationValue, format: .number)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.numberPad)
+                                    .frame(maxWidth: 80)
+                                    .focused($valueFieldIsFocused)
+                                
+                                Picker("", selection: $unknownPlaceNotificationUnit) {
+                                    ForEach(timeUnits, id: \.self) { unit in
+                                        Text(unit).tag(unit)
+                                    }
+                                }
+                                .pickerStyle(MenuPickerStyle())
+                                .fixedSize(horizontal: true, vertical: false)
+                                .labelsHidden()
+                                
+                                Spacer()
+                            }
+                        }
+                        
+                        Text("A notification will be sent when you are in an unknown place for longer than this duration.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Notify if the app seems to have stopped", isOn: $enableDeadMansSwitch)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Sends a local notification if background execution stops unexpectedly.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
+            }
+        }
+        .navigationTitle("Notifications")
+        .toolbar { 
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    valueFieldIsFocused = false
+                }
+            }
+        }
+    }
+
+}
+
+struct SettingsBackupsView: View {
+    @AppStorage("iCloudBackupEnabled") private var iCloudBackupEnabled: Bool = SettingsManager.shared.iCloudBackupEnabled
+    @AppStorage("iCloudBackupMode") private var iCloudBackupMode: String = SettingsManager.shared.iCloudBackupMode
+    @AppStorage("iCloudBackupIntervalValue") private var iCloudBackupIntervalValue: Int = SettingsManager.shared.iCloudBackupIntervalValue
+    @AppStorage("iCloudBackupIntervalUnit") private var iCloudBackupIntervalUnit: String = SettingsManager.shared.iCloudBackupIntervalUnit
+    @AppStorage("localBackupSaveCopyOnEdits") private var localBackupSaveCopyOnEdits: Bool = SettingsManager.shared.localBackupSaveCopyOnEdits
+    @AppStorage("localBackupRetentionDays") private var localBackupRetentionDays: Int = SettingsManager.shared.localBackupRetentionDays
+    @AppStorage("localBackupRetentionVersions") private var localBackupRetentionVersions: Int = SettingsManager.shared.localBackupRetentionVersions
+    @AppStorage("localBackupAlwaysRetainOriginal") private var localBackupAlwaysRetainOriginal: Bool = SettingsManager.shared.localBackupAlwaysRetainOriginal
+    
+    @ObservedObject private var backupManager = iCloudBackupManager.shared
+    @FocusState private var valueFieldIsFocused: Bool
+
+    private var formattedLastBackupDate: String {
+        if let date = SettingsManager.shared.lastICloudBackupDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm"
+            return formatter.string(from: date)
+        } else {
+            return "never"
+        }
+    }
+
+    var body: some View {
+        Form {
             Section(header: Text("iCloud Backup")) {
                 Toggle("Enable iCloud Backup", isOn: $iCloudBackupEnabled)
-
                     .fixedSize(horizontal: false, vertical: true)
                 
                 if iCloudBackupEnabled {
@@ -278,7 +496,6 @@ struct SettingsView: View {
             
             Section(header: Text("Local Backup")) {
                 Toggle("Save copy on edits", isOn: $localBackupSaveCopyOnEdits)
-
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Creates automatically a copy of the gpx file in the backups folder before any edit is applied.")
                     .font(.caption)
@@ -326,8 +543,6 @@ struct SettingsView: View {
                 .padding(.vertical, 4)
 
                 Toggle("Always retain original file", isOn: $localBackupAlwaysRetainOriginal)
-
-
                     .fixedSize(horizontal: false, vertical: true)
                 Text("The first version of a file is always kept no matter the retention options.")
                     .font(.caption)
@@ -336,142 +551,30 @@ struct SettingsView: View {
             
                 }
             }
-            
-            Section(header: Text("App Behaviour")) {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading) {
-                        Text("Auto-load current day after")
-                            .foregroundColor(.primary)
-                        
-                        HStack(spacing: 4) {
-                            TextField("Value", value: $loadCurrentDayOnRestoreAfterValue, format: .number)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.numberPad)
-                                .frame(maxWidth: 80)
-                                .focused($valueFieldIsFocused) // Apply focus state
-                            
-                            Picker("", selection: $loadCurrentDayOnRestoreAfterUnit) {
-                                ForEach(timeUnits, id: \.self) { unit in
-                                    Text(unit).tag(unit)
-                                }
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                            .fixedSize(horizontal: true, vertical: false)
-                            .labelsHidden()
-                            
-                            Spacer()
-                        }
-                        
-                        Text("The app will load today's data if it has been in the background for longer than this interval.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Default new place radius (meters)")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(defaultNewPlaceRadius)")
-                        }
-                        Slider(value: Binding(
-                            get: { Double(defaultNewPlaceRadius) },
-                            set: { defaultNewPlaceRadius = Int($0) }
-                        ), in: 10...1000, step: 10)
-                        Text("Default size of the circular region for a newly created place.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Find close places limit")
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Text("\(findClosePlacesLimit)")
-                        }
-                        Slider(value: Binding(
-                            get: { Double(findClosePlacesLimit) },
-                            set: { findClosePlacesLimit = Int($0) }
-                        ), in: 1...50, step: 1)
-                        Text("Maximum number of nearby places to show when matching an unknown location.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
-
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Add up steps when merging to visit", isOn: $mergeVisitAddSteps)
-
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Send notification to check in unknown places", isOn: $sendNotificationOnUnknownPlace)
-
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        if sendNotificationOnUnknownPlace {
-                            HStack(spacing: 4) {
-                                Text("After")
-                                TextField("Value", value: $unknownPlaceNotificationValue, format: .number)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .keyboardType(.numberPad)
-                                    .frame(maxWidth: 80)
-                                    .focused($valueFieldIsFocused)
-                                
-                                Picker("", selection: $unknownPlaceNotificationUnit) {
-                                    ForEach(timeUnits, id: \.self) { unit in
-                                        Text(unit).tag(unit)
-                                    }
-                                }
-                                .pickerStyle(MenuPickerStyle())
-                                .fixedSize(horizontal: true, vertical: false)
-                                .labelsHidden()
-                                
-                                Spacer()
-                            }
-                        }
-                        
-                        Text("A notification will be sent when you are in an unknown place for longer than this duration.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Notify if the app seems to have stopped", isOn: $enableDeadMansSwitch)
-
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        Text("Sends a local notification if background execution stops unexpectedly.")
-                            .font(.caption)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .foregroundColor(.gray)
-                    }
+        }
+        .navigationTitle("Backups")
+        .toolbar { 
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    valueFieldIsFocused = false
                 }
-                .padding(.vertical)
             }
-            
-            Section(header: Text("Location Tracking")) {
+        }
+    }
 
+}
+
+struct SettingsLocationTrackingView: View {
+    @AppStorage("minimumUpdateInterval") private var minimumUpdateInterval: Int = SettingsManager.shared.minimumUpdateInterval
+    @AppStorage("stationaryDetectionTimer") private var stationaryDetectionTimer: Int = SettingsManager.shared.stationaryDetectionTimer
+    @AppStorage("stationaryStepsUpdateInterval") private var stationaryStepsUpdateInterval: Int = SettingsManager.shared.stationaryStepsUpdateInterval
+    @AppStorage("stationaryLocationAccuracy") private var stationaryLocationAccuracy: Int = SettingsManager.shared.stationaryLocationAccuracy
+    @AppStorage("movingLocationAccuracy") private var movingLocationAccuracy: Int = SettingsManager.shared.movingLocationAccuracy
+
+    var body: some View {
+        Form {
+            Section {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading) {
                         HStack {
@@ -506,7 +609,6 @@ struct SettingsView: View {
                         ), in: 30...300, step: 10)
                     }
 
-                    
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Stationary Steps Update (minutes)")
@@ -564,35 +666,49 @@ struct SettingsView: View {
                 }
                 .padding(.vertical)
             }
-            
-            Section(header: Text("Map")) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Show current position on map")
-                        .foregroundColor(.primary)
+        }
+        .navigationTitle("Location Tracking")
+    }
+}
 
-                    Picker("Show current position on map", selection: $showCurrentPositionMode) {
-                        ForEach(ShowCurrentPositionMode.allCases) { mode in
-                            Text(mode.displayName).tag(mode.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .padding(.bottom, 8)
-                
-                Picker("Map coordinate system", selection: $mapCoordinateSystemMode) {
-                    ForEach(MapCoordinateSystemMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode.rawValue)
-                    }
-                }
+struct SettingsPlaceSearchView: View {
+    @AppStorage("findClosePlacesLimit") private var findClosePlacesLimit: Int = SettingsManager.shared.findClosePlacesLimit
+    @AppStorage("placeSearchDefaultRadius") private var placeSearchDefaultRadius: Int = SettingsManager.shared.placeSearchDefaultRadius
+    @AppStorage("placeSearchKeywordRadius") private var placeSearchKeywordRadius: Int = SettingsManager.shared.placeSearchKeywordRadius
+    @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
+    @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
 
-                Text(mapCoordinateSystemHelpText)
-                    .font(.caption)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .foregroundColor(.gray)
-            }
-            
-            Section(header: Text("Place Search")) {
+    var body: some View {
+        Form {
+            Section {
                 VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Find close places limit")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("\(findClosePlacesLimit)")
+                        }
+                        Slider(value: Binding(
+                            get: { Double(findClosePlacesLimit) },
+                            set: { findClosePlacesLimit = Int($0) }
+                        ), in: 1...50, step: 1)
+                        Text("Maximum number of nearby places to show when matching an unknown location.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Suggest apply to other places", isOn: $suggestApplyToOtherPlaces)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Default Search Radius (meters)")
@@ -629,8 +745,6 @@ struct SettingsView: View {
                             .foregroundColor(.gray)
                     }
 
-
-
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Search Page Limit")
@@ -651,11 +765,24 @@ struct SettingsView: View {
                 }
                 .padding(.vertical)
             }
-            
+        }
+        .navigationTitle("Place Search and Edit")
+    }
+}
+
+struct SettingsAutomaticCleanupsView: View {
+    @AppStorage("automaticallyMergeUnknownToKnownTypeTracks") private var automaticallyMergeUnknownToKnownTypeTracks: Bool = SettingsManager.shared.automaticallyMergeUnknownToKnownTypeTracks
+    @AppStorage("automaticMergeUnknownTrackMaxPoints") private var automaticMergeUnknownTrackMaxPoints: Int = SettingsManager.shared.automaticMergeUnknownTrackMaxPoints
+    @AppStorage("automaticMergeKnownTrackMinimumPoints") private var automaticMergeKnownTrackMinimumPoints: Int = SettingsManager.shared.automaticMergeKnownTrackMinimumPoints
+    @AppStorage("filterSmallRoundTrips") private var filterSmallRoundTrips: Bool = SettingsManager.shared.filterSmallRoundTrips
+    @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
+    @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
+
+    var body: some View {
+        Form {
             Section(header: Text("Automatic Track Merging")) {
                 VStack(alignment: .leading, spacing: 16) {
                     Toggle("Automatically merge unknown to known type tracks", isOn: $automaticallyMergeUnknownToKnownTypeTracks)
-
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text("When a known track becomes reliable, merge a small adjacent unknown track into it.")
@@ -707,7 +834,6 @@ struct SettingsView: View {
             Section(header: Text("Filter Small Round Trip Tracks")) {
                 VStack(alignment: .leading, spacing: 16) {
                     Toggle("Filter small round trip tracks", isOn: $filterSmallRoundTrips)
-
                         .fixedSize(horizontal: false, vertical: true)
                     
                     Text("Do not save small tracks that end up in the same place as the starting point (often caused by GPS location errors).")
@@ -755,7 +881,23 @@ struct SettingsView: View {
                 }
                 .padding(.vertical)
             }
-            
+        }
+        .navigationTitle("Automatic Cleanups")
+    }
+}
+
+struct SettingsLoggingView: View {
+    @AppStorage("debugLogVerbosity") private var debugLogVerbosity: Int = SettingsManager.shared.debugLogVerbosity
+    @AppStorage("logRetentionDays") private var logRetentionDays: Int = SettingsManager.shared.logRetentionDays
+    @AppStorage("logSizeLimitMB") private var logSizeLimitMB: Int = SettingsManager.shared.logSizeLimitMB
+    @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
+
+    @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
+    @State private var diagnosticReportError: String?
+    @State private var showDiagnosticReportError = false
+
+    var body: some View {
+        Form {
             Section(header: Text("Logging")) {
                 Text("Adjust the level of detail for application logs.")
                 
@@ -819,7 +961,6 @@ struct SettingsView: View {
                     
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Track resource usage", isOn: $trackResourceUsage)
-
                             .fixedSize(horizontal: false, vertical: true)
                         
                         Text("Record detailed battery, memory, and CPU usage during background activities over time.")
@@ -841,28 +982,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .navigationTitle("Settings")
-        .toolbar { 
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    valueFieldIsFocused = false
-                }
-            }
-        }
-        .onChange(of: timelineLocalTimeMode) { _, newValue in
-            SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .never
-        }
-        .onChange(of: timelinePictureDisplayMode) { _, newValue in
-            LogManager.shared.logData(
-                context: TimelinePhotoLog.context,
-                content: "Settings changed timeline picture display mode to \(newValue)",
-                verbosity: 4
-            )
-            if newValue != TimelinePictureDisplayMode.none.rawValue {
-                requestPhotoLibraryAccessIfNeeded()
-            }
-        }
+        .navigationTitle("Logging")
         .sheet(item: $diagnosticReportShareItem) { item in
             TimelinePhotoActivityView(items: [item.url])
         }
@@ -870,43 +990,6 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(diagnosticReportError ?? "Unknown error")
-        }
-    }
-
-    private var mapCoordinateSystemHelpText: String {
-        switch MapCoordinateSystemMode(rawValue: mapCoordinateSystemMode) ?? .auto {
-        case .auto:
-            return "Automatic: shift tracks and places on the map when your device is in mainland China (Gaode tiles). GPS data is always stored as WGS-84."
-        case .forceGCJ02:
-            return "Always shift map overlays for China-style (GCJ-02) tiles. Useful for testing outside China."
-        case .forceWGS84:
-            return "Never shift map overlays. Use when viewing China data on standard WGS-84 maps abroad."
-        }
-    }
-
-    private func requestPhotoLibraryAccessIfNeeded() {
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        LogManager.shared.logData(
-            context: TimelinePhotoLog.context,
-            content: "Settings photo permission check. Current status: \(status.timelineLogDescription)",
-            verbosity: 4
-        )
-
-        guard status == .notDetermined else {
-            return
-        }
-
-        LogManager.shared.logData(
-            context: TimelinePhotoLog.context,
-            content: "Settings requesting photo library authorization.",
-            verbosity: 4
-        )
-        PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-            LogManager.shared.logData(
-                context: TimelinePhotoLog.context,
-                content: "Settings photo library authorization response: \(status.timelineLogDescription)",
-                verbosity: 4
-            )
         }
     }
 
@@ -935,4 +1018,4 @@ struct SettingsView: View {
     NavigationView {
         SettingsView()
     }
-} 
+}
