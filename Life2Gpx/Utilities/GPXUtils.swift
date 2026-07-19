@@ -547,4 +547,75 @@ class GPXUtils {
         
         return updatedWaypoint
     }
+    
+    static func exportFilteredCopy(waypoints: [GPXWaypoint], tracks: [GPXTrack], settings: GPXExportSettings) -> ([GPXWaypoint], [GPXTrack]) {
+        let filteredWaypoints = waypoints.map { wp -> GPXWaypoint in
+            let copy = deepCopyAsWaypoint(wp)
+            filterPoint(copy, fields: settings.waypoints)
+            return copy
+        }
+        
+        let filteredTracks = tracks.map { trk -> GPXTrack in
+            let copy = deepCopyTrack(trk)
+            if !settings.tracks.name { copy.name = nil }
+            if !settings.tracks.comment { copy.comment = nil }
+            if !settings.tracks.desc { copy.desc = nil }
+            if !settings.tracks.source { copy.source = nil }
+            if !settings.tracks.number { copy.number = nil }
+            if !settings.tracks.type { copy.type = nil }
+            if !settings.tracks.links { copy.links.removeAll() }
+            copy.extensions = filterExtensions(copy.extensions, fields: settings.tracks)
+            
+            for segment in copy.segments {
+                for pt in segment.points {
+                    filterPoint(pt, fields: settings.trackpoints)
+                }
+            }
+            return copy
+        }
+        
+        return (filteredWaypoints, filteredTracks)
+    }
+
+    private static func filterPoint(_ point: GPXWaypoint, fields: GPXExportFields) {
+        if !fields.magneticVariation { point.magneticVariation = nil }
+        if !fields.geoidHeight { point.geoidHeight = nil }
+        if !fields.name { point.name = nil }
+        if !fields.comment { point.comment = nil }
+        if !fields.desc { point.desc = nil }
+        if !fields.source { point.source = nil }
+        if !fields.symbol { point.symbol = nil }
+        if !fields.type { point.type = nil }
+        if !fields.fix { point.fix = nil }
+        if !fields.satellites { point.satellites = nil }
+        if !fields.horizontalDilution { point.horizontalDilution = nil }
+        if !fields.verticalDilution { point.verticalDilution = nil }
+        if !fields.positionDilution { point.positionDilution = nil }
+        if !fields.ageofDGPSData { point.ageofDGPSData = nil }
+        if !fields.DGPSid { point.DGPSid = nil }
+        if !fields.links { point.links.removeAll() }
+        
+        point.extensions = filterExtensions(point.extensions, fields: fields)
+    }
+    
+    private static func filterExtensions(_ extensions: GPXExtensions?, fields: GPXExportFields) -> GPXExtensions? {
+        guard let sourceExtensions = extensions else { return nil }
+        var extensionsDict = [String: String]()
+        
+        for child in sourceExtensions.children {
+            let key = child.name
+            if let value = child.text, !key.isEmpty {
+                if fields.extensions[key] != false {
+                    extensionsDict[key] = value
+                }
+            }
+        }
+        
+        if !extensionsDict.isEmpty {
+            let newExtensions = GPXExtensions()
+            newExtensions.append(at: nil, contents: extensionsDict)
+            return newExtensions
+        }
+        return nil
+    }
 } 

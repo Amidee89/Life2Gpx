@@ -88,6 +88,81 @@ enum ShowCurrentPositionMode: String, CaseIterable, Identifiable {
     }
 }
 
+struct GPXExportSettings: Equatable, RawRepresentable {
+    var waypoints: GPXExportFields
+    var tracks: GPXExportFields
+    var trackpoints: GPXExportFields
+
+    init() {
+        self.waypoints = GPXExportFields(isWaypoint: true)
+        self.tracks = GPXExportFields(isTrack: true)
+        self.trackpoints = GPXExportFields(isWaypoint: false)
+    }
+    
+    private struct CodableWrapper: Codable {
+        var waypoints: GPXExportFields
+        var tracks: GPXExportFields
+        var trackpoints: GPXExportFields
+    }
+
+    init?(rawValue: String) {
+        guard let data = rawValue.data(using: .utf8),
+              let result = try? JSONDecoder().decode(CodableWrapper.self, from: data)
+        else {
+            return nil
+        }
+        self.waypoints = result.waypoints
+        self.tracks = result.tracks
+        self.trackpoints = result.trackpoints
+    }
+
+    var rawValue: String {
+        let wrapper = CodableWrapper(waypoints: waypoints, tracks: tracks, trackpoints: trackpoints)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(wrapper),
+              let result = String(data: data, encoding: .utf8)
+        else {
+            return "{}"
+        }
+        return result
+    }
+}
+
+struct GPXExportFields: Codable, Equatable {
+    var magneticVariation: Bool = false
+    var geoidHeight: Bool = false
+    var name: Bool = true
+    var comment: Bool = true
+    var desc: Bool = true
+    var source: Bool = true
+    var symbol: Bool = false
+    var type: Bool = true
+    var fix: Bool = false
+    var satellites: Bool = false
+    var horizontalDilution: Bool = false
+    var verticalDilution: Bool = false
+    var positionDilution: Bool = false
+    var ageofDGPSData: Bool = false
+    var DGPSid: Bool = false
+    var links: Bool = true
+    var number: Bool = true
+    
+    var extensions: [String: Bool] = [:]
+    
+    init(isWaypoint: Bool = false, isTrack: Bool = false) {
+        if isWaypoint {
+            for ext in GPXExtensionKey.waypointCases {
+                extensions[ext.rawValue] = true
+            }
+        } else if !isTrack {
+            for ext in GPXExtensionKey.trackpointCases {
+                extensions[ext.rawValue] = true
+            }
+        }
+    }
+}
+
 
 class SettingsManager {
     static let shared = SettingsManager()
@@ -144,6 +219,7 @@ class SettingsManager {
     private let localBackupAlwaysRetainOriginalKey = "localBackupAlwaysRetainOriginal"
     private let logRetentionDaysKey = "logRetentionDays"
     private let logSizeLimitMBKey = "logSizeLimitMB"
+    private let gpxExportSettingsKey = "gpxExportSettingsV2"
     
     private init() {
         registerDefaults()
@@ -202,7 +278,8 @@ class SettingsManager {
             localBackupRetentionVersionsKey: -1,
             localBackupAlwaysRetainOriginalKey: true,
             logRetentionDaysKey: -1,
-            logSizeLimitMBKey: 10
+            logSizeLimitMBKey: 10,
+            gpxExportSettingsKey: GPXExportSettings().rawValue
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -254,6 +331,17 @@ class SettingsManager {
             let clampedValue = max(0, min(newValue, 5))
             defaults.set(clampedValue, forKey: debugLogVerbosityKey)
             print("UserDefaults: debugLogVerbosity set to \(clampedValue)")
+        }
+    }
+
+    var gpxExportSettings: GPXExportSettings {
+        get {
+            let raw = defaults.string(forKey: gpxExportSettingsKey) ?? GPXExportSettings().rawValue
+            return GPXExportSettings(rawValue: raw) ?? GPXExportSettings()
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: gpxExportSettingsKey)
+            defaults.set(newValue.rawValue, forKey: "gpxExportSettings") // for @AppStorage syncing
         }
     }
 

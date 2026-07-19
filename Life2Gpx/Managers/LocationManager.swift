@@ -606,6 +606,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         GPXExtensionKey.verticalPrecision.rawValue: String(location.verticalAccuracy.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.speed.rawValue: String(location.speed.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.speedAccuracy.rawValue: String(location.speedAccuracy.roundedTo5DecimalPlaces()),
+                        GPXExtensionKey.course.rawValue: String(location.course.roundedTo5DecimalPlaces()),
+                        GPXExtensionKey.courseAccuracy.rawValue: String(location.courseAccuracy.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT())
                     ]
                     

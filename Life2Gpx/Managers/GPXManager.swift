@@ -23,9 +23,12 @@ class GPXManager {
 
         LogManager.shared.logData(context: "GPXManager", content: "Saving GPX data to \(fileName). Waypoints: \(waypoints.count), Tracks: \(tracks.count)", verbosity: 4)
 
+        let settings = SettingsManager.shared.gpxExportSettings
+        let (filteredWaypoints, filteredTracks) = GPXUtils.exportFilteredCopy(waypoints: waypoints, tracks: tracks, settings: settings)
+
         let gpx = GPXRoot(creator: "Life2Gpx App")
-        waypoints.forEach { gpx.add(waypoint: $0) }
-        tracks.forEach { gpx.add(track: $0) }
+        filteredWaypoints.forEach { gpx.add(waypoint: $0) }
+        filteredTracks.forEach { gpx.add(track: $0) }
 
         do {
             let fileManager = FileManager.default
