@@ -129,35 +129,45 @@ struct GPXExportSettings: Equatable, RawRepresentable {
     }
 }
 
+struct GPXFieldState: Codable, Equatable {
+    var export: Bool
+    var visible: Bool
+
+    init(export: Bool = true, visible: Bool = false) {
+        self.export = export
+        self.visible = visible
+    }
+}
+
 struct GPXExportFields: Codable, Equatable {
-    var magneticVariation: Bool = false
-    var geoidHeight: Bool = false
-    var name: Bool = true
-    var comment: Bool = true
-    var desc: Bool = true
-    var source: Bool = true
-    var symbol: Bool = true
-    var type: Bool = true
-    var fix: Bool = false
-    var satellites: Bool = false
-    var horizontalDilution: Bool = false
-    var verticalDilution: Bool = false
-    var positionDilution: Bool = false
-    var ageofDGPSData: Bool = false
-    var DGPSid: Bool = false
-    var links: Bool = true
-    var number: Bool = true
+    var magneticVariation: GPXFieldState = GPXFieldState(export: false)
+    var geoidHeight: GPXFieldState = GPXFieldState(export: false)
+    var name: GPXFieldState = GPXFieldState(export: true)
+    var comment: GPXFieldState = GPXFieldState(export: true)
+    var desc: GPXFieldState = GPXFieldState(export: true)
+    var source: GPXFieldState = GPXFieldState(export: true)
+    var symbol: GPXFieldState = GPXFieldState(export: true)
+    var type: GPXFieldState = GPXFieldState(export: true)
+    var fix: GPXFieldState = GPXFieldState(export: false)
+    var satellites: GPXFieldState = GPXFieldState(export: false)
+    var horizontalDilution: GPXFieldState = GPXFieldState(export: false)
+    var verticalDilution: GPXFieldState = GPXFieldState(export: false)
+    var positionDilution: GPXFieldState = GPXFieldState(export: false)
+    var ageofDGPSData: GPXFieldState = GPXFieldState(export: false)
+    var DGPSid: GPXFieldState = GPXFieldState(export: false)
+    var links: GPXFieldState = GPXFieldState(export: true)
+    var number: GPXFieldState = GPXFieldState(export: true)
     
-    var extensions: [String: Bool] = [:]
+    var extensions: [String: GPXFieldState] = [:]
     
     init(isWaypoint: Bool = false, isTrack: Bool = false) {
         if isWaypoint {
             for ext in GPXExtensionKey.waypointCases {
-                extensions[ext.rawValue] = true
+                extensions[ext.rawValue] = GPXFieldState(export: true)
             }
         } else if !isTrack {
             for ext in GPXExtensionKey.trackpointCases {
-                extensions[ext.rawValue] = true
+                extensions[ext.rawValue] = GPXFieldState(export: true)
             }
         }
     }

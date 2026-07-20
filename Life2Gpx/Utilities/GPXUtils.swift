@@ -503,7 +503,7 @@ class GPXUtils {
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
         LogManager.shared.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name).", verbosity: 4)
         updatedWaypoint.name = place.name
-        updatedWaypoint.symbol = place.icon
+        updatedWaypoint.symbol = place.customIcon
         
         var extensionData: [String: String] = [
             "PlaceId": place.placeId
@@ -558,13 +558,13 @@ class GPXUtils {
         
         let filteredTracks = tracks.map { trk -> GPXTrack in
             let copy = deepCopyTrack(trk)
-            if !settings.tracks.name { copy.name = nil }
-            if !settings.tracks.comment { copy.comment = nil }
-            if !settings.tracks.desc { copy.desc = nil }
-            if !settings.tracks.source { copy.source = nil }
-            if !settings.tracks.number { copy.number = nil }
-            if !settings.tracks.type { copy.type = nil }
-            if !settings.tracks.links { copy.links.removeAll() }
+            if !settings.tracks.name.export { copy.name = nil }
+            if !settings.tracks.comment.export { copy.comment = nil }
+            if !settings.tracks.desc.export { copy.desc = nil }
+            if !settings.tracks.source.export { copy.source = nil }
+            if !settings.tracks.number.export { copy.number = nil }
+            if !settings.tracks.type.export { copy.type = nil }
+            if !settings.tracks.links.export { copy.links.removeAll() }
             copy.extensions = filterExtensions(copy.extensions, fields: settings.tracks)
             
             for segment in copy.segments {
@@ -579,22 +579,22 @@ class GPXUtils {
     }
 
     private static func filterPoint(_ point: GPXWaypoint, fields: GPXExportFields) {
-        if !fields.magneticVariation { point.magneticVariation = nil }
-        if !fields.geoidHeight { point.geoidHeight = nil }
-        if !fields.name { point.name = nil }
-        if !fields.comment { point.comment = nil }
-        if !fields.desc { point.desc = nil }
-        if !fields.source { point.source = nil }
-        if !fields.symbol { point.symbol = nil }
-        if !fields.type { point.type = nil }
-        if !fields.fix { point.fix = nil }
-        if !fields.satellites { point.satellites = nil }
-        if !fields.horizontalDilution { point.horizontalDilution = nil }
-        if !fields.verticalDilution { point.verticalDilution = nil }
-        if !fields.positionDilution { point.positionDilution = nil }
-        if !fields.ageofDGPSData { point.ageofDGPSData = nil }
-        if !fields.DGPSid { point.DGPSid = nil }
-        if !fields.links { point.links.removeAll() }
+        if !fields.magneticVariation.export { point.magneticVariation = nil }
+        if !fields.geoidHeight.export { point.geoidHeight = nil }
+        if !fields.name.export { point.name = nil }
+        if !fields.comment.export { point.comment = nil }
+        if !fields.desc.export { point.desc = nil }
+        if !fields.source.export { point.source = nil }
+        if !fields.symbol.export { point.symbol = nil }
+        if !fields.type.export { point.type = nil }
+        if !fields.fix.export { point.fix = nil }
+        if !fields.satellites.export { point.satellites = nil }
+        if !fields.horizontalDilution.export { point.horizontalDilution = nil }
+        if !fields.verticalDilution.export { point.verticalDilution = nil }
+        if !fields.positionDilution.export { point.positionDilution = nil }
+        if !fields.ageofDGPSData.export { point.ageofDGPSData = nil }
+        if !fields.DGPSid.export { point.DGPSid = nil }
+        if !fields.links.export { point.links.removeAll() }
         
         point.extensions = filterExtensions(point.extensions, fields: fields)
     }
@@ -606,7 +606,7 @@ class GPXUtils {
         for child in sourceExtensions.children {
             let key = child.name
             if let value = child.text, !key.isEmpty {
-                if fields.extensions[key] != false {
+                if fields.extensions[key]?.export != false {
                     extensionsDict[key] = value
                 }
             }

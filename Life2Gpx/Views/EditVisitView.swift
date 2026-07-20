@@ -37,6 +37,18 @@ struct EditVisitView: View {
     private var originalTime: Date?
     private var originalWaypoint: GPXWaypoint?
     
+    
+    private var hasVisibleExtensions: Bool {
+        if showingAllExtensions { return true }
+        let settings = SettingsManager.shared.gpxExportSettings.waypoints
+        for key in GPXExtensionKey.waypointCases {
+            if settings.extensions[key.rawValue]?.visible == true {
+                return true
+            }
+        }
+        return false
+    }
+    
     init(timelineObject: TimelineObject, fileDate: Date, onSave: @escaping (Place?, Bool) -> Void, customSaveAction: ((_ updatedWaypoint: GPXWaypoint, _ place: Place?, _ wasUnknown: Bool) -> Void)? = nil) {
         self.timelineObject = timelineObject
         self.fileDate = fileDate
@@ -226,23 +238,20 @@ struct EditVisitView: View {
                             .padding(.vertical, 4)
                         }
                         
-                        Button(action: {
-                            withAnimation {
-                                showingAllExtensions.toggle()
-                            }
-                        }) {
-                            HStack {
-                                Text(showingAllExtensions ? "Hide all extensions..." : "Edit all extensions...")
-                                Spacer()
-                                Image(systemName: showingAllExtensions ? "chevron.up" : "chevron.down")
-                            }
-                            .foregroundColor(.blue)
-                        }
-                        .padding(.vertical, 4)
+                        basicFieldsList
                         
-                        if showingAllExtensions {
+                        if hasVisibleExtensions {
+                            Text("Extensions")
+                                .bold()
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, 12)
+                                .padding(.bottom, 4)
+                                
                             extensionsList
                         }
+                        
+                        Toggle("Show all fields and extensions", isOn: $showingAllExtensions.animation())
+                            .padding(.vertical, 8)
                     }
                     
                     placeDetailsSection
@@ -628,10 +637,227 @@ struct EditVisitView: View {
     }
     
     @ViewBuilder
+    private var basicFieldsList: some View {
+        if let point = workingWaypoint {
+            let settings = SettingsManager.shared.gpxExportSettings.waypoints
+
+            if settings.magneticVariation.visible || showingAllExtensions {
+                let binding = Binding<Double>(
+                    get: { point.magneticVariation ?? 0.0 },
+                    set: { newValue in
+                        workingWaypoint?.magneticVariation = newValue
+                    }
+                )
+                LabeledContent("Magnetic Variation:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.geoidHeight.visible || showingAllExtensions {
+                let binding = Binding<Double>(
+                    get: { point.geoidHeight ?? 0.0 },
+                    set: { newValue in
+                        workingWaypoint?.geoidHeight = newValue
+                    }
+                )
+                LabeledContent("Geoid Height:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.name.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.name ?? "" },
+                    set: { newValue in
+                        workingWaypoint?.name = newValue.isEmpty ? nil : newValue
+                    }
+                )
+                LabeledContent("Name:") {
+                    TextField("", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.comment.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.comment ?? "" },
+                    set: { newValue in
+                        workingWaypoint?.comment = newValue.isEmpty ? nil : newValue
+                    }
+                )
+                LabeledContent("Comment:") {
+                    TextField("", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.desc.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.desc ?? "" },
+                    set: { newValue in
+                        workingWaypoint?.desc = newValue.isEmpty ? nil : newValue
+                    }
+                )
+                LabeledContent("Description:") {
+                    TextField("", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.source.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.source ?? "" },
+                    set: { newValue in
+                        workingWaypoint?.source = newValue.isEmpty ? nil : newValue
+                    }
+                )
+                LabeledContent("Source:") {
+                    TextField("", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.symbol.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.symbol ?? "" },
+                    set: { newValue in
+                        workingWaypoint?.symbol = newValue.isEmpty ? nil : newValue
+                    }
+                )
+                LabeledContent("Symbol:") {
+                    TextField("", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.type.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.type ?? "" },
+                    set: { newValue in
+                        workingWaypoint?.type = newValue.isEmpty ? nil : newValue
+                    }
+                )
+                LabeledContent("Type:") {
+                    TextField("", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.satellites.visible || showingAllExtensions {
+                let binding = Binding<Int>(
+                    get: { point.satellites ?? 0 },
+                    set: { newValue in
+                        workingWaypoint?.satellites = newValue
+                    }
+                )
+                LabeledContent("Satellites:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.horizontalDilution.visible || showingAllExtensions {
+                let binding = Binding<Double>(
+                    get: { point.horizontalDilution ?? 0.0 },
+                    set: { newValue in
+                        workingWaypoint?.horizontalDilution = newValue
+                    }
+                )
+                LabeledContent("Horizontal Dilution:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.verticalDilution.visible || showingAllExtensions {
+                let binding = Binding<Double>(
+                    get: { point.verticalDilution ?? 0.0 },
+                    set: { newValue in
+                        workingWaypoint?.verticalDilution = newValue
+                    }
+                )
+                LabeledContent("Vertical Dilution:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.positionDilution.visible || showingAllExtensions {
+                let binding = Binding<Double>(
+                    get: { point.positionDilution ?? 0.0 },
+                    set: { newValue in
+                        workingWaypoint?.positionDilution = newValue
+                    }
+                )
+                LabeledContent("Position Dilution:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.ageofDGPSData.visible || showingAllExtensions {
+                let binding = Binding<Double>(
+                    get: { point.ageofDGPSData ?? 0.0 },
+                    set: { newValue in
+                        workingWaypoint?.ageofDGPSData = newValue
+                    }
+                )
+                LabeledContent("Age of DGPS Data:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.DGPSid.visible || showingAllExtensions {
+                let binding = Binding<Int>(
+                    get: { point.DGPSid ?? 0 },
+                    set: { newValue in
+                        workingWaypoint?.DGPSid = newValue
+                    }
+                )
+                LabeledContent("DGPS ID:") {
+                    TextField("", value: binding, format: .number)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+            if settings.fix.visible || showingAllExtensions {
+                let binding = Binding<String>(
+                    get: { point.fix?.rawValue ?? "" },
+                    set: { newValue in
+                        if let fix = GPXFix(rawValue: newValue) {
+                            workingWaypoint?.fix = fix
+                        } else if newValue.isEmpty {
+                            workingWaypoint?.fix = nil
+                        }
+                    }
+                )
+                LabeledContent("Fix:") {
+                    TextField("none, 2d, 3d, dgps, pps", text: binding)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private var extensionsList: some View {
         ForEach(GPXExtensionKey.waypointCases, id: \.self) { (key: GPXExtensionKey) in
             let hasValue = editedExtensions.keys.contains(key.rawValue)
-            let binding = Binding<String>(
+            let isVisible = SettingsManager.shared.gpxExportSettings.waypoints.extensions[key.rawValue]?.visible == true
+            if isVisible || showingAllExtensions {
+                let binding = Binding<String>(
                 get: { editedExtensions[key.rawValue] ?? "" },
                 set: { newValue in
                     if newValue.isEmpty {
@@ -703,6 +929,7 @@ struct EditVisitView: View {
                         }
                     }
                 }
+            }
             }
         }
     }

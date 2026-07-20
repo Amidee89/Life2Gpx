@@ -26,13 +26,26 @@ struct EditTrackView: View {
     @State private var originalPointElevation: Double = 0.0
     @State private var originalPointTime: Date? = nil
     @State private var originalExtensionsDict: [String: String] = [:]
+    @State private var originalPoint: GPXTrackPoint? = nil
     
     @State private var editedExtensions: [String: String] = [:]
+    @State private var showAllFieldsAndExtensions = false
     
     @State private var showingDeleteConfirmation = false
     @State private var showingSecondsPicker = false
     @FocusState private var focusedField: String?
     @State private var scrollTarget: String? = nil
+    
+    private var hasVisibleExtensions: Bool {
+        if showAllFieldsAndExtensions { return true }
+        let settings = SettingsManager.shared.gpxExportSettings.trackpoints
+        for key in GPXExtensionKey.trackpointCases {
+            if settings.extensions[key.rawValue]?.visible == true {
+                return true
+            }
+        }
+        return false
+    }
     
     init(timelineObject: TimelineObject, fileDate: Date, onSaveChanges: @escaping () -> Void, customSaveAction: ((_ updatedTrack: GPXTrack) -> Void)? = nil) {
         self.timelineObject = timelineObject
@@ -114,10 +127,9 @@ struct EditTrackView: View {
                                                        let pointIndex = selectedPointIndex,
                                                        workingCopy.track?.segments.indices.contains(segmentIndex) == true,
                                                        workingCopy.track?.segments[segmentIndex].points.indices.contains(pointIndex) == true {
-                                                        workingCopy.track?.segments[segmentIndex].points[pointIndex].latitude = originalPointLatitude
-                                                        workingCopy.track?.segments[segmentIndex].points[pointIndex].longitude = originalPointLongitude
-                                                        workingCopy.track?.segments[segmentIndex].points[pointIndex].elevation = originalPointElevation
-                                                        workingCopy.track?.segments[segmentIndex].points[pointIndex].time = originalPointTime
+                                                        if let original = originalPoint {
+                                                            workingCopy.track?.segments[segmentIndex].points[pointIndex] = original
+                                                        }
                                                         
                                                         editedExtensions = originalExtensionsDict
 
@@ -295,13 +307,20 @@ struct EditTrackView: View {
                                                     }
                                             }
                                             
-                                            Text("Extensions")
-                                                .bold()
-                                                .frame(maxWidth: .infinity, alignment: .center)
-                                                .padding(.top, 12)
-                                                .padding(.bottom, 4)
-                                                
-                                            extensionsList(for: point)
+                                            basicFieldsList(for: point, segmentIndex: segmentIndex, pointIndex: pointIndex)
+
+                                            if hasVisibleExtensions {
+                                                Text("Extensions")
+                                                    .bold()
+                                                    .frame(maxWidth: .infinity, alignment: .center)
+                                                    .padding(.top, 12)
+                                                    .padding(.bottom, 4)
+                                                    
+                                                extensionsList(for: point)
+                                            }
+                                            
+                                            Toggle("Show all fields and extensions", isOn: $showAllFieldsAndExtensions)
+                                                .padding(.vertical, 8)
                                             
                                             Button(action: {
                                                 if let segmentIndex = selectedSegmentIndex,
@@ -375,6 +394,7 @@ struct EditTrackView: View {
                                                             originalPointLongitude = point.longitude ?? 0.0
                                                             originalPointElevation = point.elevation ?? 0.0
                                                             originalPointTime = point.time
+                                                            originalPoint = GPXUtils.deepCopyPoint(point) as? GPXTrackPoint
                                                             
                                                             originalExtensionsDict = [:]
                                                             if let extensions = point.extensions {
@@ -767,10 +787,225 @@ struct EditTrackView: View {
     }
     
     @ViewBuilder
+    private func basicFieldsList(for point: GPXTrackPoint, segmentIndex: Int, pointIndex: Int) -> some View {
+        let settings = SettingsManager.shared.gpxExportSettings.trackpoints
+
+        if settings.magneticVariation.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Double>(
+                get: { point.magneticVariation ?? 0.0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].magneticVariation = newValue
+                }
+            )
+            LabeledContent("Magnetic Variation:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.geoidHeight.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Double>(
+                get: { point.geoidHeight ?? 0.0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].geoidHeight = newValue
+                }
+            )
+            LabeledContent("Geoid Height:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.name.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.name ?? "" },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].name = newValue.isEmpty ? nil : newValue
+                }
+            )
+            LabeledContent("Name:") {
+                TextField("", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.comment.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.comment ?? "" },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].comment = newValue.isEmpty ? nil : newValue
+                }
+            )
+            LabeledContent("Comment:") {
+                TextField("", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.desc.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.desc ?? "" },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].desc = newValue.isEmpty ? nil : newValue
+                }
+            )
+            LabeledContent("Description:") {
+                TextField("", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.source.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.source ?? "" },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].source = newValue.isEmpty ? nil : newValue
+                }
+            )
+            LabeledContent("Source:") {
+                TextField("", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.symbol.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.symbol ?? "" },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].symbol = newValue.isEmpty ? nil : newValue
+                }
+            )
+            LabeledContent("Symbol:") {
+                TextField("", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.type.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.type ?? "" },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].type = newValue.isEmpty ? nil : newValue
+                }
+            )
+            LabeledContent("Type:") {
+                TextField("", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.satellites.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Int>(
+                get: { point.satellites ?? 0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].satellites = newValue
+                }
+            )
+            LabeledContent("Satellites:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.horizontalDilution.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Double>(
+                get: { point.horizontalDilution ?? 0.0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].horizontalDilution = newValue
+                }
+            )
+            LabeledContent("Horizontal Dilution:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.verticalDilution.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Double>(
+                get: { point.verticalDilution ?? 0.0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].verticalDilution = newValue
+                }
+            )
+            LabeledContent("Vertical Dilution:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.positionDilution.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Double>(
+                get: { point.positionDilution ?? 0.0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].positionDilution = newValue
+                }
+            )
+            LabeledContent("Position Dilution:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.ageofDGPSData.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Double>(
+                get: { point.ageofDGPSData ?? 0.0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].ageofDGPSData = newValue
+                }
+            )
+            LabeledContent("Age of DGPS Data:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.DGPSid.visible || showAllFieldsAndExtensions {
+            let binding = Binding<Int>(
+                get: { point.DGPSid ?? 0 },
+                set: { newValue in
+                    workingCopy.track?.segments[segmentIndex].points[pointIndex].DGPSid = newValue
+                }
+            )
+            LabeledContent("DGPS ID:") {
+                TextField("", value: binding, format: .number)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+        if settings.fix.visible || showAllFieldsAndExtensions {
+            let binding = Binding<String>(
+                get: { point.fix?.rawValue ?? "" },
+                set: { newValue in
+                    if let fix = GPXFix(rawValue: newValue) {
+                        workingCopy.track?.segments[segmentIndex].points[pointIndex].fix = fix
+                    } else if newValue.isEmpty {
+                        workingCopy.track?.segments[segmentIndex].points[pointIndex].fix = nil
+                    }
+                }
+            )
+            LabeledContent("Fix:") {
+                TextField("none, 2d, 3d, dgps, pps", text: binding)
+                    .multilineTextAlignment(.trailing)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
     private func extensionsList(for point: GPXTrackPoint) -> some View {
         ForEach(GPXExtensionKey.trackpointCases, id: \.self) { (key: GPXExtensionKey) in
             let hasValue = editedExtensions.keys.contains(key.rawValue)
-            let binding = Binding<String>(
+            let isVisible = SettingsManager.shared.gpxExportSettings.trackpoints.extensions[key.rawValue]?.visible == true
+            if isVisible || showAllFieldsAndExtensions {
+                let binding = Binding<String>(
                 get: { editedExtensions[key.rawValue] ?? "" },
                 set: { newValue in
                     if newValue.isEmpty {
@@ -841,11 +1076,12 @@ struct EditTrackView: View {
                                 .foregroundColor(.secondary)
                                 .keyboardType(key.valueType == .double || key.valueType == .integer ? .numbersAndPunctuation : .default)
                         }
-                    }
                 }
+            }
             }
         }
     }
+}
 }
 
 extension Binding {

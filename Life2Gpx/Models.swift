@@ -105,11 +105,11 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
     case courseAccuracy = "CourseAccuracy"
 
     static var waypointCases: [GPXExtensionKey] {
-        return [.address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId, .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId, .timezoneOffset, .horizontalPrecision, .verticalPrecision, .debug]
+        return [.address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId, .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId, .horizontalPrecision, .verticalPrecision, .debug]
     }
     
     static var trackpointCases: [GPXExtensionKey] {
-        return [.activityConfidence, .walking, .running, .cycling, .automotive, .stationary, .timezoneOffset, .steps, .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy, .debug]
+        return [.activityConfidence, .walking, .running, .cycling, .automotive, .stationary, .steps, .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy, .debug]
     }
 
     var id: String { rawValue }
