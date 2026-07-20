@@ -84,7 +84,6 @@ struct ContentView: View {
                         )
                         .overlay(
                             MapControlsView(
-                                onRefresh: refreshData,
                                 onCenter: centerAllData,
                                 onSelectToday: { selectedDate = Date() },
                                 selectedDate: $selectedDate,

@@ -244,6 +244,7 @@ struct MapView: View {
                 }
             }
             .mapControls {
+                MapCompass()
                 MapScaleView()
             }
             .onMapCameraChange(frequency: .continuous) { context in

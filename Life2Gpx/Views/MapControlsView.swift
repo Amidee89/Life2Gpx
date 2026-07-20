@@ -13,7 +13,6 @@ import Foundation
 let calendar = Calendar.current
 
 struct MapControlsView: View {
-    var onRefresh: () -> Void
     var onCenter: () -> Void
     var onSelectToday: () -> Void
     @Binding var selectedDate: Date
@@ -25,24 +24,6 @@ struct MapControlsView: View {
             let dynamicTopPadding = max(0, min(safeAreaTop, geometry.size.height - (136 + noDataHeight)))
             
             VStack {
-                HStack{
-                    Spacer()
-                    if !calendar.isDate(selectedDate, inSameDayAs: Date()){
-                        Button(action: onSelectToday){
-                            Image(systemName: "forward")
-                                .frame(width: 20, height: 20)
-                                .font(.system(size: 22))
-                                .padding()
-                                .background(Color.orange)
-                                .foregroundColor(.white)
-                                .clipShape(Circle())
-                                .shadow(radius: 3)
-                        }
-                        .padding(.trailing, 16)
-                        .padding(.top, dynamicTopPadding)
-                        .transition(.scale)
-                    }
-                }
                 Group{
                     if timelineObjects.isEmpty{
                         Text("No data for this day")
@@ -68,18 +49,20 @@ struct MapControlsView: View {
                     .padding(.leading, 16)
                     .padding(.bottom, 16)
                     Spacer()
-                    Button(action: onRefresh) {
-                        Image(systemName: "arrow.clockwise")
-                            .frame(width: 20, height: 20)
-                            .font(.system(size: 22))
-                            .padding()
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .clipShape(Circle())
-                            .shadow(radius: 3)
+                    if !calendar.isDate(selectedDate, inSameDayAs: Date()) {
+                        Button(action: onSelectToday) {
+                            Image(systemName: "forward")
+                                .frame(width: 20, height: 20)
+                                .font(.system(size: 22))
+                                .padding()
+                                .background(Color.orange)
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                                .shadow(radius: 3)
+                        }
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 16)
                     }
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 16)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
