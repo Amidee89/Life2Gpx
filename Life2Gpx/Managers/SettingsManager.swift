@@ -230,6 +230,9 @@ class SettingsManager {
     private let logRetentionDaysKey = "logRetentionDays"
     private let logSizeLimitMBKey = "logSizeLimitMB"
     private let gpxExportSettingsKey = "gpxExportSettings"
+    private let useLastStationaryAsFirstTrackPointKey = "useLastStationaryAsFirstTrackPoint"
+    private let lastStationaryTimeThresholdKey = "lastStationaryTimeThreshold"
+    private let lastStationaryDistanceThresholdKey = "lastStationaryDistanceThreshold"
     
     private init() {
         registerDefaults()
@@ -289,7 +292,10 @@ class SettingsManager {
             localBackupAlwaysRetainOriginalKey: true,
             logRetentionDaysKey: -1,
             logSizeLimitMBKey: 10,
-            gpxExportSettingsKey: GPXExportSettings().rawValue
+            gpxExportSettingsKey: GPXExportSettings().rawValue,
+            useLastStationaryAsFirstTrackPointKey: true,
+            lastStationaryTimeThresholdKey: 1,
+            lastStationaryDistanceThresholdKey: 20
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -749,6 +755,21 @@ class SettingsManager {
             return defaults.integer(forKey: logSizeLimitMBKey)
         }
         set { defaults.set(newValue, forKey: logSizeLimitMBKey) }
+    }
+
+    var useLastStationaryAsFirstTrackPoint: Bool {
+        get { return defaults.bool(forKey: useLastStationaryAsFirstTrackPointKey) }
+        set { defaults.set(newValue, forKey: useLastStationaryAsFirstTrackPointKey) }
+    }
+
+    var lastStationaryTimeThreshold: Int {
+        get { return defaults.integer(forKey: lastStationaryTimeThresholdKey) }
+        set { defaults.set(newValue, forKey: lastStationaryTimeThresholdKey) }
+    }
+
+    var lastStationaryDistanceThreshold: Int {
+        get { return defaults.integer(forKey: lastStationaryDistanceThresholdKey) }
+        set { defaults.set(newValue, forKey: lastStationaryDistanceThresholdKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

@@ -55,6 +55,28 @@ private func indexForSizeMB(_ value: Int) -> Double {
     return Double(sizeStepsMB.firstIndex(of: value) ?? (sizeStepsMB.count - 1))
 }
 
+private let stationaryTimeSteps = [0, 1, 2, 5, 10, 20, 30, 60, 120]
+private let stationaryDistanceSteps = [0, 10, 20, 50, 100, 200, 400, 1000, 10000, 20000, 100000]
+
+private func indexForStationaryTime(_ value: Int) -> Double {
+    return Double(stationaryTimeSteps.firstIndex(of: value) ?? 0)
+}
+
+private func indexForStationaryDistance(_ value: Int) -> Double {
+    return Double(stationaryDistanceSteps.firstIndex(of: value) ?? 0)
+}
+
+private func formattedStationaryDistance(_ meters: Int) -> String {
+    if meters == 0 { return "Always" }
+    if meters < 1000 { return "\(meters)mt" }
+    return "\(meters / 1000)km"
+}
+
+private func formattedStationaryTime(_ minutes: Int) -> String {
+    if minutes == 0 { return "Always" }
+    return "\(minutes) min"
+}
+
 struct SettingsAppBehaviourView: View {
     @AppStorage("loadCurrentDayOnRestoreAfterValue") private var loadCurrentDayOnRestoreAfterValue: Int = SettingsManager.shared.loadCurrentDayOnRestoreAfterValue
     @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
@@ -571,6 +593,9 @@ struct SettingsLocationTrackingView: View {
     @AppStorage("stationaryStepsUpdateInterval") private var stationaryStepsUpdateInterval: Int = SettingsManager.shared.stationaryStepsUpdateInterval
     @AppStorage("stationaryLocationAccuracy") private var stationaryLocationAccuracy: Int = SettingsManager.shared.stationaryLocationAccuracy
     @AppStorage("movingLocationAccuracy") private var movingLocationAccuracy: Int = SettingsManager.shared.movingLocationAccuracy
+    @AppStorage("useLastStationaryAsFirstTrackPoint") private var useLastStationaryAsFirstTrackPoint: Bool = SettingsManager.shared.useLastStationaryAsFirstTrackPoint
+    @AppStorage("lastStationaryTimeThreshold") private var lastStationaryTimeThreshold: Int = SettingsManager.shared.lastStationaryTimeThreshold
+    @AppStorage("lastStationaryDistanceThreshold") private var lastStationaryDistanceThreshold: Int = SettingsManager.shared.lastStationaryDistanceThreshold
 
     var body: some View {
         Form {
@@ -661,6 +686,48 @@ struct SettingsLocationTrackingView: View {
                                 .font(.caption)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .foregroundColor(.red)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Use last stationary position as the first point of the next track", isOn: $useLastStationaryAsFirstTrackPoint)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("To help properly recording the duration of movement with bad GPS like subways or planes")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                        
+                        if useLastStationaryAsFirstTrackPoint {
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text("Minimum time difference from last known position")
+                                        .foregroundColor(.primary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer()
+                                    Text(formattedStationaryTime(lastStationaryTimeThreshold))
+                                }
+                                Slider(value: Binding(
+                                    get: { indexForStationaryTime(lastStationaryTimeThreshold) },
+                                    set: { lastStationaryTimeThreshold = stationaryTimeSteps[Int($0)] }
+                                ), in: 0...Double(stationaryTimeSteps.count - 1), step: 1)
+                            }
+                            .padding(.top, 8)
+                            
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text("Minimum distance from last known position")
+                                        .foregroundColor(.primary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer()
+                                    Text(formattedStationaryDistance(lastStationaryDistanceThreshold))
+                                }
+                                Slider(value: Binding(
+                                    get: { indexForStationaryDistance(lastStationaryDistanceThreshold) },
+                                    set: { lastStationaryDistanceThreshold = stationaryDistanceSteps[Int($0)] }
+                                ), in: 0...Double(stationaryDistanceSteps.count - 1), step: 1)
+                            }
+                            .padding(.top, 8)
                         }
                     }
                 }

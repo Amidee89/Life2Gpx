@@ -46,6 +46,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var locationHistory: [(location: CLLocation, receivedAt: Date)] = []
     private let locationHistoryLock = NSLock()
     private var filteredByPositionQueue: [CLLocation] = []
+    private var lastSkippedLocation: CLLocation?
+
 
     override init() {
         super.init()
@@ -381,6 +383,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                     LogManager.shared.logData(context: "LocationManager", content: "Added location to filteredByPositionQueue. Queue size: \(self.filteredByPositionQueue.count).", verbosity: 4)
                 }
+                
+                self.lastSkippedLocation = newLocation
+                
                  LogManager.shared.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: Distance (\(String(format: "%.1f",distanceFromPrevious))m < \(customDistanceFilter)m) or Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
                  
                 let intervalMinutes = SettingsManager.shared.stationaryStepsUpdateInterval
@@ -408,6 +413,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     LogManager.shared.logData(context: "LocationManager", content: "Resetting filteredByPositionQueue because a new moving point was added (no previous location).", verbosity: 4)
                 }
             } else {
+                self.lastSkippedLocation = newLocation
                 LogManager.shared.logData(context: "LocationManager", content: "Decision: Skipping point. Reason: No previous location saved and Time (\(String(format: "%.1f",timeSinceLastUpdate))s < \(minimumUpdateInterval)s) threshold not met.", verbosity: 5)
             }
             self.previousSavedLocation = newLocation
@@ -517,12 +523,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             let avgVerticalAccuracy = filteredByPositionQueue.reduce(0.0) { $0 + $1.verticalAccuracy } / count
 
             let avgCoordinate = CLLocationCoordinate2D(latitude: avgLatitude, longitude: avgLongitude)
-
+            let firstTimestamp = filteredByPositionQueue.first?.timestamp ?? Date()
+            
             location = CLLocation(coordinate: avgCoordinate,
                                   altitude: avgAltitude,
                                   horizontalAccuracy: avgHorizontalAccuracy,
                                   verticalAccuracy: avgVerticalAccuracy,
-                                  timestamp: Date())
+                                  timestamp: firstTimestamp)
         }
         
         let appendAttemptTime = Date()
@@ -679,6 +686,53 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     } else {
                         // No tracks or segments found, or the last track was earlier than the last point so create and add a new track and segment
                         let newSegment = GPXTrackSegment()
+                        
+                        let settings = SettingsManager.shared
+                        if settings.useLastStationaryAsFirstTrackPoint,
+                           let lastSkipped = self.lastSkippedLocation {
+                            
+                            let wpLat = lastSkipped.coordinate.latitude
+                            let wpLon = lastSkipped.coordinate.longitude
+                            let wpTime = lastSkipped.timestamp
+                            
+                            if let newLat = newTrackPoint.latitude,
+                               let newLon = newTrackPoint.longitude,
+                               let newTime = newTrackPoint.time {
+                                
+                                let lastWpLocation = CLLocation(latitude: wpLat, longitude: wpLon)
+                                let newLocation = CLLocation(latitude: newLat, longitude: newLon)
+                                
+                                let distance = newLocation.distance(from: lastWpLocation)
+                                let timeDiff = newTime.timeIntervalSince(wpTime)
+                                
+                                let distanceThreshold = Double(settings.lastStationaryDistanceThreshold)
+                                let timeThreshold = Double(settings.lastStationaryTimeThreshold * 60)
+                                
+                                if distance >= distanceThreshold && timeDiff >= timeThreshold {
+                                    let firstPoint = GPXTrackPoint(latitude: wpLat, longitude: wpLon)
+                                    firstPoint.time = wpTime
+                                    firstPoint.elevation = lastSkipped.altitude
+                                    
+                                    let customExtensionData: [String: String] = [
+                                        GPXExtensionKey.horizontalPrecision.rawValue: String(lastSkipped.horizontalAccuracy.roundedTo5DecimalPlaces()),
+                                        GPXExtensionKey.verticalPrecision.rawValue: String(lastSkipped.verticalAccuracy.roundedTo5DecimalPlaces()),
+                                        GPXExtensionKey.speed.rawValue: String(lastSkipped.speed.roundedTo5DecimalPlaces()),
+                                        GPXExtensionKey.speedAccuracy.rawValue: String(lastSkipped.speedAccuracy.roundedTo5DecimalPlaces()),
+                                        GPXExtensionKey.course.rawValue: String(lastSkipped.course.roundedTo5DecimalPlaces()),
+                                        GPXExtensionKey.courseAccuracy.rawValue: String(lastSkipped.courseAccuracy.roundedTo5DecimalPlaces()),
+                                        GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT()),
+                                        GPXExtensionKey.debug.rawValue: "Added from stationary"
+                                    ]
+                                    
+                                    let extensions = GPXExtensions()
+                                    extensions.append(at: nil, contents: customExtensionData)
+                                    firstPoint.extensions = extensions
+                                    
+                                    newSegment.add(trackpoint: firstPoint)
+                                }
+                            }
+                        }
+
                         newSegment.add(trackpoint: newTrackPoint)
                         let newTrack = GPXTrack()
                         newTrack.add(trackSegment: newSegment)
