@@ -519,7 +519,7 @@ struct SettingsBackupsView: View {
             Section(header: Text("Local Backup")) {
                 Toggle("Save copy on edits", isOn: $localBackupSaveCopyOnEdits)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Creates automatically a copy of the gpx file in the backups folder before any edit is applied.")
+                Text("Automatically create a copy of gpx and places files in the backups folder before any edit is applied")
                     .font(.caption)
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.gray)
@@ -958,6 +958,7 @@ struct SettingsLoggingView: View {
     @AppStorage("logRetentionDays") private var logRetentionDays: Int = SettingsManager.shared.logRetentionDays
     @AppStorage("logSizeLimitMB") private var logSizeLimitMB: Int = SettingsManager.shared.logSizeLimitMB
     @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
+    @AppStorage("logAllReceivedPositions") private var logAllReceivedPositions: Bool = SettingsManager.shared.logAllReceivedPositions
 
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
     @State private var diagnosticReportError: String?
@@ -1035,10 +1036,22 @@ struct SettingsLoggingView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                         
+                        
                         NavigationLink(destination: ResourceUsageView()) {
                             Text("View Resource Usage")
                         }
                         .padding(.top, 4)
+                    }
+                    .padding(.top, 10)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Log all received positions to file", isOn: $logAllReceivedPositions)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Appends all raw data from location manager to files in Logs/Location folder.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
                     }
                     .padding(.top, 10)
                 }

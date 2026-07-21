@@ -270,6 +270,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let functionStartTime = Date()
         let currentTime = Date()
 
+        for location in locations {
+            LogManager.shared.logLocation(location)
+        }
+
         locationManagerCallCount += 1
         LogManager.shared.logData(context: "LocationManager", content: "Function called. Call count: \(locationManagerCallCount).", verbosity: 5)
 

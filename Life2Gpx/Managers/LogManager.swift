@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 class LogManager {
     static let shared = LogManager()
@@ -10,6 +11,83 @@ class LogManager {
     private init() {
         queue.async {
             self.enforceRetentionPolicies()
+        }
+    }
+
+    func logLocation(_ location: CLLocation) {
+        guard SettingsManager.shared.logAllReceivedPositions else { return }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss.SSS"
+        let logTimestamp = dateFormatter.string(from: Date())
+        
+        let locFormatter = DateFormatter()
+        locFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS O"
+        let locTimestamp = locFormatter.string(from: location.timestamp)
+        
+        var details = [String]()
+        details.append(String(format: "<%+.6f,%+.6f>", location.coordinate.latitude, location.coordinate.longitude))
+        details.append(String(format: "hAcc: %.2fm", location.horizontalAccuracy))
+        details.append(String(format: "alt: %.2fm", location.altitude))
+        details.append(String(format: "vAcc: %.2fm", location.verticalAccuracy))
+        details.append(String(format: "spd: %.2f mps", location.speed))
+        details.append(String(format: "spdAcc: %.2fm", location.speedAccuracy))
+        details.append(String(format: "crs: %.2f°", location.course))
+        
+        if #available(iOS 13.4, *) {
+            details.append(String(format: "crsAcc: %.2f°", location.courseAccuracy))
+        }
+        
+        if let floor = location.floor {
+            details.append("floor: \(floor.level)")
+        }
+        
+        if #available(iOS 15.0, *) {
+            details.append(String(format: "elAlt: %.2fm", location.ellipsoidalAltitude))
+            if let src = location.sourceInformation {
+                details.append("sim: \(src.isSimulatedBySoftware)")
+                details.append("acc: \(src.isProducedByAccessory)")
+            }
+        }
+        
+        let detailsStr = details.joined(separator: ", ")
+        let logMessage = "[\(logTimestamp)] \(detailsStr) @ \(locTimestamp)\n"
+        
+        queue.async {
+            self.writeLocationLog(logMessage)
+        }
+    }
+
+    private func writeLocationLog(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let fileName = formatter.string(from: Date()) + ".log"
+        
+        let logsDirectory = FileManagerUtil.shared.getLocationLogsDirectory()
+        let logFileURL = logsDirectory.appendingPathComponent(fileName)
+        
+        if let data = message.data(using: .utf8) {
+            if fileManager.fileExists(atPath: logFileURL.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                } else {
+                    print("[V1] Could not open file handle for \(logFileURL.path)")
+                }
+            } else {
+                do {
+                    try message.write(to: logFileURL, atomically: true, encoding: .utf8)
+                } catch {
+                    print("[V1] Failed to write to \(logFileURL.path): \(error)")
+                }
+            }
+        }
+        
+        // Use the same size limit logic for location logs
+        writeCount += 1
+        if writeCount % 50 == 0 {
+            enforceSizeLimit(for: logFileURL)
         }
     }
 

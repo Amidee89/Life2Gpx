@@ -193,6 +193,7 @@ class PlaceManager {
         let data = try encoder.encode(places)
         let fileURL = getPlacesFilePath()
         
+        LocalBackupManager.shared.backupFileBeforeEdit(originalFileURL: fileURL, date: Date(), backupType: "Places")
         try data.write(to: fileURL)
     }
     

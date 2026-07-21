@@ -28,6 +28,9 @@ class SignificantLocationChangeManager: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        for location in locations {
+            LogManager.shared.logLocation(location)
+        }
         guard let location = locations.last else { return }
         let timestamp = Date()
         LogManager.shared.logData(context: "SigLocChangeMgr", content: "Received significant location update at \(timestamp): \(location.coordinate). Triggering app launch/resume.", verbosity: 4)

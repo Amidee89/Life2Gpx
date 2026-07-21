@@ -23,7 +23,8 @@ class FileManagerUtil {
             "Backups/Places",
             "Logs/App",
             "Logs/Dumps",
-            "Logs/Resources"
+            "Logs/Resources",
+            "Logs/Location"
         ]
         
         for folder in folders {
@@ -146,6 +147,20 @@ class FileManagerUtil {
                 try fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
             } catch {
                 print("Failed to create Logs/App directory: \(error)")
+            }
+        }
+        return logsDirectory
+    }
+
+    func getLocationLogsDirectory() -> URL {
+        let fileManager = FileManager.default
+        let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs/Location")
+        if !fileManager.fileExists(atPath: logsDirectory.path) {
+            do {
+                try fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Failed to create Logs/Location directory: \(error)")
             }
         }
         return logsDirectory
