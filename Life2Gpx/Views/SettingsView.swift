@@ -81,6 +81,7 @@ struct SettingsAppBehaviourView: View {
     @AppStorage("loadCurrentDayOnRestoreAfterValue") private var loadCurrentDayOnRestoreAfterValue: Int = SettingsManager.shared.loadCurrentDayOnRestoreAfterValue
     @AppStorage("loadCurrentDayOnRestoreAfterUnit") private var loadCurrentDayOnRestoreAfterUnit: String = SettingsManager.shared.loadCurrentDayOnRestoreAfterUnit
     @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
+    @AppStorage("suggestIncreasePlaceRadius") private var suggestIncreasePlaceRadius: Bool = SettingsManager.shared.suggestIncreasePlaceRadius
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
@@ -131,6 +132,16 @@ struct SettingsAppBehaviourView: View {
                             set: { defaultNewPlaceRadius = Int($0) }
                         ), in: 10...1000, step: 10)
                         Text("Default size of the circular region for a newly created place.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Suggest to increase radius of places", isOn: $suggestIncreasePlaceRadius)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("When editing a visit, if the place is selected but its radius is smaller than the distance to the visit, the app will propose to increase it.")
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)

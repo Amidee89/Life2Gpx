@@ -31,6 +31,10 @@ struct EditVisitView: View {
     @State private var showingAllExtensions = false
     @FocusState private var isInputActive: Bool
     
+    @State private var showingRadiusIncreaseAlert = false
+    @State private var requiredRadius: Double = 0.0
+    @State private var radiusIncreaseWarning: String? = nil
+    
     private var originalLatitude: Double?
     private var originalLongitude: Double?
     private var originalElevation: Double?
@@ -282,38 +286,34 @@ struct EditVisitView: View {
                 trailing: Button("Save") {
                     // Update the working waypoint with the latest values
                     guard let waypoint = workingWaypoint else { return }
-                    waypoint.latitude = Double(latitudeString) ?? 0
-                    waypoint.longitude = Double(longitudeString) ?? 0
+                    let newLat = Double(latitudeString) ?? 0
+                    let newLon = Double(longitudeString) ?? 0
+                    waypoint.latitude = newLat
+                    waypoint.longitude = newLon
                     waypoint.time = visitDate
                     waypoint.elevation = Double(elevationString) ?? 0
                     
-                    waypoint.extensions = nil
-                    if !editedExtensions.isEmpty {
-                        let newExtensions = GPXExtensions()
-                        newExtensions.append(at: nil, contents: editedExtensions)
-                        waypoint.extensions = newExtensions
-                    }
-                    
-                    let finalWaypoint: GPXWaypoint
-                    if let selectedPlace {
-                        finalWaypoint = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: selectedPlace)
-                    } else {
-                        waypoint.name = nil
-                        finalWaypoint = waypoint
-                    }
-                    
-                    if let customSave = customSaveAction {
-                        customSave(finalWaypoint, selectedPlace, wasOriginallyUnknown)
-                    } else {
-                        timelineObject.startDate = visitDate
-                        
-                        if let originalWaypoint = self.originalWaypoint {
-                            GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: fileDate)
+                    if SettingsManager.shared.suggestIncreasePlaceRadius, let place = selectedPlace {
+                        let visitLocation = CLLocationCoordinate2D(latitude: newLat, longitude: newLon)
+                        let distance = visitLocation.distance(to: place.centerCoordinate)
+                        if distance > place.radius {
+                            requiredRadius = distance
+                            let increase = distance - place.radius
+                            
+                            if increase > 500 {
+                                radiusIncreaseWarning = "This will increase the radius by more than 500m (from \(Int(place.radius))m to \(Int(distance))m)."
+                            } else if distance > place.radius * 2 {
+                                radiusIncreaseWarning = "This will more than double the radius (from \(Int(place.radius))m to \(Int(distance))m)."
+                            } else {
+                                radiusIncreaseWarning = nil
+                            }
+                            
+                            showingRadiusIncreaseAlert = true
+                            return
                         }
-                        
-                        onSave(selectedPlace, wasOriginallyUnknown)
                     }
-                    dismiss()
+                    
+                    performSave()
                 }
             )
             .toolbar {
@@ -438,6 +438,24 @@ struct EditVisitView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .alert(
+            "Increase Place Radius?",
+            isPresented: $showingRadiusIncreaseAlert
+        ) {
+            Button("Yes") {
+                performSave(updatePlaceRadius: true)
+            }
+            Button("No") {
+                performSave(updatePlaceRadius: false)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let warning = radiusIncreaseWarning {
+                Text("The visit location is outside the radius of the place.\n\nWarning: \(warning)\n\nDo you want to increase the radius to include this visit?")
+            } else {
+                Text("The visit location is outside the radius of the place. Do you want to increase the radius to include this visit?")
+            }
+        }
         .onAppear {
             // Create a deep copy of the waypoint for editing
             if let firstPoint = timelineObject.points.first {
@@ -557,6 +575,75 @@ struct EditVisitView: View {
     }
 
     // MARK: - Extracted Subviews
+
+    private func performSave(updatePlaceRadius: Bool = false) {
+        guard let waypoint = workingWaypoint else { return }
+        
+        waypoint.extensions = nil
+        if !editedExtensions.isEmpty {
+            let newExtensions = GPXExtensions()
+            newExtensions.append(at: nil, contents: editedExtensions)
+            waypoint.extensions = newExtensions
+        }
+        
+        var finalPlace = selectedPlace
+        
+        if updatePlaceRadius, let place = finalPlace {
+            let updatedPlace = Place(
+                placeId: place.placeId,
+                name: place.name,
+                center: place.center,
+                radius: requiredRadius,
+                streetAddress: place.streetAddress,
+                secondsFromGMT: place.secondsFromGMT,
+                lastSaved: place.lastSaved,
+                facebookPlaceId: place.facebookPlaceId,
+                mapboxPlaceId: place.mapboxPlaceId,
+                foursquareVenueId: place.foursquareVenueId,
+                foursquareCategoryId: place.foursquareCategoryId,
+                googlePlacesId: place.googlePlacesId,
+                yelpId: place.yelpId,
+                applePlaceId: place.applePlaceId,
+                osmNodeId: place.osmNodeId,
+                herePlaceId: place.herePlaceId,
+                gaodePlaceId: place.gaodePlaceId,
+                previousIds: place.previousIds,
+                lastVisited: place.lastVisited,
+                isFavorite: place.isFavorite,
+                customIcon: place.customIcon,
+                elevation: place.elevation,
+                isActive: place.isActive
+            )
+            do {
+                try PlaceManager.shared.editPlace(original: place, edited: updatedPlace)
+                finalPlace = updatedPlace
+                selectedPlace = updatedPlace
+            } catch {
+                print("Failed to update place radius: \(error)")
+            }
+        }
+        
+        let finalWaypoint: GPXWaypoint
+        if let place = finalPlace {
+            finalWaypoint = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: place)
+        } else {
+            waypoint.name = nil
+            finalWaypoint = waypoint
+        }
+        
+        if let customSave = customSaveAction {
+            customSave(finalWaypoint, finalPlace, wasOriginallyUnknown)
+        } else {
+            timelineObject.startDate = visitDate
+            
+            if let originalWaypoint = self.originalWaypoint {
+                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: fileDate)
+            }
+            
+            onSave(finalPlace, wasOriginallyUnknown)
+        }
+        dismiss()
+    }
 
     private var placeDetailsSection: some View {
         Section("Place Details") {

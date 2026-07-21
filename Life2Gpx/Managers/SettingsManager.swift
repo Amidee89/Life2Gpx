@@ -234,6 +234,7 @@ class SettingsManager {
     private let lastStationaryTimeThresholdKey = "lastStationaryTimeThreshold"
     private let lastStationaryDistanceThresholdKey = "lastStationaryDistanceThreshold"
     private let logAllReceivedPositionsKey = "logAllReceivedPositions"
+    private let suggestIncreasePlaceRadiusKey = "suggestIncreasePlaceRadius"
     
     private init() {
         registerDefaults()
@@ -297,7 +298,8 @@ class SettingsManager {
             useLastStationaryAsFirstTrackPointKey: true,
             lastStationaryTimeThresholdKey: 1,
             lastStationaryDistanceThresholdKey: 20,
-            logAllReceivedPositionsKey: false
+            logAllReceivedPositionsKey: false,
+            suggestIncreasePlaceRadiusKey: true
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -578,6 +580,11 @@ class SettingsManager {
     var mergeVisitAddSteps: Bool {
         get { return defaults.bool(forKey: mergeVisitAddStepsKey) }
         set { defaults.set(newValue, forKey: mergeVisitAddStepsKey) }
+    }
+
+    var suggestIncreasePlaceRadius: Bool {
+        get { return defaults.bool(forKey: suggestIncreasePlaceRadiusKey) }
+        set { defaults.set(newValue, forKey: suggestIncreasePlaceRadiusKey) }
     }
 
     var sendNotificationOnUnknownPlace: Bool {
