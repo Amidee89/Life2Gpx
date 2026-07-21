@@ -615,12 +615,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     var customExtensionData: [String: String] = [
                         GPXExtensionKey.horizontalPrecision.rawValue: String(location.horizontalAccuracy.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.verticalPrecision.rawValue: String(location.verticalAccuracy.roundedTo5DecimalPlaces()),
-                        GPXExtensionKey.speed.rawValue: String(location.speed.roundedTo5DecimalPlaces()),
-                        GPXExtensionKey.speedAccuracy.rawValue: String(location.speedAccuracy.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.course.rawValue: String(location.course.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.courseAccuracy.rawValue: String(location.courseAccuracy.roundedTo5DecimalPlaces()),
                         GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT())
                     ]
+                    
+                    if location.speedAccuracy != -1 {
+                        customExtensionData[GPXExtensionKey.speed.rawValue] = String(location.speed.roundedTo5DecimalPlaces())
+                        customExtensionData[GPXExtensionKey.speedAccuracy.rawValue] = String(location.speedAccuracy.roundedTo5DecimalPlaces())
+                    }
                     
                     if debug != "" {
                         customExtensionData[GPXExtensionKey.debug.rawValue] = debug
@@ -717,16 +720,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                                     firstPoint.time = wpTime
                                     firstPoint.elevation = lastSkipped.altitude
                                     
-                                    let customExtensionData: [String: String] = [
+                                    var customExtensionData: [String: String] = [
                                         GPXExtensionKey.horizontalPrecision.rawValue: String(lastSkipped.horizontalAccuracy.roundedTo5DecimalPlaces()),
                                         GPXExtensionKey.verticalPrecision.rawValue: String(lastSkipped.verticalAccuracy.roundedTo5DecimalPlaces()),
-                                        GPXExtensionKey.speed.rawValue: String(lastSkipped.speed.roundedTo5DecimalPlaces()),
-                                        GPXExtensionKey.speedAccuracy.rawValue: String(lastSkipped.speedAccuracy.roundedTo5DecimalPlaces()),
                                         GPXExtensionKey.course.rawValue: String(lastSkipped.course.roundedTo5DecimalPlaces()),
                                         GPXExtensionKey.courseAccuracy.rawValue: String(lastSkipped.courseAccuracy.roundedTo5DecimalPlaces()),
                                         GPXExtensionKey.timezoneOffset.rawValue: String(TimeZone.current.secondsFromGMT()),
                                         GPXExtensionKey.debug.rawValue: "Added from stationary"
                                     ]
+                                    
+                                    if lastSkipped.speedAccuracy != -1 {
+                                        customExtensionData[GPXExtensionKey.speed.rawValue] = String(lastSkipped.speed.roundedTo5DecimalPlaces())
+                                        customExtensionData[GPXExtensionKey.speedAccuracy.rawValue] = String(lastSkipped.speedAccuracy.roundedTo5DecimalPlaces())
+                                    }
                                     
                                     let extensions = GPXExtensions()
                                     extensions.append(at: nil, contents: customExtensionData)
