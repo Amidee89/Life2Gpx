@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import CoreLocation
 import MapKit
+import Contacts
 
 enum PlaceProvider: String, CaseIterable, Identifiable, Codable {
     case google
@@ -900,3 +901,63 @@ enum PlaceSearchError: LocalizedError {
         }
     }
 }
+
+enum AddressLookupService {
+    static func reverseGeocode(coordinate: CLLocationCoordinate2D) async -> String? {
+        guard CLLocationCoordinate2DIsValid(coordinate),
+              coordinate.latitude != 0 || coordinate.longitude != 0 else {
+            return nil
+        }
+        
+        let geocoder = CLGeocoder()
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            guard let placemark = placemarks.first else { return nil }
+            
+            if let postalAddress = placemark.postalAddress {
+                let formatter = CNPostalAddressFormatter()
+                formatter.style = .mailingAddress
+                let formatted = formatter.string(from: postalAddress)
+                let singleLine = formatted
+                    .components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: ", ")
+                if !singleLine.isEmpty {
+                    return singleLine
+                }
+            }
+            
+            var parts: [String] = []
+            if let subThoroughfare = placemark.subThoroughfare, let thoroughfare = placemark.thoroughfare {
+                parts.append("\(subThoroughfare) \(thoroughfare)")
+            } else if let thoroughfare = placemark.thoroughfare {
+                parts.append(thoroughfare)
+            }
+            
+            if let locality = placemark.locality {
+                parts.append(locality)
+            } else if let subLocality = placemark.subLocality {
+                parts.append(subLocality)
+            }
+            
+            if let adminArea = placemark.administrativeArea {
+                parts.append(adminArea)
+            }
+            if let postalCode = placemark.postalCode {
+                parts.append(postalCode)
+            }
+            if let country = placemark.country {
+                parts.append(country)
+            }
+            
+            return parts.isEmpty ? nil : parts.joined(separator: ", ")
+        } catch {
+            LogManager.shared.logData(context: "AddressLookupService", content: "Reverse geocoding failed for (\(coordinate.latitude), \(coordinate.longitude)): \(error.localizedDescription)", verbosity: 2)
+            return nil
+        }
+    }
+}
+

@@ -29,6 +29,7 @@ struct EditVisitView: View {
     @State private var showingSecondsPicker = false
     @State private var editedExtensions: [String: String] = [:]
     @State private var showingAllExtensions = false
+    @State private var isLookingUpAddress = false
     @FocusState private var isInputActive: Bool
     
     @State private var showingRadiusIncreaseAlert = false
@@ -331,6 +332,7 @@ struct EditVisitView: View {
             .sheet(isPresented: $showingNewPlaceSheet) {
                 if let coordinate = currentCoordinate {
                     let initialElevation = timelineObject.points.first?.elevation
+                    let existingVisitAddress = editedExtensions[GPXExtensionKey.address.rawValue] ?? originalWaypoint?.extensions?[GPXExtensionKey.address.rawValue].text
 
                     EditPlaceView(
                         place: Place(
@@ -341,7 +343,7 @@ struct EditVisitView: View {
                                 longitude: coordinate.longitude
                             ),
                             radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
-                            streetAddress: nil,
+                            streetAddress: existingVisitAddress,
                             secondsFromGMT: TimeZone.current.secondsFromGMT(),
                             lastSaved: nil,
                             facebookPlaceId: nil,
@@ -385,13 +387,15 @@ struct EditVisitView: View {
             .sheet(isPresented: $showingNewPlaceFromSearch) {
                 if let result = pendingSearchResult, currentCoordinate != nil {
                     let initialElevation = timelineObject.points.first?.elevation
+                    let finalAddress = computeNewPlaceAddress(forSearchResult: result)
+
                     EditPlaceView(
                         place: Place(
                             placeId: UUID().uuidString,
                             name: result.name,
                             center: Center(latitude: result.latitude, longitude: result.longitude),
                             radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
-                            streetAddress: result.address,
+                            streetAddress: finalAddress,
                             secondsFromGMT: TimeZone.current.secondsFromGMT(),
                             lastSaved: nil,
                             facebookPlaceId: nil,
@@ -576,7 +580,56 @@ struct EditVisitView: View {
 
     // MARK: - Extracted Subviews
 
+    private func computeNewPlaceAddress(forSearchResult result: PlaceSearchResult?) -> String? {
+        let existingVisitAddress = editedExtensions[GPXExtensionKey.address.rawValue] ?? originalWaypoint?.extensions?[GPXExtensionKey.address.rawValue].text
+        guard let result = result else {
+            return (existingVisitAddress?.isEmpty == false) ? existingVisitAddress : nil
+        }
+        let providerAddress = result.address
+        if SettingsManager.shared.overwriteExistingAddressOnNewPlaceCreation {
+            if let addr = providerAddress, !addr.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
+                return addr
+            }
+            return (existingVisitAddress?.isEmpty == false) ? existingVisitAddress : nil
+        } else {
+            if let existing = existingVisitAddress, !existing.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
+                return existing
+            }
+            return (providerAddress?.isEmpty == false) ? providerAddress : nil
+        }
+    }
+
+    private func lookupAddressForVisit(completion: (() -> Void)? = nil) {
+        guard let coord = currentCoordinate else {
+            completion?()
+            return
+        }
+        isLookingUpAddress = true
+        Task {
+            let address = await AddressLookupService.reverseGeocode(coordinate: coord)
+            await MainActor.run {
+                if let address = address {
+                    editedExtensions[GPXExtensionKey.address.rawValue] = address
+                }
+                isLookingUpAddress = false
+                completion?()
+            }
+        }
+    }
+
     private func performSave(updatePlaceRadius: Bool = false) {
+        if (editedExtensions[GPXExtensionKey.address.rawValue]?.isEmpty ?? true) &&
+            SettingsManager.shared.autoReverseLookupUnknownVisits &&
+            (selectedPlace == nil || selectedPlace?.placeId == "-1") {
+            lookupAddressForVisit {
+                self.completePerformSave(updatePlaceRadius: updatePlaceRadius)
+            }
+            return
+        }
+        completePerformSave(updatePlaceRadius: updatePlaceRadius)
+    }
+
+    private func completePerformSave(updatePlaceRadius: Bool = false) {
         guard let waypoint = workingWaypoint else { return }
         
         waypoint.extensions = nil
@@ -1008,11 +1061,34 @@ struct EditVisitView: View {
                             }
                             .pickerStyle(MenuPickerStyle())
                         default:
-                            TextField("Value", text: binding)
-                                .focused($isInputActive)
-                                .multilineTextAlignment(.trailing)
-                                .foregroundColor(.secondary)
-                                .keyboardType(key.valueType == .double || key.valueType == .integer ? .numbersAndPunctuation : .default)
+                            if key == .address {
+                                HStack {
+                                    TextField("Value", text: binding)
+                                        .focused($isInputActive)
+                                        .multilineTextAlignment(.trailing)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Button(action: {
+                                        lookupAddressForVisit()
+                                    }) {
+                                        if isLookingUpAddress {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle())
+                                        } else {
+                                            Image(systemName: "location.fill")
+                                                .foregroundColor(.blue)
+                                        }
+                                    }
+                                    .buttonStyle(BorderlessButtonStyle())
+                                    .disabled(isLookingUpAddress)
+                                }
+                            } else {
+                                TextField("Value", text: binding)
+                                    .focused($isInputActive)
+                                    .multilineTextAlignment(.trailing)
+                                    .foregroundColor(.secondary)
+                                    .keyboardType(key.valueType == .double || key.valueType == .integer ? .numbersAndPunctuation : .default)
+                            }
                         }
                     }
                 }

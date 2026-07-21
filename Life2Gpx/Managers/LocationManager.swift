@@ -837,6 +837,39 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         extensions.append(at: nil, contents: customExtensionData)
                         newWaypoint.extensions = extensions
                         self.scheduleUnknownPlaceCheckInNotification(for: newWaypoint)
+                        
+                        if SettingsManager.shared.autoReverseLookupUnknownVisits {
+                            let waypointTime = newWaypoint.time
+                            let coord = location.coordinate
+                            Task {
+                                if let address = await AddressLookupService.reverseGeocode(coordinate: coord) {
+                                    LogManager.shared.logData(context: "LocationManager", content: "Auto reverse lookup address for unknown visit: \(address)", verbosity: 3)
+                                    let today = Date()
+                                    GPXManager.shared.loadFile(forDate: today) { todayWaypoints, todayTracks in
+                                        var updatedWaypoints = todayWaypoints
+                                        if let idx = updatedWaypoints.firstIndex(where: { wp in
+                                            if let t1 = wp.time, let t2 = waypointTime {
+                                                return abs(t1.timeIntervalSince(t2)) < 2.0
+                                            }
+                                            return abs((wp.latitude ?? 0) - coord.latitude) < 0.0001 && abs((wp.longitude ?? 0) - coord.longitude) < 0.0001
+                                        }) {
+                                            let ext = updatedWaypoints[idx].extensions ?? GPXExtensions()
+                                            var dict: [String: String] = [:]
+                                            for child in ext.children {
+                                                if let text = child.text {
+                                                    dict[child.name] = text
+                                                }
+                                            }
+                                            dict[GPXExtensionKey.address.rawValue] = address
+                                            let newExt = GPXExtensions()
+                                            newExt.append(at: nil, contents: dict)
+                                            updatedWaypoints[idx].extensions = newExt
+                                            GPXManager.shared.saveLocationData(updatedWaypoints, tracks: todayTracks, forDate: today)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     
                     gpxWaypoints.append(newWaypoint)

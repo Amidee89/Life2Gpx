@@ -83,6 +83,7 @@ struct SettingsAppBehaviourView: View {
     @AppStorage("defaultNewPlaceRadius") private var defaultNewPlaceRadius: Int = SettingsManager.shared.defaultNewPlaceRadius
     @AppStorage("suggestIncreasePlaceRadius") private var suggestIncreasePlaceRadius: Bool = SettingsManager.shared.suggestIncreasePlaceRadius
     @AppStorage("mergeVisitAddSteps") private var mergeVisitAddSteps: Bool = SettingsManager.shared.mergeVisitAddSteps
+    @AppStorage("autoReverseLookupUnknownVisits") private var autoReverseLookupUnknownVisits: Bool = SettingsManager.shared.autoReverseLookupUnknownVisits
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
     @FocusState private var valueFieldIsFocused: Bool
@@ -152,6 +153,16 @@ struct SettingsAppBehaviourView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         
                         Text("When merging items into a visit, add up all the steps from the merged items and assign them to the resulting visit.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Automatically reverse lookup address for unknown visits", isOn: $autoReverseLookupUnknownVisits)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("When an unknown place is saved, if enabled, the app will automatically perform a reverse address lookup using Maps APIs.")
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
@@ -755,6 +766,7 @@ struct SettingsPlaceSearchView: View {
     @AppStorage("placeSearchKeywordRadius") private var placeSearchKeywordRadius: Int = SettingsManager.shared.placeSearchKeywordRadius
     @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
+    @AppStorage("overwriteExistingAddressOnNewPlaceCreation") private var overwriteExistingAddressOnNewPlaceCreation: Bool = SettingsManager.shared.overwriteExistingAddressOnNewPlaceCreation
 
     var body: some View {
         Form {
@@ -782,6 +794,16 @@ struct SettingsPlaceSearchView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         
                         Text("When assigning a place, suggest to apply the same place to other matching unknown places in the current file.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Overwrite existing address on new place creation", isOn: $overwriteExistingAddressOnNewPlaceCreation)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("If an unknown place visit has an address, adding a place id from a provider will also override the existing address if the provider gives one.")
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)

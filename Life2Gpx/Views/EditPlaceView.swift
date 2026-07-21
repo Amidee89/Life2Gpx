@@ -45,6 +45,7 @@ struct EditPlaceView: View {
     @State private var showingPlaceSearch = false
 
     @State private var isOneTimeVisit: Bool = false
+    @State private var isLookingUpAddress: Bool = false
     let isFromEditVisit: Bool
 
     let isNewPlace: Bool
@@ -277,7 +278,23 @@ struct EditPlaceView: View {
                 }
                 
                 Section(header: Text("Address")) {
-                    TextField("Street Address", text: $streetAddress)
+                    HStack {
+                        TextField("Street Address", text: $streetAddress)
+                        
+                        Button(action: {
+                            performReverseLookup()
+                        }) {
+                            if isLookingUpAddress {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            } else {
+                                Image(systemName: "location.fill")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                        .disabled(isLookingUpAddress)
+                    }
                 }
                 
                 Section(header: Text("Icon")) {
@@ -484,6 +501,7 @@ struct EditPlaceView: View {
                         coordinate: center,
                         selectedIds: selectedPlaceSearchIds,
                         onSelect: { result in
+                            let hadNoPlaceId = selectedPlaceSearchIds.isEmpty
                             switch result.provider {
                             case .google:
                                 googlePlacesId = result.id
@@ -508,8 +526,12 @@ struct EditPlaceView: View {
                             if name.isEmpty {
                                 name = result.name
                             }
-                            if streetAddress.isEmpty, let addr = result.address {
-                                streetAddress = addr
+                            if let addr = result.address, !addr.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
+                                if streetAddress.isEmpty {
+                                    streetAddress = addr
+                                } else if isNewPlace && hadNoPlaceId && SettingsManager.shared.overwriteExistingAddressOnNewPlaceCreation {
+                                    streetAddress = addr
+                                }
                             }
                             if customIcon.isEmpty, let icon = result.resolvedIcon {
                                 customIcon = icon
@@ -526,7 +548,36 @@ struct EditPlaceView: View {
         }
     }
 
+    private func performReverseLookup(completion: (() -> Void)? = nil) {
+        guard let lat = Double(latitudeString.trim()), let lon = Double(longitudeString.trim()) else {
+            completion?()
+            return
+        }
+        isLookingUpAddress = true
+        Task {
+            let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            let address = await AddressLookupService.reverseGeocode(coordinate: coord)
+            await MainActor.run {
+                if let address = address {
+                    streetAddress = address
+                }
+                isLookingUpAddress = false
+                completion?()
+            }
+        }
+    }
+
     private func savePlace() {
+        if streetAddress.trim().isEmpty && SettingsManager.shared.autoReverseLookupUnknownVisits {
+            performReverseLookup {
+                self.completeSavePlace()
+            }
+            return
+        }
+        completeSavePlace()
+    }
+
+    private func completeSavePlace() {
         var finalPlaceId = editedPlaceId.trim()
         if isOneTimeVisit {
             finalPlaceId = "-1"

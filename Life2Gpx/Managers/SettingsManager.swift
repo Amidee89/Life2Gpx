@@ -196,6 +196,7 @@ class SettingsManager {
     private let mapCoordinateSystemModeKey = "mapCoordinateSystemMode"
     private let suggestApplyToOtherPlacesKey = "suggestApplyToOtherPlaces"
     private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
+    private let autoReverseLookupUnknownVisitsKey = "autoReverseLookupUnknownVisits"
     private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
     private let unknownPlaceNotificationValueKey = "unknownPlaceNotificationValue"
     private let unknownPlaceNotificationUnitKey = "unknownPlaceNotificationUnit"
@@ -235,6 +236,7 @@ class SettingsManager {
     private let lastStationaryDistanceThresholdKey = "lastStationaryDistanceThreshold"
     private let logAllReceivedPositionsKey = "logAllReceivedPositions"
     private let suggestIncreasePlaceRadiusKey = "suggestIncreasePlaceRadius"
+    private let overwriteExistingAddressOnNewPlaceCreationKey = "overwriteExistingAddressOnNewPlaceCreation"
     
     private init() {
         registerDefaults()
@@ -263,6 +265,7 @@ class SettingsManager {
             mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue,
             suggestApplyToOtherPlacesKey: true,
             mergeVisitAddStepsKey: true,
+            autoReverseLookupUnknownVisitsKey: true,
             sendNotificationOnUnknownPlaceKey: true,
             unknownPlaceNotificationValueKey: 10,
             unknownPlaceNotificationUnitKey: "minutes",
@@ -299,7 +302,8 @@ class SettingsManager {
             lastStationaryTimeThresholdKey: 1,
             lastStationaryDistanceThresholdKey: 20,
             logAllReceivedPositionsKey: false,
-            suggestIncreasePlaceRadiusKey: true
+            suggestIncreasePlaceRadiusKey: true,
+            overwriteExistingAddressOnNewPlaceCreationKey: false
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -582,9 +586,19 @@ class SettingsManager {
         set { defaults.set(newValue, forKey: mergeVisitAddStepsKey) }
     }
 
+    var autoReverseLookupUnknownVisits: Bool {
+        get { return defaults.bool(forKey: autoReverseLookupUnknownVisitsKey) }
+        set { defaults.set(newValue, forKey: autoReverseLookupUnknownVisitsKey) }
+    }
+
     var suggestIncreasePlaceRadius: Bool {
         get { return defaults.bool(forKey: suggestIncreasePlaceRadiusKey) }
         set { defaults.set(newValue, forKey: suggestIncreasePlaceRadiusKey) }
+    }
+
+    var overwriteExistingAddressOnNewPlaceCreation: Bool {
+        get { return defaults.bool(forKey: overwriteExistingAddressOnNewPlaceCreationKey) }
+        set { defaults.set(newValue, forKey: overwriteExistingAddressOnNewPlaceCreationKey) }
     }
 
     var sendNotificationOnUnknownPlace: Bool {
