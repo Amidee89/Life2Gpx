@@ -105,7 +105,7 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
     case courseAccuracy = "CourseAccuracy"
 
     static var waypointCases: [GPXExtensionKey] {
-        return [.address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId, .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId, .horizontalPrecision, .verticalPrecision, .debug]
+        return [.address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId, .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId, .steps, .horizontalPrecision, .verticalPrecision, .debug]
     }
     
     static var trackpointCases: [GPXExtensionKey] {
