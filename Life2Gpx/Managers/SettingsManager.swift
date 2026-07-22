@@ -34,6 +34,38 @@ enum TimelineLocalTimeMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum UpdatePlaceInformationMode: String, CaseIterable, Identifiable {
+    case never
+    case ask
+    case always
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .never: return "Never"
+        case .ask: return "Ask"
+        case .always: return "Always"
+        }
+    }
+}
+
+enum MatchUnknownPlacesMode: String, CaseIterable, Identifiable {
+    case never
+    case ask
+    case always
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .never: return "Never"
+        case .ask: return "Ask"
+        case .always: return "Always"
+        }
+    }
+}
+
 enum ActivitySummaryVisibility: String, CaseIterable, Identifiable {
     case always
     case onPullDown
@@ -237,6 +269,8 @@ class SettingsManager {
     private let logAllReceivedPositionsKey = "logAllReceivedPositions"
     private let suggestIncreasePlaceRadiusKey = "suggestIncreasePlaceRadius"
     private let overwriteExistingAddressOnNewPlaceCreationKey = "overwriteExistingAddressOnNewPlaceCreation"
+    private let updatePlaceInformationModeKey = "updatePlaceInformationMode"
+    private let matchUnknownPlacesModeKey = "matchUnknownPlacesMode"
     
     private init() {
         registerDefaults()
@@ -303,7 +337,9 @@ class SettingsManager {
             lastStationaryDistanceThresholdKey: 20,
             logAllReceivedPositionsKey: false,
             suggestIncreasePlaceRadiusKey: true,
-            overwriteExistingAddressOnNewPlaceCreationKey: false
+            overwriteExistingAddressOnNewPlaceCreationKey: true,
+            updatePlaceInformationModeKey: UpdatePlaceInformationMode.always.rawValue,
+            matchUnknownPlacesModeKey: MatchUnknownPlacesMode.ask.rawValue
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -572,6 +608,26 @@ class SettingsManager {
         }
     }
 
+    var updatePlaceInformationMode: UpdatePlaceInformationMode {
+        get {
+            let raw = defaults.string(forKey: updatePlaceInformationModeKey) ?? UpdatePlaceInformationMode.always.rawValue
+            return UpdatePlaceInformationMode(rawValue: raw) ?? .always
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: updatePlaceInformationModeKey)
+        }
+    }
+
+    var matchUnknownPlacesMode: MatchUnknownPlacesMode {
+        get {
+            let raw = defaults.string(forKey: matchUnknownPlacesModeKey) ?? MatchUnknownPlacesMode.ask.rawValue
+            return MatchUnknownPlacesMode(rawValue: raw) ?? .ask
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: matchUnknownPlacesModeKey)
+        }
+    }
+
     var suggestApplyToOtherPlaces: Bool {
         get {
             return defaults.bool(forKey: suggestApplyToOtherPlacesKey)
@@ -597,7 +653,7 @@ class SettingsManager {
     }
 
     var overwriteExistingAddressOnNewPlaceCreation: Bool {
-        get { return defaults.bool(forKey: overwriteExistingAddressOnNewPlaceCreationKey) }
+        get { return defaults.object(forKey: overwriteExistingAddressOnNewPlaceCreationKey) != nil ? defaults.bool(forKey: overwriteExistingAddressOnNewPlaceCreationKey) : true }
         set { defaults.set(newValue, forKey: overwriteExistingAddressOnNewPlaceCreationKey) }
     }
 

@@ -28,6 +28,32 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
             return
         }
 
+        let updateMode = SettingsManager.shared.updatePlaceInformationMode
+        let matchUnknownMode = SettingsManager.shared.matchUnknownPlacesMode
+
+        if updateMode == .always || matchUnknownMode == .always {
+            var updatedAny = false
+            for waypoint in gpxWaypoints {
+                if updateMode == .always,
+                   let matchingPlace = GPXUtils.getMatchingPlace(for: waypoint),
+                   GPXUtils.isWaypointPlaceInfoOutdated(waypoint, matchingPlace: matchingPlace) {
+                    _ = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: matchingPlace)
+                    updatedAny = true
+                }
+                
+                if matchUnknownMode == .always,
+                   let matchingPlace = GPXUtils.getMatchingPlaceForUnknownWaypoint(waypoint) {
+                    _ = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: matchingPlace)
+                    updatedAny = true
+                }
+            }
+
+            if updatedAny {
+                LogManager.shared.logData(context: "TimelineManager", content: "Auto-updated place info / matched unknown places on file open for \(selectedDate). Saving GPX.", verbosity: 3)
+                GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: selectedDate)
+            }
+        }
+
         var allCoordinates = [GPXPointProtocol]()
         allCoordinates.append(contentsOf: gpxWaypoints)
         for track in gpxTracks {

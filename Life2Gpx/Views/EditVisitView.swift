@@ -126,6 +126,25 @@ struct EditVisitView: View {
     var body: some View {
         NavigationView {
             List {
+                if hasOutdatedPlaceInfo, let place = selectedPlace {
+                    Section {
+                        Button(action: {
+                            updateAllFieldsFromPlace(place)
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.headline)
+                                    .foregroundColor(.blue)
+                                Text("Update all place info")
+                                    .bold()
+                                    .foregroundColor(.blue)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .listRowBackground(Color.blue.opacity(0.1))
+                }
+
                 if let coordinate = currentCoordinate {
                     Section("Visit Details") {
                         // Split the date and time components
@@ -816,10 +835,22 @@ struct EditVisitView: View {
                         workingWaypoint?.name = newValue.isEmpty ? nil : newValue
                     }
                 )
+                let nameDiffers = selectedPlace != nil && (point.name ?? "") != selectedPlace!.name
                 LabeledContent("Name:") {
-                    TextField("", text: binding)
-                        .multilineTextAlignment(.trailing)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        if nameDiffers, let place = selectedPlace {
+                            Button(action: {
+                                workingWaypoint?.name = place.name
+                            }) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                        }
+                        TextField("", text: binding)
+                            .multilineTextAlignment(.trailing)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             if settings.comment.visible || showingAllExtensions {
@@ -868,10 +899,22 @@ struct EditVisitView: View {
                         workingWaypoint?.symbol = newValue.isEmpty ? nil : newValue
                     }
                 )
+                let symbolDiffers = selectedPlace != nil && (point.symbol ?? "") != (selectedPlace!.customIcon ?? "")
                 LabeledContent("Symbol:") {
-                    TextField("", text: binding)
-                        .multilineTextAlignment(.trailing)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        if symbolDiffers, let place = selectedPlace {
+                            Button(action: {
+                                workingWaypoint?.symbol = place.customIcon
+                            }) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                        }
+                        TextField("", text: binding)
+                            .multilineTextAlignment(.trailing)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             if settings.type.visible || showingAllExtensions {
@@ -996,6 +1039,8 @@ struct EditVisitView: View {
         ForEach(GPXExtensionKey.waypointCases, id: \.self) { (key: GPXExtensionKey) in
             let hasValue = editedExtensions.keys.contains(key.rawValue)
             let isVisible = SettingsManager.shared.gpxExportSettings.waypoints.extensions[key.rawValue]?.visible == true
+            let extensionDiffers = selectedPlace != nil && isPlaceExtensionDiffers(key: key.rawValue, place: selectedPlace!)
+
             if isVisible || showingAllExtensions {
                 let binding = Binding<String>(
                 get: { editedExtensions[key.rawValue] ?? "" },
@@ -1041,53 +1086,65 @@ struct EditVisitView: View {
                 }
                 
                 LabeledContent(key.rawValue) {
-                    if !hasValue {
-                        Text("nil").foregroundColor(.secondary)
-                    } else if key == .timezoneOffset {
-                        SimpleTimezoneEditor(secondsOffsetString: binding, referenceDate: visitDate)
-                    } else {
-                        switch key.valueType {
-                        case .boolean:
-                            Picker("", selection: binding) {
-                                Text("True").tag("True")
-                                Text("False").tag("False")
+                    HStack {
+                        if extensionDiffers, let place = selectedPlace {
+                            Button(action: {
+                                updateSingleExtensionFromPlace(key: key.rawValue, place: place)
+                            }) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .foregroundColor(.blue)
                             }
-                            .pickerStyle(MenuPickerStyle())
-                        case .activityConfidence:
-                            Picker("", selection: binding) {
-                                ForEach(ActivityConfidenceValue.allCases) { conf in
-                                    Text(conf.rawValue).tag(conf.rawValue)
+                            .buttonStyle(BorderlessButtonStyle())
+                        }
+
+                        if !hasValue {
+                            Text("nil").foregroundColor(.secondary)
+                        } else if key == .timezoneOffset {
+                            SimpleTimezoneEditor(secondsOffsetString: binding, referenceDate: visitDate)
+                        } else {
+                            switch key.valueType {
+                            case .boolean:
+                                Picker("", selection: binding) {
+                                    Text("True").tag("True")
+                                    Text("False").tag("False")
                                 }
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                        default:
-                            if key == .address {
-                                HStack {
+                                .pickerStyle(MenuPickerStyle())
+                            case .activityConfidence:
+                                Picker("", selection: binding) {
+                                    ForEach(ActivityConfidenceValue.allCases) { conf in
+                                        Text(conf.rawValue).tag(conf.rawValue)
+                                    }
+                                }
+                                .pickerStyle(MenuPickerStyle())
+                            default:
+                                if key == .address {
+                                    HStack {
+                                        TextField("Value", text: binding)
+                                            .focused($isInputActive)
+                                            .multilineTextAlignment(.trailing)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Button(action: {
+                                            lookupAddressForVisit()
+                                        }) {
+                                            if isLookingUpAddress {
+                                                ProgressView()
+                                                    .progressViewStyle(CircularProgressViewStyle())
+                                            } else {
+                                                Image(systemName: "location.fill")
+                                                    .foregroundColor(.blue)
+                                            }
+                                        }
+                                        .buttonStyle(BorderlessButtonStyle())
+                                        .disabled(isLookingUpAddress)
+                                    }
+                                } else {
                                     TextField("Value", text: binding)
                                         .focused($isInputActive)
                                         .multilineTextAlignment(.trailing)
                                         .foregroundColor(.secondary)
-                                    
-                                    Button(action: {
-                                        lookupAddressForVisit()
-                                    }) {
-                                        if isLookingUpAddress {
-                                            ProgressView()
-                                                .progressViewStyle(CircularProgressViewStyle())
-                                        } else {
-                                            Image(systemName: "location.fill")
-                                                .foregroundColor(.blue)
-                                        }
-                                    }
-                                    .buttonStyle(BorderlessButtonStyle())
-                                    .disabled(isLookingUpAddress)
+                                        .keyboardType(key.valueType == .double || key.valueType == .integer ? .numbersAndPunctuation : .default)
                                 }
-                            } else {
-                                TextField("Value", text: binding)
-                                    .focused($isInputActive)
-                                    .multilineTextAlignment(.trailing)
-                                    .foregroundColor(.secondary)
-                                    .keyboardType(key.valueType == .double || key.valueType == .integer ? .numbersAndPunctuation : .default)
                             }
                         }
                     }
@@ -1220,6 +1277,122 @@ struct EditVisitView: View {
             }
         }
         .listRowBackground(place == selectedPlace ? Color.accentColor.opacity(0.2) : Color.clear)
+    }
+
+    // MARK: - Place Update Helpers
+
+    private var hasOutdatedPlaceInfo: Bool {
+        guard let place = selectedPlace else { return false }
+        let currentName = workingWaypoint?.name ?? ""
+        if currentName != place.name { return true }
+
+        let currentSymbol = workingWaypoint?.symbol ?? ""
+        let placeSymbol = place.customIcon ?? ""
+        if currentSymbol != placeSymbol { return true }
+
+        let placeRelatedKeys = [
+            GPXExtensionKey.placeId.rawValue,
+            GPXExtensionKey.address.rawValue,
+            GPXExtensionKey.facebookPlaceId.rawValue,
+            GPXExtensionKey.mapboxPlaceId.rawValue,
+            GPXExtensionKey.foursquareVenueId.rawValue,
+            GPXExtensionKey.foursquareCategoryId.rawValue,
+            GPXExtensionKey.googlePlacesId.rawValue,
+            GPXExtensionKey.yelpId.rawValue,
+            GPXExtensionKey.applePlaceId.rawValue,
+            GPXExtensionKey.osmNodeId.rawValue,
+            GPXExtensionKey.herePlaceId.rawValue,
+            GPXExtensionKey.gaodePlaceId.rawValue
+        ]
+
+        for key in placeRelatedKeys {
+            if isPlaceExtensionDiffers(key: key, place: place) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func updateAllFieldsFromPlace(_ place: Place) {
+        workingWaypoint?.name = place.name
+        workingWaypoint?.symbol = place.customIcon
+
+        let placeRelatedKeys = [
+            GPXExtensionKey.placeId.rawValue,
+            GPXExtensionKey.address.rawValue,
+            GPXExtensionKey.facebookPlaceId.rawValue,
+            GPXExtensionKey.mapboxPlaceId.rawValue,
+            GPXExtensionKey.foursquareVenueId.rawValue,
+            GPXExtensionKey.foursquareCategoryId.rawValue,
+            GPXExtensionKey.googlePlacesId.rawValue,
+            GPXExtensionKey.yelpId.rawValue,
+            GPXExtensionKey.applePlaceId.rawValue,
+            GPXExtensionKey.osmNodeId.rawValue,
+            GPXExtensionKey.herePlaceId.rawValue,
+            GPXExtensionKey.gaodePlaceId.rawValue
+        ]
+        for key in placeRelatedKeys {
+            editedExtensions.removeValue(forKey: key)
+        }
+
+        editedExtensions[GPXExtensionKey.placeId.rawValue] = place.placeId
+        if let address = place.streetAddress, !address.isEmpty { editedExtensions[GPXExtensionKey.address.rawValue] = address }
+        if let fbId = place.facebookPlaceId, !fbId.isEmpty { editedExtensions[GPXExtensionKey.facebookPlaceId.rawValue] = fbId }
+        if let mapboxId = place.mapboxPlaceId, !mapboxId.isEmpty { editedExtensions[GPXExtensionKey.mapboxPlaceId.rawValue] = mapboxId }
+        if let foursquareId = place.foursquareVenueId, !foursquareId.isEmpty { editedExtensions[GPXExtensionKey.foursquareVenueId.rawValue] = foursquareId }
+        if let categoryId = place.foursquareCategoryId, !categoryId.isEmpty { editedExtensions[GPXExtensionKey.foursquareCategoryId.rawValue] = categoryId }
+        if let googleId = place.googlePlacesId, !googleId.isEmpty { editedExtensions[GPXExtensionKey.googlePlacesId.rawValue] = googleId }
+        if let yelpId = place.yelpId, !yelpId.isEmpty { editedExtensions[GPXExtensionKey.yelpId.rawValue] = yelpId }
+        if let appleId = place.applePlaceId, !appleId.isEmpty { editedExtensions[GPXExtensionKey.applePlaceId.rawValue] = appleId }
+        if let osmId = place.osmNodeId, !osmId.isEmpty { editedExtensions[GPXExtensionKey.osmNodeId.rawValue] = osmId }
+        if let hereId = place.herePlaceId, !hereId.isEmpty { editedExtensions[GPXExtensionKey.herePlaceId.rawValue] = hereId }
+        if let gaodeId = place.gaodePlaceId, !gaodeId.isEmpty { editedExtensions[GPXExtensionKey.gaodePlaceId.rawValue] = gaodeId }
+    }
+
+    private func isPlaceExtensionDiffers(key: String, place: Place) -> Bool {
+        let currentVal = editedExtensions[key] ?? ""
+        let placeVal: String
+        switch key {
+        case GPXExtensionKey.placeId.rawValue: placeVal = place.placeId
+        case GPXExtensionKey.address.rawValue: placeVal = place.streetAddress ?? ""
+        case GPXExtensionKey.facebookPlaceId.rawValue: placeVal = place.facebookPlaceId ?? ""
+        case GPXExtensionKey.mapboxPlaceId.rawValue: placeVal = place.mapboxPlaceId ?? ""
+        case GPXExtensionKey.foursquareVenueId.rawValue: placeVal = place.foursquareVenueId ?? ""
+        case GPXExtensionKey.foursquareCategoryId.rawValue: placeVal = place.foursquareCategoryId ?? ""
+        case GPXExtensionKey.googlePlacesId.rawValue: placeVal = place.googlePlacesId ?? ""
+        case GPXExtensionKey.yelpId.rawValue: placeVal = place.yelpId ?? ""
+        case GPXExtensionKey.applePlaceId.rawValue: placeVal = place.applePlaceId ?? ""
+        case GPXExtensionKey.osmNodeId.rawValue: placeVal = place.osmNodeId ?? ""
+        case GPXExtensionKey.herePlaceId.rawValue: placeVal = place.herePlaceId ?? ""
+        case GPXExtensionKey.gaodePlaceId.rawValue: placeVal = place.gaodePlaceId ?? ""
+        default: return false
+        }
+        return currentVal != placeVal
+    }
+
+    private func updateSingleExtensionFromPlace(key: String, place: Place) {
+        let placeVal: String?
+        switch key {
+        case GPXExtensionKey.placeId.rawValue: placeVal = place.placeId
+        case GPXExtensionKey.address.rawValue: placeVal = place.streetAddress
+        case GPXExtensionKey.facebookPlaceId.rawValue: placeVal = place.facebookPlaceId
+        case GPXExtensionKey.mapboxPlaceId.rawValue: placeVal = place.mapboxPlaceId
+        case GPXExtensionKey.foursquareVenueId.rawValue: placeVal = place.foursquareVenueId
+        case GPXExtensionKey.foursquareCategoryId.rawValue: placeVal = place.foursquareCategoryId
+        case GPXExtensionKey.googlePlacesId.rawValue: placeVal = place.googlePlacesId
+        case GPXExtensionKey.yelpId.rawValue: placeVal = place.yelpId
+        case GPXExtensionKey.applePlaceId.rawValue: placeVal = place.applePlaceId
+        case GPXExtensionKey.osmNodeId.rawValue: placeVal = place.osmNodeId
+        case GPXExtensionKey.herePlaceId.rawValue: placeVal = place.herePlaceId
+        case GPXExtensionKey.gaodePlaceId.rawValue: placeVal = place.gaodePlaceId
+        default: placeVal = nil
+        }
+        if let val = placeVal, !val.isEmpty {
+            editedExtensions[key] = val
+        } else {
+            editedExtensions.removeValue(forKey: key)
+        }
     }
 }
 

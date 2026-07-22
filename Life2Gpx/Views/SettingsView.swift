@@ -31,7 +31,7 @@ struct SettingsView: View {
                 NavigationLink("Notifications", destination: SettingsNotificationsView())
                 NavigationLink("Backups", destination: SettingsBackupsView())
                 NavigationLink("Location and steps tracking", destination: SettingsLocationTrackingView())
-                NavigationLink("Place search and edit", destination: SettingsPlaceSearchView())
+                NavigationLink("Place updating", destination: SettingsPlaceSearchView())
                 NavigationLink("Automatic cleanups", destination: SettingsAutomaticCleanupsView())
                 NavigationLink("Logging", destination: SettingsLoggingView())
             }
@@ -767,10 +767,51 @@ struct SettingsPlaceSearchView: View {
     @AppStorage("placeSearchPageLimit") private var placeSearchPageLimit: Int = SettingsManager.shared.placeSearchPageLimit
     @AppStorage("suggestApplyToOtherPlaces") private var suggestApplyToOtherPlaces: Bool = SettingsManager.shared.suggestApplyToOtherPlaces
     @AppStorage("overwriteExistingAddressOnNewPlaceCreation") private var overwriteExistingAddressOnNewPlaceCreation: Bool = SettingsManager.shared.overwriteExistingAddressOnNewPlaceCreation
+    @AppStorage("updatePlaceInformationMode") private var updatePlaceInformationMode: String = SettingsManager.shared.updatePlaceInformationMode.rawValue
+    @AppStorage("matchUnknownPlacesMode") private var matchUnknownPlacesMode: String = SettingsManager.shared.matchUnknownPlacesMode.rawValue
 
     var body: some View {
         Form {
-            Section {
+            Section(header: Text("Place updating")) {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Update place information on file open")
+                            .foregroundColor(.primary)
+
+                        Picker("Update place information on file open", selection: $updatePlaceInformationMode) {
+                            ForEach(UpdatePlaceInformationMode.allCases) { mode in
+                                Text(mode.displayName).tag(mode.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("when opening a gpx, places with outdated info can be updated, e.g. new name or place ids. Ask shows a button for updatable items, always will update all places on open")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Match places to unknown locations on file open")
+                            .foregroundColor(.primary)
+
+                        Picker("Match places to unknown locations on file open", selection: $matchUnknownPlacesMode) {
+                            ForEach(MatchUnknownPlacesMode.allCases) { mode in
+                                Text(mode.displayName).tag(mode.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("when opening a gpx, unknown places will be checked if they now have a matching place. Ask shows a button to add the place info, always will automatically update on open")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
+            }
+
+            Section(header: Text("Place editing behaviour")) {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading) {
                         HStack {
@@ -798,7 +839,12 @@ struct SettingsPlaceSearchView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
+                }
+                .padding(.vertical)
+            }
 
+            Section(header: Text("Place providers")) {
+                VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Overwrite existing address on new place creation", isOn: $overwriteExistingAddressOnNewPlaceCreation)
                             .fixedSize(horizontal: false, vertical: true)
@@ -866,7 +912,7 @@ struct SettingsPlaceSearchView: View {
                 .padding(.vertical)
             }
         }
-        .navigationTitle("Place Search and Edit")
+        .navigationTitle("Place updating")
     }
 }
 

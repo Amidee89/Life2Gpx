@@ -888,6 +888,8 @@ struct TimelineView: View {
     @AppStorage("activitySummaryVisibility") private var activitySummaryVisibilityRaw: String = SettingsManager.shared.activitySummaryVisibility.rawValue
     @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
     @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeModeRaw: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
+    @AppStorage("updatePlaceInformationMode") private var updatePlaceInformationModeRaw: String = SettingsManager.shared.updatePlaceInformationMode.rawValue
+    @AppStorage("matchUnknownPlacesMode") private var matchUnknownPlacesModeRaw: String = SettingsManager.shared.matchUnknownPlacesMode.rawValue
 
     @State private var useOriginalTimeZoneForDay: Bool = false
     @State private var dayHasDifferentTimeZone: Bool = false
@@ -895,6 +897,14 @@ struct TimelineView: View {
 
     private var timelineLocalTimeMode: TimelineLocalTimeMode {
         TimelineLocalTimeMode(rawValue: timelineLocalTimeModeRaw) ?? .never
+    }
+
+    private var updatePlaceInformationMode: UpdatePlaceInformationMode {
+        UpdatePlaceInformationMode(rawValue: updatePlaceInformationModeRaw) ?? .always
+    }
+
+    private var matchUnknownPlacesMode: MatchUnknownPlacesMode {
+        MatchUnknownPlacesMode(rawValue: matchUnknownPlacesModeRaw) ?? .ask
     }
     
     private func displayTimeZone(for item: TimelineObject?) -> TimeZone {
@@ -1481,6 +1491,26 @@ struct TimelineView: View {
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.name ?? "Unknown Place")
+                                if item.isUnknownPlace, matchUnknownPlacesMode == .ask, let wp = item.points.first, let matchingPlace = GPXUtils.getMatchingPlaceForUnknownWaypoint(wp) {
+                                    Button(action: {
+                                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: GPXUtils.deepCopyPoint(wp), place: matchingPlace)
+                                        GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
+                                        onRefresh()
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "arrow.up.circle.fill")
+                                                .font(.caption)
+                                            Text(matchingPlace.name)
+                                                .font(.caption.bold())
+                                        }
+                                        .foregroundColor(.blue)
+                                        .padding(.vertical, 3)
+                                        .padding(.horizontal, 8)
+                                        .background(Color.blue.opacity(0.12))
+                                        .cornerRadius(8)
+                                    }
+                                    .buttonStyle(BorderlessButtonStyle())
+                                }
                                 Group {
                                     if item.meters > 0 || item.steps > 0 || item.averageSpeed > 0 {
                                         HStack {
@@ -1555,6 +1585,18 @@ struct TimelineView: View {
                 }
 
                 if showEdit {
+                    if item.type == .waypoint, !item.isUnknownPlace, updatePlaceInformationMode == .ask, let wp = item.points.first, let matchingPlace = GPXUtils.getMatchingPlace(for: wp), GPXUtils.isWaypointPlaceInfoOutdated(wp, matchingPlace: matchingPlace) {
+                        Button(action: {
+                            let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: GPXUtils.deepCopyPoint(wp), place: matchingPlace)
+                            GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
+                            onRefresh()
+                        }) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                    }
                     editButton(for: item)
                 }
             }

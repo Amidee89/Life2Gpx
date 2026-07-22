@@ -1,5 +1,6 @@
 import Foundation
 import CoreGPX
+import CoreLocation
 
 class GPXUtils {
     private enum Constants {
@@ -500,52 +501,108 @@ class GPXUtils {
         return result
     }
 
+    static func getMatchingPlace(for waypoint: GPXWaypoint) -> Place? {
+        let allPlaces = PlaceManager.shared.getAllPlaces()
+        let waypointPlaceId = waypoint.extensions?["PlaceId"].text
+        if let waypointPlaceId = waypointPlaceId, !waypointPlaceId.isEmpty {
+            if waypointPlaceId == "-1" { return nil } // One-time visit
+            if let place = allPlaces.first(where: { $0.placeId == waypointPlaceId || ($0.previousIds?.contains(waypointPlaceId) ?? false) }) {
+                return place
+            }
+        }
+        // Fallback: match by coordinates if waypoint has a place-like name matching a place
+        if let lat = waypoint.latitude, let lon = waypoint.longitude {
+            let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            if let place = PlaceManager.shared.findPlaceAtCoordinates(for: coord) {
+                if let wpName = waypoint.name, wpName == place.name {
+                    return place
+                }
+            }
+        }
+        return nil
+    }
+
+    static func getMatchingPlaceForUnknownWaypoint(_ waypoint: GPXWaypoint) -> Place? {
+        let waypointPlaceId = waypoint.extensions?["PlaceId"].text
+        // Must be unknown (no PlaceId or empty PlaceId, and not explicit "-1" one-time visit)
+        if waypointPlaceId != nil && !waypointPlaceId!.isEmpty {
+            return nil
+        }
+        guard let lat = waypoint.latitude, let lon = waypoint.longitude else { return nil }
+        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        return PlaceManager.shared.findPlaceAtCoordinates(for: coord)
+    }
+
+    static func isWaypointPlaceInfoOutdated(_ waypoint: GPXWaypoint, matchingPlace place: Place) -> Bool {
+        if (waypoint.name ?? "") != place.name { return true }
+        if (waypoint.symbol ?? "") != (place.customIcon ?? "") { return true }
+
+        func ext(_ key: String) -> String {
+            return waypoint.extensions?[key].text ?? ""
+        }
+        func str(_ val: String?) -> String {
+            return val ?? ""
+        }
+
+        if ext("PlaceId") != place.placeId { return true }
+        if ext("Address") != str(place.streetAddress) { return true }
+        if ext("FacebookPlaceId") != str(place.facebookPlaceId) { return true }
+        if ext("MapboxPlaceId") != str(place.mapboxPlaceId) { return true }
+        if ext("FoursquareVenueId") != str(place.foursquareVenueId) { return true }
+        if ext("FoursquareCategoryId") != str(place.foursquareCategoryId) { return true }
+        if ext("GooglePlacesId") != str(place.googlePlacesId) { return true }
+        if ext("YelpId") != str(place.yelpId) { return true }
+        if ext("ApplePlaceId") != str(place.applePlaceId) { return true }
+        if ext("OsmNodeId") != str(place.osmNodeId) { return true }
+        if ext("HerePlaceId") != str(place.herePlaceId) { return true }
+        if ext("GaodePlaceId") != str(place.gaodePlaceId) { return true }
+
+        return false
+    }
+
     static func updateWaypointMetadataFromPlace(updatedWaypoint: GPXWaypoint, place: Place) -> GPXWaypoint {
         LogManager.shared.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace called for waypoint at time \(updatedWaypoint.time?.description ?? "N/A") with place: \(place.name).", verbosity: 4)
         updatedWaypoint.name = place.name
         updatedWaypoint.symbol = place.customIcon
         
-        var extensionData: [String: String] = [
-            "PlaceId": place.placeId
+        let placeRelatedKeys = [
+            "PlaceId", "Address", "FacebookPlaceId", "MapboxPlaceId",
+            "FoursquareVenueId", "FoursquareCategoryId", "GooglePlacesId",
+            "YelpId", "ApplePlaceId", "OsmNodeId", "HerePlaceId", "GaodePlaceId"
         ]
-        
-        if let address = place.streetAddress {
-            extensionData["Address"] = address
-        }
-        if let fbId = place.facebookPlaceId {
-            extensionData["FacebookPlaceId"] = fbId
-        }
-        if let mapboxId = place.mapboxPlaceId {
-            extensionData["MapboxPlaceId"] = mapboxId
-        }
-        if let foursquareId = place.foursquareVenueId {
-            extensionData["FoursquareVenueId"] = foursquareId
-        }
-        if let categoryId = place.foursquareCategoryId {
-            extensionData["FoursquareCategoryId"] = categoryId
-        }
-        if let googleId = place.googlePlacesId {
-            extensionData["GooglePlacesId"] = googleId
-        }
-        if let yelpId = place.yelpId {
-            extensionData["YelpId"] = yelpId
-        }
-        if let appleId = place.applePlaceId {
-            extensionData["ApplePlaceId"] = appleId
-        }
-        if let osmId = place.osmNodeId {
-            extensionData["OsmNodeId"] = osmId
-        }
-        if let hereId = place.herePlaceId {
-            extensionData["HerePlaceId"] = hereId
-        }
-        if let gaodeId = place.gaodePlaceId {
-            extensionData["GaodePlaceId"] = gaodeId
+
+        var combinedData = [String: String]()
+        if let existing = updatedWaypoint.extensions {
+            for child in existing.children {
+                let k = child.name
+                if let v = child.text, !k.isEmpty, !placeRelatedKeys.contains(k) {
+                    combinedData[k] = v
+                }
+            }
         }
         
-        GPXUtils.updateExtension(for: updatedWaypoint, with: extensionData)
+        combinedData["PlaceId"] = place.placeId
+        if let address = place.streetAddress, !address.isEmpty { combinedData["Address"] = address }
+        if let fbId = place.facebookPlaceId, !fbId.isEmpty { combinedData["FacebookPlaceId"] = fbId }
+        if let mapboxId = place.mapboxPlaceId, !mapboxId.isEmpty { combinedData["MapboxPlaceId"] = mapboxId }
+        if let foursquareId = place.foursquareVenueId, !foursquareId.isEmpty { combinedData["FoursquareVenueId"] = foursquareId }
+        if let categoryId = place.foursquareCategoryId, !categoryId.isEmpty { combinedData["FoursquareCategoryId"] = categoryId }
+        if let googleId = place.googlePlacesId, !googleId.isEmpty { combinedData["GooglePlacesId"] = googleId }
+        if let yelpId = place.yelpId, !yelpId.isEmpty { combinedData["YelpId"] = yelpId }
+        if let appleId = place.applePlaceId, !appleId.isEmpty { combinedData["ApplePlaceId"] = appleId }
+        if let osmId = place.osmNodeId, !osmId.isEmpty { combinedData["OsmNodeId"] = osmId }
+        if let hereId = place.herePlaceId, !hereId.isEmpty { combinedData["HerePlaceId"] = hereId }
+        if let gaodeId = place.gaodePlaceId, !gaodeId.isEmpty { combinedData["GaodePlaceId"] = gaodeId }
+        
+        if !combinedData.isEmpty {
+            let newExtensions = GPXExtensions()
+            newExtensions.append(at: nil, contents: combinedData)
+            updatedWaypoint.extensions = newExtensions
+        } else {
+            updatedWaypoint.extensions = nil
+        }
+
         LogManager.shared.logData(context: "GPXUtils", content: "updateWaypointMetadataFromPlace finished updating waypoint.", verbosity: 4)
-        
         return updatedWaypoint
     }
     
