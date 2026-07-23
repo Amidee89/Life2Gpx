@@ -680,44 +680,33 @@ class GPXUtils {
     // MARK: - Split Logic
 
     static func splitWaypoint(_ waypoint: GPXWaypoint, at splitTime: Date, retainMetadataInFirst: Bool) -> (GPXWaypoint, GPXWaypoint) {
-        let first = deepCopyPoint(waypoint)
-        let second = deepCopyPoint(waypoint)
+        let first: GPXWaypoint
+        let second: GPXWaypoint
         
-        first.time = waypoint.time
-        second.time = splitTime
+        let blankPoint = GPXWaypoint(latitude: waypoint.latitude ?? 0.0, longitude: waypoint.longitude ?? 0.0)
         
-        func cleanPlaceExtensions(from wp: GPXWaypoint) {
-            wp.name = nil
-            wp.desc = nil
-            if let exts = wp.extensions {
-                var newExtsDict = [String: String]()
-                for child in exts.children {
-                    let name = child.name
-                    if name != GPXExtensionKey.placeId.rawValue && 
-                       name != GPXExtensionKey.address.rawValue &&
-                       name != GPXExtensionKey.foursquareVenueId.rawValue &&
-                       name != GPXExtensionKey.foursquareCategoryId.rawValue &&
-                       name != GPXExtensionKey.googlePlacesId.rawValue &&
-                       name != GPXExtensionKey.yelpId.rawValue &&
-                       name != GPXExtensionKey.applePlaceId.rawValue &&
-                       name != GPXExtensionKey.osmNodeId.rawValue &&
-                       name != GPXExtensionKey.herePlaceId.rawValue &&
-                       name != GPXExtensionKey.gaodePlaceId.rawValue {
-                        newExtsDict[name] = child.text
-                    }
+        // Preserve only the timezone offset for the blank point so it renders at the correct local time
+        if let extensions = waypoint.extensions {
+            for child in extensions.children {
+                if child.name == GPXExtensionKey.timezoneOffset.rawValue {
+                    let newExt = GPXExtensions()
+                    newExt.append(at: nil, contents: [GPXExtensionKey.timezoneOffset.rawValue: child.text ?? ""])
+                    blankPoint.extensions = newExt
+                    break
                 }
-                let newExtensions = GPXExtensions()
-                if !newExtsDict.isEmpty {
-                    newExtensions.append(at: nil, contents: newExtsDict)
-                }
-                wp.extensions = newExtsDict.isEmpty ? nil : newExtensions
             }
         }
         
         if retainMetadataInFirst {
-            cleanPlaceExtensions(from: second)
+            first = deepCopyPoint(waypoint)
+            first.time = waypoint.time
+            second = blankPoint
+            second.time = splitTime
         } else {
-            cleanPlaceExtensions(from: first)
+            first = blankPoint
+            first.time = waypoint.time
+            second = deepCopyPoint(waypoint)
+            second.time = splitTime
         }
         
         return (first, second)
