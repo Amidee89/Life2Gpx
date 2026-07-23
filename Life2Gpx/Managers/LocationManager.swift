@@ -769,12 +769,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                 }
                 else if type == .stationary {
-                    if self.shouldFilterAsRoundTrip(
+                    let filterResult = self.shouldFilterAsRoundTrip(
                         newLocation: location,
                         gpxWaypoints: &gpxWaypoints,
                         gpxTracks: &gpxTracks,
                         appendId: String(appendId)
-                    ) {
+                    )
+                    
+                    switch filterResult {
+                    case .roundTripFiltered:
                         GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
                         if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                             userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
@@ -784,13 +787,19 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             self.lastUpdateTimestamp = Date.now
                         }
                         return
+                    case .notFiltered, .filteredBeforeFirstWaypoint(_):
+                        break
                     }
 
                     let newWaypoint = GPXWaypoint(
                         latitude: location.coordinate.latitude.roundedTo5DecimalPlaces(),
                         longitude: location.coordinate.longitude.roundedTo5DecimalPlaces()
                     )
-                    newWaypoint.time = Date()
+                    if case .filteredBeforeFirstWaypoint(let trackStartTime) = filterResult {
+                        newWaypoint.time = trackStartTime
+                    } else {
+                        newWaypoint.time = Date()
+                    }
                     newWaypoint.elevation = location.altitude.roundedTo5DecimalPlaces()
                     
                     if let matchingPlace = PlaceManager.shared.findPlaceAtCoordinates(for: location.coordinate) {
@@ -900,35 +909,46 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
 
+    enum RoundTripFilterResult {
+        case roundTripFiltered
+        case notFiltered
+        case filteredBeforeFirstWaypoint(Date)
+    }
+
     private func shouldFilterAsRoundTrip(
         newLocation: CLLocation,
         gpxWaypoints: inout [GPXWaypoint],
         gpxTracks: inout [GPXTrack],
         appendId: String
-    ) -> Bool {
+    ) -> RoundTripFilterResult {
         let settings = SettingsManager.shared
-        guard settings.filterSmallRoundTrips else { return false }
+        guard settings.filterSmallRoundTrips else { return .notFiltered }
 
         guard let lastTrack = gpxTracks.last,
               let firstSegment = lastTrack.segments.first,
               let firstPointTime = firstSegment.points.first?.time,
-              lastTrack.segments.last?.points.last?.time ?? Date.distantPast > gpxWaypoints.last?.time ?? Date.distantFuture
+              lastTrack.segments.last?.points.last?.time ?? Date.distantPast > gpxWaypoints.last?.time ?? Date.distantPast
         else {
-            return false
+            return .notFiltered
         }
 
         let totalTrackPoints = lastTrack.segments.reduce(0) { $0 + $1.points.count }
         guard totalTrackPoints <= settings.roundTripMaxPoints else {
             LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] Track has \(totalTrackPoints) points, exceeds max \(settings.roundTripMaxPoints). Not filtering.", verbosity: 4)
-            return false
+            return .notFiltered
         }
 
         guard let previousWaypoint = gpxWaypoints.last,
               let previousWaypointTime = previousWaypoint.time,
               previousWaypointTime < firstPointTime
         else {
+            if settings.filterBeforeFirstWaypoint {
+                gpxTracks.removeLast()
+                LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] No preceding waypoint found before the track, but filterBeforeFirstWaypoint is on. Filtered track with \(totalTrackPoints) points.", verbosity: 3)
+                return .filteredBeforeFirstWaypoint(firstPointTime)
+            }
             LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] No preceding waypoint found before the track. Not filtering.", verbosity: 4)
-            return false
+            return .notFiltered
         }
 
         let previousPlaceId = previousWaypoint.extensions?["PlaceId"].text
@@ -941,14 +961,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
 
         guard let prevLat = previousWaypoint.latitude, let prevLon = previousWaypoint.longitude else {
-            return false
+            return .notFiltered
         }
         let previousLocation = CLLocation(latitude: prevLat, longitude: prevLon)
         let distance = newLocation.distance(from: previousLocation)
 
         guard distance <= radius else {
             LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] New point is \(String(format: "%.1f", distance))m from previous waypoint, exceeds radius \(String(format: "%.1f", radius))m. Not filtering.", verbosity: 4)
-            return false
+            return .notFiltered
         }
 
         var trackSteps = 0
@@ -968,7 +988,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         LogManager.shared.logData(context: "RoundTripFilter", content: "[\(appendId)] Round trip track filtered: \(totalTrackPoints) points, \(String(format: "%.1f", distance))m from previous waypoint (radius: \(String(format: "%.1f", radius))m). Transferred \(trackSteps) steps to previous waypoint (total: \(combinedSteps)). Track removed, new point not saved.", verbosity: 3)
 
-        return true
+        return .roundTripFiltered
     }
 
     func getMostRecentGPXElement(waypoints: [GPXWaypoint], tracks: [GPXTrack]) -> (GPXWaypoint?) {

@@ -216,6 +216,7 @@ class SettingsManager {
     private let defaultNewPlaceRadiusKey = "defaultNewPlaceRadius"
     private let placeProviderOrderKey = "placeProviderOrder"
     private let filterSmallRoundTripsKey = "filterSmallRoundTrips"
+    private let filterBeforeFirstWaypointKey = "filterBeforeFirstWaypoint"
     private let roundTripMaxPointsKey = "roundTripMaxPoints"
     private let roundTripUnknownRadiusKey = "roundTripUnknownRadius"
     private let automaticallyMergeUnknownToKnownTypeTracksKey = "automaticallyMergeUnknownToKnownTypeTracks"
@@ -287,6 +288,7 @@ class SettingsManager {
             defaultNewPlaceRadiusKey: 100,
             placeProviderOrderKey: defaultOrder,
             filterSmallRoundTripsKey: true,
+            filterBeforeFirstWaypointKey: true,
             roundTripMaxPointsKey: 3,
             roundTripUnknownRadiusKey: 100,
             automaticallyMergeUnknownToKnownTypeTracksKey: true,
@@ -465,6 +467,16 @@ class SettingsManager {
             defaults.set(newValue, forKey: filterSmallRoundTripsKey)
         }
     }
+
+    var filterBeforeFirstWaypoint: Bool {
+        get {
+            return defaults.bool(forKey: filterBeforeFirstWaypointKey)
+        }
+        set {
+            defaults.set(newValue, forKey: filterBeforeFirstWaypointKey)
+        }
+    }
+
 
     var roundTripMaxPoints: Int {
         get {

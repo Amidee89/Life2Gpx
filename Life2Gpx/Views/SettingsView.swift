@@ -921,6 +921,7 @@ struct SettingsAutomaticCleanupsView: View {
     @AppStorage("automaticMergeUnknownTrackMaxPoints") private var automaticMergeUnknownTrackMaxPoints: Int = SettingsManager.shared.automaticMergeUnknownTrackMaxPoints
     @AppStorage("automaticMergeKnownTrackMinimumPoints") private var automaticMergeKnownTrackMinimumPoints: Int = SettingsManager.shared.automaticMergeKnownTrackMinimumPoints
     @AppStorage("filterSmallRoundTrips") private var filterSmallRoundTrips: Bool = SettingsManager.shared.filterSmallRoundTrips
+    @AppStorage("filterBeforeFirstWaypoint") private var filterBeforeFirstWaypoint: Bool = SettingsManager.shared.filterBeforeFirstWaypoint
     @AppStorage("roundTripMaxPoints") private var roundTripMaxPoints: Int = SettingsManager.shared.roundTripMaxPoints
     @AppStorage("roundTripUnknownRadius") private var roundTripUnknownRadius: Int = SettingsManager.shared.roundTripUnknownRadius
 
@@ -988,6 +989,16 @@ struct SettingsAutomaticCleanupsView: View {
                         .foregroundColor(.gray)
                     
                     if filterSmallRoundTrips {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Toggle("Filter tracks before first waypoint of the day", isOn: $filterBeforeFirstWaypoint)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("If you're not moving and it's a new file, filter small tracks before the first waypoint of the day.")
+                                .font(.caption)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.vertical, 8)
+                        
                         VStack(alignment: .leading) {
                             HStack {
                                 Text("Max points in filtered track")
