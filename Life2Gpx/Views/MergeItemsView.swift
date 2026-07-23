@@ -101,6 +101,9 @@ struct MergeTypePickerView: View {
             } message: {
                 Text("The selected items are not next to each other in the timeline. Merging them may result in a non-chronological timeline order.")
             }
+            .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+                dismiss()
+            }
         }
     }
 
@@ -176,7 +179,7 @@ struct MergeLocationPickerView: View {
                 .frame(height: 200)
 
                 List {
-                    Section("Choose Visit Location") {
+                    Section {
                         ForEach(Array(candidatePoints.enumerated()), id: \.offset) { index, candidate in
                             Button(action: {
                                 selectedPointIndex = index
@@ -221,6 +224,13 @@ struct MergeLocationPickerView: View {
                             }
                             .listRowBackground(index == selectedPointIndex ? Color.blue.opacity(0.1) : Color.clear)
                         }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Choose Visit Time and Location")
+                            Text("You will be able to edit the point before committing the merge")
+                                .font(.footnote)
+                                .textCase(.none)
+                        }
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -253,6 +263,9 @@ struct MergeLocationPickerView: View {
                     let center = displayCoords[displayCoords.count / 2]
                     cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+                dismiss()
             }
         }
     }

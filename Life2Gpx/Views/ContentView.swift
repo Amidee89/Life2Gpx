@@ -43,6 +43,7 @@ struct ContentView: View {
     @State private var savedGroupingMinutes: Double = 0
     @State private var showDeleteConfirmation = false
     @State private var showMergeTypePicker = false
+    @State private var showSplitItemView = false
     @State private var showMergeVisitLocationPicker = false
     @State private var mergedTrackTimelineObject: TimelineObject?
     @State private var mergedVisitTimelineObject: TimelineObject?
@@ -261,44 +262,92 @@ struct ContentView: View {
                         // Bottom action bar for edit mode
                         if isEditMode && !selectedEditItems.isEmpty {
                             HStack(spacing: 16) {
-                                let selectedItem = selectedEditItems.count == 1 ? timelineObjects.first(where: { $0.id == selectedEditItems.first }) : nil
+                                let isSingleItem = selectedEditItems.count == 1
+                                let selectedItem = isSingleItem ? timelineObjects.first(where: { $0.id == selectedEditItems.first }) : nil
                                 let canConvert = selectedItem?.type == .track
 
-                                Button(action: {
+                                if isSingleItem, let item = selectedItem {
                                     if canConvert {
-                                        showMergeVisitLocationPicker = true
-                                    } else {
+                                        Button(action: {
+                                            showMergeVisitLocationPicker = true
+                                        }) {
+                                            VStack {
+                                                Image(systemName: "arrow.triangle.2.circlepath")
+                                                Text("Convert")
+                                                    .font(.caption)
+                                            }
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 8)
+                                            .background(Color.blue)
+                                            .foregroundColor(.white)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        }
+                                    }
+                                    
+                                    Button(action: {
+                                        showSplitItemView = true
+                                    }) {
+                                        VStack {
+                                            Image(systemName: "scissors")
+                                            Text("Split")
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    }
+                                    
+                                    Button(action: {
+                                        showDeleteConfirmation = true
+                                    }) {
+                                        VStack {
+                                            Image(systemName: "trash")
+                                            Text("Delete")
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: canConvert ? 60 : .infinity)
+                                        .padding(.vertical, 8)
+                                        .background(Color.red)
+                                        .foregroundColor(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    }
+                                } else {
+                                    Button(action: {
                                         mergeItemsContiguous = MergeHelpers.areItemsContiguous(
                                             selectedIDs: selectedEditItems,
                                             allItems: timelineObjects
                                         )
                                         showMergeTypePicker = true
+                                    }) {
+                                        VStack {
+                                            Image(systemName: "arrow.triangle.merge")
+                                            Text("Merge")
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
                                     }
-                                }) {
-                                    HStack {
-                                        Image(systemName: canConvert ? "arrow.triangle.2.circlepath" : "arrow.triangle.merge")
-                                        Text(canConvert ? "Convert" : "Merge")
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                }
-                                .disabled(selectedEditItems.count < 2 && !canConvert)
+                                    .disabled(selectedEditItems.count < 2)
 
-                                Button(action: {
-                                    showDeleteConfirmation = true
-                                }) {
-                                    HStack {
-                                        Image(systemName: "trash")
-                                        Text("Delete")
+                                    Button(action: {
+                                        showDeleteConfirmation = true
+                                    }) {
+                                        VStack {
+                                            Image(systemName: "trash")
+                                            Text("Delete")
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                        .background(Color.red)
+                                        .foregroundColor(.white)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
                                     }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(Color.red)
-                                    .foregroundColor(.white)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -339,6 +388,9 @@ struct ContentView: View {
                 scrollPositions.removeAll()
                 showSettings = false
                 showOrganizePrompt = false
+                showSplitItemView = false
+                showMergeTypePicker = false
+                showMergeVisitLocationPicker = false
                 exitEditMode()
                 refreshData()
                 centerAllData()
@@ -437,6 +489,17 @@ struct ContentView: View {
                     performMergeTrackSave(updatedTrack: updatedTrack)
                 }
             )
+        }
+        .sheet(isPresented: $showSplitItemView) {
+            if let selectedId = selectedEditItems.first,
+               let selectedItem = timelineObjects.first(where: { $0.id == selectedId }) {
+                SplitItemView(timelineObject: selectedItem, fileDate: selectedDate) {
+                    showSplitItemView = false
+                    selectedEditItems.removeAll()
+                    isEditMode = false
+                    refreshData()
+                }
+            }
         }
         .sheet(isPresented: $showMergeVisitLocationPicker) {
             let selectedItems = timelineObjects.filter { selectedEditItems.contains($0.id) }

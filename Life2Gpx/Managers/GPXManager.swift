@@ -309,4 +309,34 @@ class GPXManager {
             LogManager.shared.logData(context: "GPXManager", content: "Replace items completed. Waypoints: \(fileWaypoints.count), Tracks: \(fileTracks.count)", verbosity: 3)
         }
     }
+
+    /// Replace items with multiple items (useful for splitting)
+    func replaceItemWithMultiple(deleteWaypoints: [GPXWaypoint], deleteTracks: [GPXTrack], addWaypoints: [GPXWaypoint], addTracks: [GPXTrack], forDate date: Date) {
+        loadFile(forDate: date) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            LogManager.shared.logData(context: "GPXManager", content: "Replace items with multiple for date: \(dateFormatter.string(from: date)). Deleting \(deleteWaypoints.count) waypoints and \(deleteTracks.count) tracks. Adding \(addWaypoints.count) waypoints and \(addTracks.count) tracks.", verbosity: 3)
+
+            var fileWaypoints = waypoints
+            for wpToDelete in deleteWaypoints {
+                if let index = fileWaypoints.firstIndex(where: { GPXUtils.arePointsTheSame($0, wpToDelete, confidenceLevel: self.comparisonConfidenceLevel) }) {
+                    fileWaypoints.remove(at: index)
+                }
+            }
+
+            var fileTracks = tracks
+            for trackToDelete in deleteTracks {
+                if let index = fileTracks.firstIndex(where: { GPXUtils.areTracksTheSame($0, trackToDelete, confidenceLevel: self.comparisonConfidenceLevel) }) {
+                    fileTracks.remove(at: index)
+                }
+            }
+
+            fileWaypoints.append(contentsOf: addWaypoints)
+            fileTracks.append(contentsOf: addTracks)
+
+            self.saveLocationData(fileWaypoints, tracks: fileTracks, forDate: date)
+            LogManager.shared.logData(context: "GPXManager", content: "Replace items with multiple completed. Waypoints: \(fileWaypoints.count), Tracks: \(fileTracks.count)", verbosity: 3)
+        }
+    }
 }

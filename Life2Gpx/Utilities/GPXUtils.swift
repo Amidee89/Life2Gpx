@@ -676,4 +676,92 @@ class GPXUtils {
         }
         return nil
     }
+
+    // MARK: - Split Logic
+
+    static func splitWaypoint(_ waypoint: GPXWaypoint, at splitTime: Date, retainMetadataInFirst: Bool) -> (GPXWaypoint, GPXWaypoint) {
+        let first = deepCopyPoint(waypoint)
+        let second = deepCopyPoint(waypoint)
+        
+        first.time = waypoint.time
+        second.time = splitTime
+        
+        func cleanPlaceExtensions(from wp: GPXWaypoint) {
+            wp.name = nil
+            wp.desc = nil
+            if let exts = wp.extensions {
+                var newExtsDict = [String: String]()
+                for child in exts.children {
+                    let name = child.name
+                    if name != GPXExtensionKey.placeId.rawValue && 
+                       name != GPXExtensionKey.address.rawValue &&
+                       name != GPXExtensionKey.foursquareVenueId.rawValue &&
+                       name != GPXExtensionKey.foursquareCategoryId.rawValue &&
+                       name != GPXExtensionKey.googlePlacesId.rawValue &&
+                       name != GPXExtensionKey.yelpId.rawValue &&
+                       name != GPXExtensionKey.applePlaceId.rawValue &&
+                       name != GPXExtensionKey.osmNodeId.rawValue &&
+                       name != GPXExtensionKey.herePlaceId.rawValue &&
+                       name != GPXExtensionKey.gaodePlaceId.rawValue {
+                        newExtsDict[name] = child.text
+                    }
+                }
+                let newExtensions = GPXExtensions()
+                if !newExtsDict.isEmpty {
+                    newExtensions.append(at: nil, contents: newExtsDict)
+                }
+                wp.extensions = newExtsDict.isEmpty ? nil : newExtensions
+            }
+        }
+        
+        if retainMetadataInFirst {
+            cleanPlaceExtensions(from: second)
+        } else {
+            cleanPlaceExtensions(from: first)
+        }
+        
+        return (first, second)
+    }
+    
+    static func splitTrack(_ track: GPXTrack, at splitTime: Date) -> (GPXTrack, GPXTrack) {
+        let track1 = GPXTrack()
+        let track2 = GPXTrack()
+        
+        track1.name = track.name
+        track1.desc = track.desc
+        track1.type = track.type
+        track1.source = track.source
+        
+        track2.name = track.name
+        track2.desc = track.desc
+        track2.type = track.type
+        track2.source = track.source
+        
+        for segment in track.segments {
+            let seg1 = GPXTrackSegment()
+            let seg2 = GPXTrackSegment()
+            
+            for point in segment.points {
+                if let ptTime = point.time {
+                    if ptTime <= splitTime {
+                        seg1.add(trackpoint: deepCopyPoint(point) as! GPXTrackPoint)
+                    } else {
+                        seg2.add(trackpoint: deepCopyPoint(point) as! GPXTrackPoint)
+                    }
+                } else {
+                    // Without time, default to appending to seg1
+                    seg1.add(trackpoint: deepCopyPoint(point) as! GPXTrackPoint)
+                }
+            }
+            
+            if !seg1.points.isEmpty {
+                track1.add(trackSegment: seg1)
+            }
+            if !seg2.points.isEmpty {
+                track2.add(trackSegment: seg2)
+            }
+        }
+        
+        return (track1, track2)
+    }
 } 
