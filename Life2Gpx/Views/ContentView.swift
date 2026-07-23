@@ -750,6 +750,13 @@ struct ContentView: View {
             // Find other unknown waypoint objects in the current timeline that match geographically
             let matchingObjects = timelineObjects.filter { obj in
                 guard obj.type == .waypoint, obj.id != timelineObject.id else { return false }
+                
+                // Exclude the current visit even if its UUID changed due to a background refresh
+                if let objPoint = obj.points.first, let targetPoint = timelineObject.points.first,
+                   GPXUtils.arePointsTheSame(objPoint, targetPoint, confidenceLevel: 3) {
+                    return false
+                }
+                
                 guard obj.isUnknownPlace else { return false }
                 
                 if let coord = obj.identifiableCoordinates.first?.coordinates.first {
