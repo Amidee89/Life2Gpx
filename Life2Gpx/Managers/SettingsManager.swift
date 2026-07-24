@@ -66,6 +66,22 @@ enum MatchUnknownPlacesMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum VisuallyConnectTracksMode: String, CaseIterable, Identifiable {
+    case never
+    case transparent
+    case solid
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .never: return "Never"
+        case .transparent: return "Transparent"
+        case .solid: return "Solid"
+        }
+    }
+}
+
 enum ActivitySummaryVisibility: String, CaseIterable, Identifiable {
     case always
     case onPullDown
@@ -272,6 +288,7 @@ class SettingsManager {
     private let overwriteExistingAddressOnNewPlaceCreationKey = "overwriteExistingAddressOnNewPlaceCreation"
     private let updatePlaceInformationModeKey = "updatePlaceInformationMode"
     private let matchUnknownPlacesModeKey = "matchUnknownPlacesMode"
+    private let visuallyConnectTracksModeKey = "visuallyConnectTracksMode"
     
     private init() {
         registerDefaults()
@@ -341,7 +358,8 @@ class SettingsManager {
             suggestIncreasePlaceRadiusKey: true,
             overwriteExistingAddressOnNewPlaceCreationKey: true,
             updatePlaceInformationModeKey: UpdatePlaceInformationMode.always.rawValue,
-            matchUnknownPlacesModeKey: MatchUnknownPlacesMode.ask.rawValue
+            matchUnknownPlacesModeKey: MatchUnknownPlacesMode.ask.rawValue,
+            visuallyConnectTracksModeKey: VisuallyConnectTracksMode.transparent.rawValue
         ])
         
         if defaults.object(forKey: iCloudBackupDailyTimeKey) == nil {
@@ -637,6 +655,16 @@ class SettingsManager {
         }
         set {
             defaults.set(newValue.rawValue, forKey: matchUnknownPlacesModeKey)
+        }
+    }
+
+    var visuallyConnectTracksMode: VisuallyConnectTracksMode {
+        get {
+            let raw = defaults.string(forKey: visuallyConnectTracksModeKey) ?? VisuallyConnectTracksMode.transparent.rawValue
+            return VisuallyConnectTracksMode(rawValue: raw) ?? .transparent
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: visuallyConnectTracksModeKey)
         }
     }
 

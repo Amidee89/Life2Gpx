@@ -86,6 +86,7 @@ struct SettingsAppBehaviourView: View {
     @AppStorage("autoReverseLookupUnknownVisits") private var autoReverseLookupUnknownVisits: Bool = SettingsManager.shared.autoReverseLookupUnknownVisits
     @AppStorage("mapCoordinateSystemMode") private var mapCoordinateSystemMode: String = SettingsManager.shared.mapCoordinateSystemMode.rawValue
     @AppStorage("showCurrentPositionMode") private var showCurrentPositionMode: String = SettingsManager.shared.showCurrentPositionMode.rawValue
+    @AppStorage("visuallyConnectTracksMode") private var visuallyConnectTracksMode: String = SettingsManager.shared.visuallyConnectTracksMode.rawValue
     @FocusState private var valueFieldIsFocused: Bool
 
     var body: some View {
@@ -182,6 +183,24 @@ struct SettingsAppBehaviourView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+                .padding(.bottom, 8)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Visually connect tracks to adjacent items")
+                        .foregroundColor(.primary)
+
+                    Picker("Visually connect tracks", selection: $visuallyConnectTracksMode) {
+                        ForEach(VisuallyConnectTracksMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    Text("Extend track lines on the map to connect with the previous item's last point and the next item's first point. Transparent will display such extensions at 50% opacity.")
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundColor(.gray)
                 }
                 .padding(.bottom, 8)
                 

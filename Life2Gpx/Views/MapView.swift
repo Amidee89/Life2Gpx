@@ -119,6 +119,26 @@ struct MapView: View {
                         }
                     }
                 }
+                
+                if let extPrev = obj.extensionToPrevious, extPrev.count == 2 {
+                    let displayA = CoordinateConverter.forMapDisplay(extPrev[0])
+                    let displayB = CoordinateConverter.forMapDisplay(extPrev[1])
+                    let distance = distanceToSegment(p: tappedCoordinate, a: displayA, b: displayB)
+                    if distance < minDistance {
+                        minDistance = distance
+                        closestObject = obj
+                    }
+                }
+                
+                if let extNext = obj.extensionToNext, extNext.count == 2 {
+                    let displayA = CoordinateConverter.forMapDisplay(extNext[0])
+                    let displayB = CoordinateConverter.forMapDisplay(extNext[1])
+                    let distance = distanceToSegment(p: tappedCoordinate, a: displayA, b: displayB)
+                    if distance < minDistance {
+                        minDistance = distance
+                        closestObject = obj
+                    }
+                }
             }
         }
         
@@ -182,6 +202,16 @@ struct MapView: View {
                             .stroke(PreferencesManager.shared.color(for: trackObject.trackType),
                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                     }
+                    if let ext = trackObject.extensionToPrevious {
+                        MapPolyline(coordinates: CoordinateConverter.forMapDisplay(ext))
+                            .stroke(PreferencesManager.shared.color(for: trackObject.trackType).opacity(0.5),
+                                   style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    }
+                    if let ext = trackObject.extensionToNext {
+                        MapPolyline(coordinates: CoordinateConverter.forMapDisplay(ext))
+                            .stroke(PreferencesManager.shared.color(for: trackObject.trackType).opacity(0.5),
+                                   style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    }
                 }
                 ForEach(timelineObjects.filter { $0.type == .track && isSelected($0.id) }, id: \.id) { selectedObject in
                     let selectedIdentifiableCoordinates = selectedObject.identifiableCoordinates.map { coordinates in
@@ -197,6 +227,31 @@ struct MapView: View {
                                     style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         MapPolyline(coordinates: identifiableCoordinates.coordinates)
                             .stroke(PreferencesManager.shared.color(for: selectedObject.trackType),
+                                   style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    }
+                    
+                    if let ext = selectedObject.extensionToPrevious {
+                        let displayExt = CoordinateConverter.forMapDisplay(ext)
+                        MapPolyline(coordinates: displayExt)
+                            .stroke(.white.opacity(0.5),
+                                    style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: displayExt)
+                            .stroke(.black.opacity(0.5),
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: displayExt)
+                            .stroke(PreferencesManager.shared.color(for: selectedObject.trackType).opacity(0.5),
+                                   style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                    }
+                    if let ext = selectedObject.extensionToNext {
+                        let displayExt = CoordinateConverter.forMapDisplay(ext)
+                        MapPolyline(coordinates: displayExt)
+                            .stroke(.white.opacity(0.5),
+                                    style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: displayExt)
+                            .stroke(.black.opacity(0.5),
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .miter, miterLimit: 1))
+                        MapPolyline(coordinates: displayExt)
+                            .stroke(PreferencesManager.shared.color(for: selectedObject.trackType).opacity(0.5),
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                     }
                 }

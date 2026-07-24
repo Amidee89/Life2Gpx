@@ -154,6 +154,8 @@ class TimelineObject: Identifiable, ObservableObject {
     var numberOfPoints: Int
     var averageSpeed: Double //kmh
     var identifiableCoordinates: [IdentifiableCoordinates]
+    var extensionToPrevious: [CLLocationCoordinate2D]?
+    var extensionToNext: [CLLocationCoordinate2D]?
     var points: [GPXWaypoint]
     var selected: Bool
     var customIcon: String?
@@ -181,6 +183,8 @@ class TimelineObject: Identifiable, ObservableObject {
          numberOfPoints: Int = 0, 
          averageSpeed: Double = 0, 
          coordinates: [IdentifiableCoordinates] = [], 
+         extensionToPrevious: [CLLocationCoordinate2D]? = nil,
+         extensionToNext: [CLLocationCoordinate2D]? = nil,
          points: [GPXWaypoint] = [], 
          customIcon: String? = nil,
          track: GPXTrack? = nil) { 
@@ -195,6 +199,8 @@ class TimelineObject: Identifiable, ObservableObject {
         self.numberOfPoints = numberOfPoints
         self.averageSpeed = averageSpeed
         self.identifiableCoordinates = coordinates
+        self.extensionToPrevious = extensionToPrevious
+        self.extensionToNext = extensionToNext
         self.points = points
         self.selected = false
         self.customIcon = customIcon

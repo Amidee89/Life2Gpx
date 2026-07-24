@@ -95,15 +95,31 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
             var trackCoordinates = track.segments.flatMap { $0.points }.map { CLLocationCoordinate2D(latitude: $0.latitude!, longitude: $0.longitude!) }
             let numberOfPoints = trackCoordinates.count
 
+            var extensionToPrevious: [CLLocationCoordinate2D]? = nil
+            var extensionToNext: [CLLocationCoordinate2D]? = nil
+            let connectMode = SettingsManager.shared.visuallyConnectTracksMode
+
             if let firstTrackPoint = track.segments.first?.points.first {
                 if let closestPreviousPoint = findClosestPoint(to: firstTrackPoint, in: allCoordinates, before: true) {
-                    trackCoordinates.insert(CLLocationCoordinate2D(latitude: closestPreviousPoint.latitude!, longitude: closestPreviousPoint.longitude!), at: 0)
+                    if connectMode == .solid {
+                        trackCoordinates.insert(CLLocationCoordinate2D(latitude: closestPreviousPoint.latitude!, longitude: closestPreviousPoint.longitude!), at: 0)
+                    } else if connectMode == .transparent {
+                        let prevCoord = CLLocationCoordinate2D(latitude: closestPreviousPoint.latitude!, longitude: closestPreviousPoint.longitude!)
+                        let firstCoord = CLLocationCoordinate2D(latitude: firstTrackPoint.latitude!, longitude: firstTrackPoint.longitude!)
+                        extensionToPrevious = [prevCoord, firstCoord]
+                    }
                 }
             }
 
             if let lastTrackPoint = track.segments.last?.points.last {
                 if let closestNextPoint = findClosestPoint(to: lastTrackPoint, in: allCoordinates, before: false) {
-                    trackCoordinates.append(CLLocationCoordinate2D(latitude: closestNextPoint.latitude!, longitude: closestNextPoint.longitude!))
+                    if connectMode == .solid {
+                        trackCoordinates.append(CLLocationCoordinate2D(latitude: closestNextPoint.latitude!, longitude: closestNextPoint.longitude!))
+                    } else if connectMode == .transparent {
+                        let lastCoord = CLLocationCoordinate2D(latitude: lastTrackPoint.latitude!, longitude: lastTrackPoint.longitude!)
+                        let nextCoord = CLLocationCoordinate2D(latitude: closestNextPoint.latitude!, longitude: closestNextPoint.longitude!)
+                        extensionToNext = [lastCoord, nextCoord]
+                    }
                 }
             }
 
@@ -130,6 +146,8 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
                 numberOfPoints: numberOfPoints,
                 averageSpeed: averageSpeed,
                 coordinates: [IdentifiableCoordinates(coordinates: trackCoordinates)],
+                extensionToPrevious: extensionToPrevious,
+                extensionToNext: extensionToNext,
                 points: waypoints,
                 track: track
             )
