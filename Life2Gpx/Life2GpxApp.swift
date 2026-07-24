@@ -63,6 +63,11 @@ struct Life2GpxApp: App {
                     context: "AppLifecycle",
                     detail: "Scene phase \(oldPhase) -> inactive."
                 )
+                if oldPhase == .active {
+                    let currentTime = Date()
+                    defaults.set(currentTime, forKey: "LastActiveTime")
+                    LogManager.shared.logData(context: "AppLifecycle", content: "Saved LastActiveTime: \(currentTime)", verbosity: 3)
+                }
             case .background:
                 let currentTime = Date()
                 if !disableTracking {
