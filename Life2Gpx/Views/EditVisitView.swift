@@ -721,7 +721,7 @@ struct EditVisitView: View {
         Section("Place Details") {
             ZStack(alignment: .bottomTrailing) {
                 MapReader { reader in
-                    Map(position: .constant(.region(region))) {
+                    Map(position: .constant(.region(region)), interactionModes: [.pan, .zoom]) {
                         if let coordinate = currentCoordinate {
                             Annotation("Visit Location", coordinate: CoordinateConverter.forMapDisplay(coordinate)) {
                                 ZStack {

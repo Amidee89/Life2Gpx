@@ -99,12 +99,29 @@ class PlaceManager {
         guard let candidates = gridIndex[cell] else {
             return nil
         }
+        
+        var validPlaces: [(place: Place, distance: Double)] = []
         for place in candidates {
             let distance = coordinate.distance(to: place.centerCoordinate)
             if distance <= place.radius {
+                validPlaces.append((place, distance))
+            }
+        }
+        
+        validPlaces.sort { $0.distance < $1.distance }
+        
+        for validPlace in validPlaces {
+            let place = validPlace.place
+            if let polygonPoints = place.perimeterPolygonPoints, !polygonPoints.isEmpty {
+                let polygon = polygonPoints.map { ($0.latitude, $0.longitude) }
+                if CoordinateConverter.pointInPolygon(lat: coordinate.latitude, lng: coordinate.longitude, polygon: polygon) {
+                    return place
+                }
+            } else {
                 return place
             }
         }
+        
         return nil
     }
     

@@ -366,6 +366,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let isFavorite: Bool?
     let customIcon: String?
     let elevation: Double?
+    var perimeterPolygonPoints: [Center]? = nil
     var isActive: Bool? = true
     var id: String { placeId }
     var coordinate: CLLocationCoordinate2D {
@@ -396,6 +397,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var isFavorite: Bool?
         var customIcon: String?
         var elevation: Double?
+        var perimeterPolygonPoints: [Center]?
         var isActive: Bool?
 
         init(from place: Place) {
@@ -421,6 +423,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.isFavorite = place.isFavorite
             self.customIcon = place.customIcon
             self.elevation = place.elevation
+            self.perimeterPolygonPoints = place.perimeterPolygonPoints
             self.isActive = place.isActive ?? true
         }
         
@@ -448,6 +451,7 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 isFavorite: isFavorite,
                 customIcon: customIcon,
                 elevation: elevation,
+                perimeterPolygonPoints: perimeterPolygonPoints,
                 isActive: isActive
             )
         }
@@ -588,7 +592,8 @@ extension Place {
              lastVisited: nil,
              isFavorite: nil,
              customIcon: nil,
-             elevation: 45.0),
+             elevation: 45.0,
+             perimeterPolygonPoints: nil),
         Place(placeId: "2", 
              name: "Golden Gate Park", 
              center: Center(latitude: 37.769421, longitude: -122.486214), 
@@ -604,7 +609,8 @@ extension Place {
              lastVisited: nil,
              isFavorite: nil,
              customIcon: nil,
-             elevation: nil),
+             elevation: nil,
+             perimeterPolygonPoints: nil),
         Place(placeId: "3", 
              name: "Golden Gate Park", 
              center: Center(latitude: 37.769421, longitude: -122.486314), 
@@ -620,7 +626,8 @@ extension Place {
              lastVisited: nil,
              isFavorite: nil,
              customIcon: nil,
-             elevation: 30.5)
+             elevation: 30.5,
+             perimeterPolygonPoints: nil)
     ]
     
     static let previewPlace: Place = previewPlaces[0]

@@ -95,9 +95,15 @@ struct ManagePlacesView: View {
                                         .frame(width: 10, height: 10)
                                 }
                             }
-                            MapCircle(center: CoordinateConverter.forMapDisplay(place.coordinate), radius: place.radius)
-                                .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
-                                .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
+                            if let polygonPoints = place.perimeterPolygonPoints, !polygonPoints.isEmpty {
+                                MapPolygon(coordinates: polygonPoints.map { CoordinateConverter.forMapDisplay(CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)) })
+                                    .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
+                                    .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
+                            } else {
+                                MapCircle(center: CoordinateConverter.forMapDisplay(place.coordinate), radius: place.radius)
+                                    .stroke(selectedPlace == place ? Color.purple.opacity(1) : Color.red.opacity(1), lineWidth: 2)
+                                    .foregroundStyle(selectedPlace == place ? Color.purple.opacity(0.5) : Color.orange.opacity(0.5))
+                            }
                         }
 
                     }

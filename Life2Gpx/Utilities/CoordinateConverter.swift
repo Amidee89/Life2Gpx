@@ -136,7 +136,7 @@ struct CoordinateConverter {
     return ret
   }
 
-  private static func pointInPolygon(lat: Double, lng: Double, polygon: [(Double, Double)]) -> Bool {
+  static func pointInPolygon(lat: Double, lng: Double, polygon: [(Double, Double)]) -> Bool {
     var inside = false
     var j = polygon.count - 1
     for i in 0..<polygon.count {
@@ -173,4 +173,69 @@ struct CoordinateConverter {
         (21.5, 101.0),   // Yunnan-Laos-Myanmar border
         (22.0, 106.5),   // Guangxi-Vietnam border
     ]
+    
+    // MARK: - Polygon Simplification
+    
+    /// Simplifies a drawn path into a polygon with a maximum number of points using Douglas-Peucker.
+    static func simplifyPolygon(points: [CLLocationCoordinate2D], maxPoints: Int = 10) -> [CLLocationCoordinate2D] {
+        guard points.count > maxPoints else { return points }
+        
+        var epsilon = 0.001
+        var minEpsilon = 0.0
+        var maxEpsilon = 1.0 // Arbitrarily large for lat/lon degrees
+        
+        var bestResult = points
+        
+        // Binary search for the right epsilon to get <= maxPoints
+        for _ in 0..<20 {
+            let simplified = douglasPeucker(points, epsilon: epsilon)
+            
+            if simplified.count == maxPoints {
+                return simplified
+            } else if simplified.count > maxPoints {
+                minEpsilon = epsilon
+                epsilon = (epsilon + maxEpsilon) / 2.0
+            } else {
+                bestResult = simplified
+                maxEpsilon = epsilon
+                epsilon = (minEpsilon + epsilon) / 2.0
+            }
+        }
+        
+        return bestResult
+    }
+    
+    private static func douglasPeucker(_ points: [CLLocationCoordinate2D], epsilon: Double) -> [CLLocationCoordinate2D] {
+        guard points.count > 2 else { return points }
+        
+        var dmax = 0.0
+        var index = 0
+        let end = points.count - 1
+        
+        for i in 1..<end {
+            let d = perpendicularDistance(pt: points[i], lineStart: points[0], lineEnd: points[end])
+            if d > dmax {
+                index = i
+                dmax = d
+            }
+        }
+        
+        if dmax > epsilon {
+            let recResults1 = douglasPeucker(Array(points[0...index]), epsilon: epsilon)
+            let recResults2 = douglasPeucker(Array(points[index...end]), epsilon: epsilon)
+            return Array(recResults1.dropLast()) + recResults2
+        } else {
+            return [points[0], points[end]]
+        }
+    }
+    
+    private static func perpendicularDistance(pt: CLLocationCoordinate2D, lineStart: CLLocationCoordinate2D, lineEnd: CLLocationCoordinate2D) -> Double {
+        let x0 = pt.longitude, y0 = pt.latitude
+        let x1 = lineStart.longitude, y1 = lineStart.latitude
+        let x2 = lineEnd.longitude, y2 = lineEnd.latitude
+        
+        let area = abs(0.5 * (x1 * (y2 - y0) + x2 * (y0 - y1) + x0 * (y1 - y2)))
+        let bottom = sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2))
+        return bottom > 0 ? (area / bottom) * 2.0 : 0.0
+    }
 }

@@ -28,6 +28,12 @@ struct EditPlaceView: View {
     @State private var gaodePlaceId: String
     @State private var latitudeString: String
     @State private var longitudeString: String
+    @State private var isPolygonMode: Bool
+    @State private var polygonActionMode: Int = 0
+    @State private var polygonPoints: [CLLocationCoordinate2D]
+    @State private var selectedPointIndex: Int?
+    @State private var drawingPoints: [CLLocationCoordinate2D] = []
+    @State private var isDraggingPoint: Bool = false
     @State private var newPreviousId: String = ""
     @State private var showingError = false
     @State private var errorMessage = ""
@@ -101,6 +107,15 @@ struct EditPlaceView: View {
         _customIcon = State(initialValue: place.customIcon ?? "")
         _lastVisited = State(initialValue: place.lastVisited ?? Date())
         _isOneTimeVisit = State(initialValue: place.placeId == "-1")
+        
+        let hasPolygon = place.perimeterPolygonPoints != nil && !place.perimeterPolygonPoints!.isEmpty
+        _isPolygonMode = State(initialValue: hasPolygon)
+        if hasPolygon {
+            _polygonPoints = State(initialValue: place.perimeterPolygonPoints!.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) })
+        } else {
+            _polygonPoints = State(initialValue: [])
+        }
+        _selectedPointIndex = State(initialValue: nil)
     }
 
     private var selectedPlaceSearchIds: [PlaceProvider: String] {
@@ -135,6 +150,23 @@ struct EditPlaceView: View {
         return Int(round(exp(logValue)))
     }
 
+    private func updatePolygonCenter() {
+        guard isPolygonMode, !polygonPoints.isEmpty else { return }
+        let avgLat = polygonPoints.map(\.latitude).reduce(0, +) / Double(polygonPoints.count)
+        let avgLng = polygonPoints.map(\.longitude).reduce(0, +) / Double(polygonPoints.count)
+        center = CLLocationCoordinate2D(latitude: avgLat, longitude: avgLng)
+        latitudeString = String(format: "%.6f", avgLat)
+        longitudeString = String(format: "%.6f", avgLng)
+        
+        var maxDist = 5.0
+        let centerLoc = CLLocation(latitude: avgLat, longitude: avgLng)
+        for p in polygonPoints {
+            let d = centerLoc.distance(from: CLLocation(latitude: p.latitude, longitude: p.longitude))
+            if d > maxDist { maxDist = d }
+        }
+        radius = Int(ceil(maxDist))
+    }
+
     var body: some View {
         NavigationView {
             Form {
@@ -152,75 +184,235 @@ struct EditPlaceView: View {
                 }
                 
                 Section {
-                    ZStack(alignment: .bottomTrailing) {
+                    Picker("Mode", selection: $isPolygonMode) {
+                        Text("Radius").tag(false)
+                        Text("Polygon").tag(true)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .onChange(of: isPolygonMode) { _, newValue in
+                        if newValue && polygonPoints.isEmpty {
+                            let radiusDegrees = Double(radius) / 111320.0
+                            polygonPoints = [
+                                CLLocationCoordinate2D(latitude: center.latitude + radiusDegrees, longitude: center.longitude - radiusDegrees),
+                                CLLocationCoordinate2D(latitude: center.latitude + radiusDegrees, longitude: center.longitude + radiusDegrees),
+                                CLLocationCoordinate2D(latitude: center.latitude - radiusDegrees, longitude: center.longitude + radiusDegrees),
+                                CLLocationCoordinate2D(latitude: center.latitude - radiusDegrees, longitude: center.longitude - radiusDegrees)
+                            ]
+                        }
+                    }
+                    ZStack(alignment: .top) {
                         MapReader { reader in
-                            Map(position: $cameraPosition, interactionModes: .all) {
-                                Annotation(editablePlace.name, coordinate: CoordinateConverter.forMapDisplay(center)) {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 10, height: 10)
-                                }
-                                MapCircle(center: CoordinateConverter.forMapDisplay(center), radius: Double(radius))
-                                    .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                                    .foregroundStyle(Color.orange.opacity(0.5))
-                            }
-                            .frame(height: 300)
-                            .onTapGesture { screenCoord in
-                                if let mapCoordinate = reader.convert(screenCoord, from: .local) {
-                                    let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
-                                    center = coordinate
-                                    latitudeString = String(format: "%.6f", coordinate.latitude)
-                                    longitudeString = String(format: "%.6f", coordinate.longitude)
+                            ZStack {
+                                MapGestureConfigurator(isEnabled: isPolygonMode) { touchLoc, state in
+                                    guard isPolygonMode else { return }
+                                    
+                                    if polygonActionMode == 0 { // Move Points
+                                        if state == .began {
+                                            isDraggingPoint = true
+                                            var closestIdx: Int?
+                                            var minDistance: CGFloat = 44.0
+                                            for (idx, pt) in polygonPoints.enumerated() {
+                                                let mapCoord = CoordinateConverter.forMapDisplay(pt)
+                                                if let ptScreen = reader.convert(mapCoord, to: .local) {
+                                                    let dx = ptScreen.x - touchLoc.x
+                                                    let dy = ptScreen.y - touchLoc.y
+                                                    let dist = sqrt(dx*dx + dy*dy)
+                                                    if dist < minDistance {
+                                                        minDistance = dist
+                                                        closestIdx = idx
+                                                    }
+                                                }
+                                            }
+                                            if let closestIdx = closestIdx {
+                                                selectedPointIndex = closestIdx
+                                            }
+                                        }
+                                        
+                                        if state == .began || state == .changed {
+                                            if let idx = selectedPointIndex, let mapCoordinate = reader.convert(touchLoc, from: .local) {
+                                                let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
+                                                polygonPoints[idx] = coordinate
+                                                updatePolygonCenter()
+                                            }
+                                        } else if state == .ended || state == .cancelled || state == .failed {
+                                            isDraggingPoint = false
+                                        }
+                                        
+                                    } else if polygonActionMode == 1 { // Draw Shape
+                                        if state == .began {
+                                            drawingPoints = []
+                                            if let mapCoordinate = reader.convert(touchLoc, from: .local) {
+                                                drawingPoints.append(CoordinateConverter.fromMapDisplay(mapCoordinate))
+                                            }
+                                        } else if state == .changed {
+                                            if let mapCoordinate = reader.convert(touchLoc, from: .local) {
+                                                drawingPoints.append(CoordinateConverter.fromMapDisplay(mapCoordinate))
+                                            }
+                                        } else if state == .ended || state == .cancelled || state == .failed {
+                                            if drawingPoints.count > 2 {
+                                                let newPoly = CoordinateConverter.simplifyPolygon(points: drawingPoints, maxPoints: 10)
+                                                polygonPoints = newPoly
+                                                updatePolygonCenter()
+                                                selectedPointIndex = nil
+                                            }
+                                            drawingPoints = []
+                                        }
+                                    }
                                 }
                                 
+                                Map(position: $cameraPosition, interactionModes: .all.subtracting(.pitch)) {
+                                    Annotation(editablePlace.name, coordinate: CoordinateConverter.forMapDisplay(center)) {
+                                        Circle()
+                                            .fill(isPolygonMode ? Color.gray : Color.red)
+                                            .frame(width: 10, height: 10)
+                                    }
+                                    if isPolygonMode {
+                                        if !polygonPoints.isEmpty {
+                                            let displayPoints = polygonPoints.map { CoordinateConverter.forMapDisplay($0) }
+                                            MapPolygon(coordinates: displayPoints)
+                                                .stroke(Color.blue.opacity(0.8), lineWidth: 2)
+                                                .foregroundStyle(Color.orange.opacity(0.3))
+                                            
+                                            ForEach(Array(displayPoints.enumerated()), id: \.offset) { index, point in
+                                                Annotation("", coordinate: point) {
+                                                    Circle()
+                                                        .fill(selectedPointIndex == index ? Color.green : Color.white)
+                                                        .stroke(Color.black, lineWidth: 2)
+                                                        .frame(width: 16, height: 16)
+                                                }
+                                            }
+                                        }
+                                        
+                                        if !drawingPoints.isEmpty {
+                                            let drawDisplayPoints = drawingPoints.map { CoordinateConverter.forMapDisplay($0) }
+                                            MapPolyline(coordinates: drawDisplayPoints)
+                                                .stroke(Color.red, lineWidth: 4)
+                                        }
+                                    } else {
+                                        MapCircle(center: CoordinateConverter.forMapDisplay(center), radius: Double(radius))
+                                            .stroke(Color.blue.opacity(0.5), lineWidth: 2)
+                                            .foregroundStyle(Color.orange.opacity(0.5))
+                                    }
+                                }
+                                .onTapGesture { screenCoord in
+                                    if !isPolygonMode {
+                                        if let mapCoordinate = reader.convert(screenCoord, from: .local) {
+                                            let coordinate = CoordinateConverter.fromMapDisplay(mapCoordinate)
+                                            center = coordinate
+                                            latitudeString = String(format: "%.6f", coordinate.latitude)
+                                            longitudeString = String(format: "%.6f", coordinate.longitude)
+                                        }
+                                    }
+                                }
                             }
                         }
-
-                        VStack(spacing: 10) {
-                            Image(systemName: "location.viewfinder")
-                                .font(.title)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .clipShape(Circle())
-                                .shadow(radius: 3)
-                                .scaleEffect(0.8)
-                                .contentShape(Circle())
-                                .onTapGesture {
-                                    withAnimation {
-                                        let radiusInDegrees = (Double(radius) * 2.2) / 111000
-                                        let minimumSpan = 10.0 / 111000
-                                        let span = max(radiusInDegrees, minimumSpan)
-                                        
-                                        currentRegion = MKCoordinateRegion(
-                                            center: CoordinateConverter.forMapDisplay(center),
-                                            span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
-                                        )
-                                        cameraPosition = .region(currentRegion)
-                                    }
+                        
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 10) {
+                                    Image(systemName: "location.viewfinder")
+                                        .font(.title)
+                                        .padding()
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 3)
+                                        .scaleEffect(0.8)
+                                        .contentShape(Circle())
+                                        .onTapGesture {
+                                            withAnimation {
+                                                let radiusInDegrees = (Double(radius) * 2.2) / 111000
+                                                let minimumSpan = 10.0 / 111000
+                                                let span = max(radiusInDegrees, minimumSpan)
+                                                
+                                                currentRegion = MKCoordinateRegion(
+                                                    center: CoordinateConverter.forMapDisplay(center),
+                                                    span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
+                                                )
+                                                cameraPosition = .region(currentRegion)
+                                            }
+                                        }
+                                    
+                                    Image(systemName: "location")
+                                        .font(.title)
+                                        .padding()
+                                        .background(Color.white)
+                                        .foregroundColor(.blue)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 3)
+                                        .scaleEffect(0.8)
+                                        .contentShape(Circle())
+                                        .onTapGesture {
+                                            withAnimation {
+                                                cameraPosition = .userLocation(followsHeading: false, fallback: .region(currentRegion))
+                                            }
+                                        }
                                 }
-                            
-                            Image(systemName: "location")
-                                .font(.title)
-                                .padding()
-                                .background(Color.white)
-                                .foregroundColor(.blue)
-                                .clipShape(Circle())
-                                .shadow(radius: 3)
-                                .scaleEffect(0.8)
-                                .contentShape(Circle())
-                                .onTapGesture {
-                                    withAnimation {
-                                        cameraPosition = .userLocation(followsHeading: false, fallback: .region(currentRegion))
-                                    }
-                                }
+                            }
                         }
                         .padding(.trailing, 16)
                         .padding(.bottom, 16)
                         .allowsHitTesting(true)
-                        .zIndex(1)
                     }
+                    .frame(height: 300)
                     .listRowInsets(EdgeInsets())
+                    
+                    if isPolygonMode {
+                        Picker("Polygon Action", selection: $polygonActionMode) {
+                            Text("Move Points").tag(0)
+                            Text("Draw Shape").tag(1)
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        
+                        Text("(!) To move the map, use two finger gestures")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 4)
+                        
+                        HStack {
+                            Button(action: {
+                                if let idx = selectedPointIndex {
+                                    polygonPoints.remove(at: idx)
+                                    selectedPointIndex = nil
+                                    updatePolygonCenter()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "minus.circle.fill")
+                                    Text("Remove Point")
+                                }
+                                .foregroundColor(selectedPointIndex != nil && polygonPoints.count > 3 && polygonActionMode == 0 ? .red : .gray)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                            .disabled(selectedPointIndex == nil || polygonPoints.count <= 3 || polygonActionMode != 0)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                let idx1 = selectedPointIndex ?? 0
+                                let idx2 = (idx1 + 1) % polygonPoints.count
+                                let p1 = polygonPoints[idx1]
+                                let p2 = polygonPoints[idx2]
+                                let newPoint = CLLocationCoordinate2D(
+                                    latitude: (p1.latitude + p2.latitude) / 2.0,
+                                    longitude: (p1.longitude + p2.longitude) / 2.0
+                                )
+                                polygonPoints.insert(newPoint, at: idx1 + 1)
+                                selectedPointIndex = idx1 + 1
+                                updatePolygonCenter()
+                            }) {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add Point")
+                                }
+                                .foregroundColor(polygonPoints.count < 10 && polygonActionMode == 0 ? .blue : .gray)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                            .disabled(polygonPoints.count >= 10 || polygonActionMode != 0)
+                        }
+                    }
                 }
                 
 
@@ -229,8 +421,9 @@ struct EditPlaceView: View {
                     
                     TextField("Latitude", text: $latitudeString)
                         .keyboardType(.decimalPad)
+                        .disabled(isPolygonMode)
                         .onChange(of: latitudeString) { _, newValue in
-                            if let lat = Double(newValue), lat >= -90, lat <= 90 {
+                            if !isPolygonMode, let lat = Double(newValue), lat >= -90, lat <= 90 {
                                 center = CLLocationCoordinate2D(
                                     latitude: lat,
                                     longitude: center.longitude
@@ -240,8 +433,9 @@ struct EditPlaceView: View {
                     
                     TextField("Longitude", text: $longitudeString)
                         .keyboardType(.decimalPad)
+                        .disabled(isPolygonMode)
                         .onChange(of: longitudeString) { _, newValue in
-                            if let lon = Double(newValue), lon >= -180, lon <= 180 {
+                            if !isPolygonMode, let lon = Double(newValue), lon >= -180, lon <= 180 {
                                 center = CLLocationCoordinate2D(
                                     latitude: center.latitude,
                                     longitude: lon
@@ -261,6 +455,12 @@ struct EditPlaceView: View {
                             ),
                             in: 0...1
                         )
+                        .disabled(isPolygonMode)
+                    }
+                    if isPolygonMode {
+                        Text("Location and radius are automatically calculated from the polygon.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -610,6 +810,7 @@ struct EditPlaceView: View {
             isFavorite: isFavorite ? true : nil,
             customIcon: customIcon.isEmpty ? nil : customIcon.trim(),
             elevation: Double(elevationString.trim()),
+            perimeterPolygonPoints: isPolygonMode ? polygonPoints.map { Center(latitude: $0.latitude, longitude: $0.longitude) } : nil,
             isActive: isActive
         )
         
