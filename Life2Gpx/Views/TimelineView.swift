@@ -1101,9 +1101,28 @@ struct TimelineView: View {
     @ViewBuilder
     private var activitySummaryView: some View {
         let summaries = activitySummaries
-        if !summaries.isEmpty {
+        let totalSteps = timelineObjects.reduce(0) { $0 + $1.steps }
+        
+        if !summaries.isEmpty || totalSteps > 0 {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
+                    if totalSteps > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "shoeprints.fill")
+                            Text("\(totalSteps) steps")
+                        }
+                        .font(.caption.bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.orange.opacity(0.2))
+                        .foregroundColor(.orange)
+                        .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.orange, lineWidth: 1)
+                        )
+                    }
+
                     ForEach(summaries, id: \.trackType) { summary in
                         let typeName = PreferencesManager.shared.trackType(for: summary.trackType)?.name ?? "Unknown"
                         let color = PreferencesManager.shared.color(for: summary.trackType)
@@ -1112,11 +1131,7 @@ struct TimelineView: View {
                         
                         HStack(spacing: 4) {
                             Image(systemName: icon)
-                            if summary.steps > 0 {
-                                Text(String(format: "%@: %.1f km / %d steps", typeName, km, summary.steps))
-                            } else {
-                                Text(String(format: "%@: %.1f km", typeName, km))
-                            }
+                            Text(String(format: "%@: %.1f km", typeName, km))
                         }
                         .font(.caption.bold())
                         .padding(.horizontal, 10)
