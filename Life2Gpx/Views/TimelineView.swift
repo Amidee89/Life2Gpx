@@ -878,6 +878,7 @@ struct TimelineView: View {
     @State private var activeScrollID: String? = nil
     @State private var scrolledDateKey: String? = nil
     @State private var pendingScrollTarget: String? = nil
+    @State private var lastTappedEditItemID: String? = nil
     @State private var visibleIDs: Set<String> = []
     @State private var editingTimelineObject: TimelineObject?
     @State private var showingEditSheet = false
@@ -1168,6 +1169,9 @@ struct TimelineView: View {
                     if isEditMode {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             toggleEditSelection(for: item)
+                            if selectedEditItems.contains(item.id) {
+                                lastTappedEditItemID = displayItem.id
+                            }
                         }
                     } else {
                         withAnimation { onSelectItem(item) }
@@ -1209,6 +1213,9 @@ struct TimelineView: View {
                                     selectedEditItems.insert(item.id)
                                 }
                             }
+                            if !allSelected {
+                                lastTappedEditItemID = displayItem.id
+                            }
                         }
                     } else {
                         withAnimation {
@@ -1246,6 +1253,9 @@ struct TimelineView: View {
                     if isEditMode {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             toggleEditSelection(for: item)
+                            if selectedEditItems.contains(item.id) {
+                                lastTappedEditItemID = displayItem.id
+                            }
                         }
                     } else {
                         withAnimation { onSelectItem(item) }
@@ -1357,6 +1367,15 @@ struct TimelineView: View {
                 LogManager.shared.logData(context: "TimelineScroll", content: "[pendingScrollTarget] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
                 proxy.scrollTo(targetId, anchor: .top)
                 pendingScrollTarget = nil
+            }
+        }
+        .onChange(of: lastTappedEditItemID) { _, targetId in
+            if let targetId = targetId {
+                LogManager.shared.logData(context: "TimelineScroll", content: "[lastTappedEditItemID] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
+                withAnimation {
+                    proxy.scrollTo(targetId, anchor: .center)
+                }
+                lastTappedEditItemID = nil
             }
         }
         .onChange(of: selectedTimelineObjectID) { _, newId in
