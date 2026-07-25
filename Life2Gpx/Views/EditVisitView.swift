@@ -31,6 +31,12 @@ struct EditVisitView: View {
     @State private var showingAllExtensions = false
     @State private var isLookingUpAddress = false
     @FocusState private var isInputActive: Bool
+    @State private var selectedTab: EditVisitTab = .place
+    
+    enum EditVisitTab: String, CaseIterable {
+        case place = "Place"
+        case gpxInfo = "GPX Information"
+    }
     
     @State private var showingRadiusIncreaseAlert = false
     @State private var requiredRadius: Double = 0.0
@@ -125,8 +131,18 @@ struct EditVisitView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                if hasOutdatedPlaceInfo, let place = selectedPlace {
+            VStack(spacing: 0) {
+                Picker("Tab", selection: $selectedTab) {
+                    Text("Place").tag(EditVisitTab.place)
+                    Text("GPX Information").tag(EditVisitTab.gpxInfo)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(UIColor.systemGroupedBackground))
+                
+                List {
+                    if hasOutdatedPlaceInfo, let place = selectedPlace {
                     Section {
                         Button(action: {
                             updateAllFieldsFromPlace(place)
@@ -145,8 +161,12 @@ struct EditVisitView: View {
                     .listRowBackground(Color.blue.opacity(0.1))
                 }
 
-                if let coordinate = currentCoordinate {
-                    Section("Visit Details") {
+                if selectedTab == .gpxInfo {
+                    if let coordinate = currentCoordinate {
+                        Section("Visit Details") {
+                        Toggle("Show all fields and extensions", isOn: $showingAllExtensions.animation())
+                            .padding(.vertical, 8)
+
                         // Split the date and time components
                         HStack {
                             // Date picker
@@ -236,32 +256,6 @@ struct EditVisitView: View {
                                 .multilineTextAlignment(.trailing)
                         }
                         
-                        if let place = selectedPlace {
-                            Button(action: {
-                                // Update coordinates with place's coordinates
-                                latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
-                                longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
-                                
-                                // Update the waypoint coordinates
-                                if let waypoint = workingWaypoint {
-                                    waypoint.latitude = place.centerCoordinate.latitude
-                                    waypoint.longitude = place.centerCoordinate.longitude
-                                }
-                                
-                                // Update the map region to center on the place
-                                withAnimation {
-                                    region = MKCoordinateRegion(
-                                        center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
-                                        span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                                    )
-                                }
-                            }) {
-                                Label("Use Place Coordinates", systemImage: "location.fill")
-                                    .foregroundColor(.blue)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                        
                         basicFieldsList
                         
                         if hasVisibleExtensions {
@@ -273,38 +267,37 @@ struct EditVisitView: View {
                                 
                             extensionsList
                         }
-                        
-                        Toggle("Show all fields and extensions", isOn: $showingAllExtensions.animation())
-                            .padding(.vertical, 8)
                     }
-                    
+                    }
+                } else {
                     placeDetailsSection
                     
-                    changePlaceSection(coordinate: coordinate)
+                    if let coordinate = currentCoordinate {
+                        changePlaceSection(coordinate: coordinate)
+                    }
                 }
 
-                // Add this new section at the end of the List
-                Section {
+                }
+            }
+            .navigationTitle("Edit Visit")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .principal) {
                     Button(action: {
                         showingDeleteConfirmation = true
                     }) {
-                        HStack {
-                            Spacer()
-                            Text("Delete Visit")
-                                .foregroundColor(.red)
-                            Spacer()
-                        }
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
                     }
                 }
-                .listRowBackground(Color.red.opacity(0.1))
-            }
-            .navigationTitle("Edit Visit")
-            .navigationBarItems(
-                leading: Button("Cancel") {
-                    dismiss()
-                },
-                trailing: Button("Save") {
-                    // Update the working waypoint with the latest values
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        // Update the working waypoint with the latest values
                     guard let waypoint = workingWaypoint else { return }
                     let newLat = Double(latitudeString) ?? 0
                     let newLon = Double(longitudeString) ?? 0
@@ -335,8 +328,8 @@ struct EditVisitView: View {
                     
                     performSave()
                 }
-            )
-            .toolbar {
+                }
+                
                 ToolbarItem(placement: .keyboard) {
                     HStack {
                         Spacer()
@@ -1183,13 +1176,42 @@ struct EditVisitView: View {
                 .buttonStyle(.borderless)
             }
 
-            Button(action: { selectedPlace = nil }) {
-                Text("Clear Place")
-                    .font(.subheadline)
-                    .foregroundColor(.red)
+            HStack {
+                Button(action: {
+                    // Update coordinates with place's coordinates
+                    latitudeString = String(format: "%.6f", place.centerCoordinate.latitude)
+                    longitudeString = String(format: "%.6f", place.centerCoordinate.longitude)
+                    
+                    // Update the waypoint coordinates
+                    if let waypoint = workingWaypoint {
+                        waypoint.latitude = place.centerCoordinate.latitude
+                        waypoint.longitude = place.centerCoordinate.longitude
+                    }
+                    
+                    // Update the map region to center on the place
+                    withAnimation {
+                        region = MKCoordinateRegion(
+                            center: CoordinateConverter.forMapDisplay(place.centerCoordinate),
+                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                        )
+                    }
+                }) {
+                    Text("Set to place center")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button(action: { selectedPlace = nil }) {
+                    Text("Clear Place")
+                        .font(.subheadline)
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
-            .padding(.top, 8)
+            .padding(.top, 12)
         }
         .padding(.vertical, 4)
     }
