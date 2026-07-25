@@ -34,6 +34,7 @@ struct EditPlaceView: View {
     @State private var selectedPointIndex: Int?
     @State private var drawingPoints: [CLLocationCoordinate2D] = []
     @State private var isDraggingPoint: Bool = false
+    @State private var polygonHistory = UndoHistory<[CLLocationCoordinate2D]>()
     @State private var newPreviousId: String = ""
     @State private var showingError = false
     @State private var errorMessage = ""
@@ -225,6 +226,7 @@ struct EditPlaceView: View {
                                             }
                                             if let closestIdx = closestIdx {
                                                 selectedPointIndex = closestIdx
+                                                polygonHistory.push(currentState: polygonPoints)
                                             }
                                         }
                                         
@@ -246,11 +248,21 @@ struct EditPlaceView: View {
                                             }
                                         } else if state == .changed {
                                             if let mapCoordinate = reader.convert(touchLoc, from: .local) {
-                                                drawingPoints.append(CoordinateConverter.fromMapDisplay(mapCoordinate))
+                                                let newPoint = CoordinateConverter.fromMapDisplay(mapCoordinate)
+                                                if let lastPoint = drawingPoints.last {
+                                                    let latDiff = abs(lastPoint.latitude - newPoint.latitude)
+                                                    let lonDiff = abs(lastPoint.longitude - newPoint.longitude)
+                                                    if latDiff > 0.00005 || lonDiff > 0.00005 {
+                                                        drawingPoints.append(newPoint)
+                                                    }
+                                                } else {
+                                                    drawingPoints.append(newPoint)
+                                                }
                                             }
                                         } else if state == .ended || state == .cancelled || state == .failed {
                                             if drawingPoints.count > 2 {
-                                                let newPoly = CoordinateConverter.simplifyPolygon(points: drawingPoints, maxPoints: 10)
+                                                polygonHistory.push(currentState: polygonPoints)
+                                                let newPoly = CoordinateConverter.simplifyPolygon(points: drawingPoints, maxPoints: 20)
                                                 polygonPoints = newPoly
                                                 updatePolygonCenter()
                                                 selectedPointIndex = nil
@@ -360,20 +372,26 @@ struct EditPlaceView: View {
                     .listRowInsets(EdgeInsets())
                     
                     if isPolygonMode {
-                        Picker("Polygon Action", selection: $polygonActionMode) {
-                            Text("Move Points").tag(0)
-                            Text("Draw Shape").tag(1)
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        
-                        Text("(!) To move the map, use two finger gestures")
+                        VStack(spacing: 8) {
+                            Picker("Polygon Action", selection: $polygonActionMode) {
+                                Text("Move Points").tag(0)
+                                Text("Draw Shape").tag(1)
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.circle")
+                                Text("To move the map, use two finger gestures")
+                            }
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .padding(.top, 4)
+                            .padding(.bottom, 4)
+                        }
                         
-                        HStack {
+                        HStack(spacing: 16) {
                             Button(action: {
                                 if let idx = selectedPointIndex {
+                                    polygonHistory.push(currentState: polygonPoints)
                                     polygonPoints.remove(at: idx)
                                     selectedPointIndex = nil
                                     updatePolygonCenter()
@@ -381,16 +399,15 @@ struct EditPlaceView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "minus.circle.fill")
-                                    Text("Remove Point")
+                                    Text("Remove")
                                 }
                                 .foregroundColor(selectedPointIndex != nil && polygonPoints.count > 3 && polygonActionMode == 0 ? .red : .gray)
                             }
                             .buttonStyle(BorderlessButtonStyle())
                             .disabled(selectedPointIndex == nil || polygonPoints.count <= 3 || polygonActionMode != 0)
                             
-                            Spacer()
-                            
                             Button(action: {
+                                polygonHistory.push(currentState: polygonPoints)
                                 let idx1 = selectedPointIndex ?? 0
                                 let idx2 = (idx1 + 1) % polygonPoints.count
                                 let p1 = polygonPoints[idx1]
@@ -405,12 +422,42 @@ struct EditPlaceView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "plus.circle.fill")
-                                    Text("Add Point")
+                                    Text("Add")
                                 }
-                                .foregroundColor(polygonPoints.count < 10 && polygonActionMode == 0 ? .blue : .gray)
+                                .foregroundColor(polygonPoints.count < 20 && polygonActionMode == 0 ? .blue : .gray)
                             }
                             .buttonStyle(BorderlessButtonStyle())
-                            .disabled(polygonPoints.count >= 10 || polygonActionMode != 0)
+                            .disabled(polygonPoints.count >= 20 || polygonActionMode != 0)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                if let previous = polygonHistory.undo(currentState: polygonPoints) {
+                                    polygonPoints = previous
+                                    selectedPointIndex = nil
+                                    updatePolygonCenter()
+                                }
+                            }) {
+                                Image(systemName: "arrow.uturn.backward.circle.fill")
+                                    .font(.title2)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                            .disabled(!polygonHistory.canUndo)
+                            .foregroundColor(polygonHistory.canUndo ? .blue : .gray)
+                            
+                            Button(action: {
+                                if let next = polygonHistory.redo(currentState: polygonPoints) {
+                                    polygonPoints = next
+                                    selectedPointIndex = nil
+                                    updatePolygonCenter()
+                                }
+                            }) {
+                                Image(systemName: "arrow.uturn.forward.circle.fill")
+                                    .font(.title2)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                            .disabled(!polygonHistory.canRedo)
+                            .foregroundColor(polygonHistory.canRedo ? .blue : .gray)
                         }
                     }
                 }
