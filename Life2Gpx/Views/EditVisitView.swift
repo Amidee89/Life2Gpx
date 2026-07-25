@@ -392,6 +392,9 @@ struct EditVisitView: View {
                         isFromEditVisit: true,
                         onSave: { updatedPlace in
                             selectedPlace = updatedPlace
+                            if let coordinate = self.currentCoordinate {
+                                self.nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
+                            }
                         }
                     )
                 }
