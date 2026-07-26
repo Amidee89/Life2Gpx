@@ -29,15 +29,18 @@ class LocalBackupManager {
             let isFirstBackup = allBackupsForDate.isEmpty
             
             let timeFormatter = DateFormatter()
-            timeFormatter.dateFormat = "HH-mm-ss"
+            timeFormatter.dateFormat = "yyyy-MM-dd-HH-mm-ss"
             let timeString = timeFormatter.string(from: Date())
             
-            var backupFileName = "\(timeString).\(fileExt)"
+            var backupFileName = "\(dateString)-\(timeString).\(fileExt)"
             if isFirstBackup && SettingsManager.shared.localBackupAlwaysRetainOriginal {
-                backupFileName = "original.\(fileExt)"
+                backupFileName = "\(dateString)-original.\(fileExt)"
             }
             
             let backupURL = backupsDir.appendingPathComponent(backupFileName)
+            if fileManager.fileExists(atPath: backupURL.path) {
+                try? fileManager.removeItem(at: backupURL)
+            }
             try fileManager.copyItem(at: originalFileURL, to: backupURL)
             LogManager.shared.logData(context: "LocalBackupManager", content: "Created backup at \(backupType)/\(dateString)/\(backupFileName)", verbosity: 3)
             
@@ -67,9 +70,10 @@ class LocalBackupManager {
         if allBackups.isEmpty { return }
         
         let originalFileName = "original.\(fileExtension)"
+        let newOriginalFileName = "\(dateString)-original.\(fileExtension)"
         
         if SettingsManager.shared.localBackupAlwaysRetainOriginal {
-            if let index = allBackups.firstIndex(where: { $0.lastPathComponent == originalFileName }) {
+            if let index = allBackups.firstIndex(where: { $0.lastPathComponent == originalFileName || $0.lastPathComponent == newOriginalFileName }) {
                 allBackups.remove(at: index)
             }
         }
