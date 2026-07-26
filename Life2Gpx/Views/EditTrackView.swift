@@ -377,21 +377,6 @@ struct EditTrackView: View {
                             }
                         }
                     }
-                    if !isEditing && workingCopy.track != nil {
-                        Section {
-                            Button(action: {
-                                showingDeleteConfirmation = true
-                            }) {
-                                HStack {
-                                    Spacer()
-                                    Text("Delete Track")
-                                        .foregroundColor(.red)
-                                    Spacer()
-                                }
-                            }
-                        }
-                        .listRowBackground(Color.red.opacity(0.1))
-                    }
 
                 }
                 .listStyle(InsetGroupedListStyle())
@@ -440,6 +425,17 @@ struct EditTrackView: View {
                 }
             )
             .toolbar {
+                if workingCopy.track != nil {
+                    ToolbarItem(placement: .principal) {
+                        Button(action: {
+                            showingDeleteConfirmation = true
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .keyboard) {
                     HStack {
                         Spacer()
