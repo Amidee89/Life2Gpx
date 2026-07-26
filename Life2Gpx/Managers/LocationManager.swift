@@ -680,6 +680,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             newTrack.add(trackSegment: newSegment)
                             newTrack.type = lastMajorActivityType
                             gpxTracks.append(newTrack)
+                            
+                            if gpxTracks.count > 1 {
+                                let finishedTrack = gpxTracks[gpxTracks.count - 2]
+                                ActivityRulesManager.shared.evaluateAndUpdate(track: finishedTrack, previousWaypoint: gpxWaypoints.last, nextWaypoint: nil, date: Date())
+                            }
                         }
                         else
                         {
@@ -882,6 +887,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     }
                     
                     gpxWaypoints.append(newWaypoint)
+                    
+                    if let lastTrack = gpxTracks.last {
+                        let prevWp = gpxWaypoints.count > 1 ? gpxWaypoints[gpxWaypoints.count - 2] : nil
+                        ActivityRulesManager.shared.evaluateAndUpdate(track: lastTrack, previousWaypoint: prevWp, nextWaypoint: newWaypoint, date: Date())
+                    }
                 }
 
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())

@@ -716,3 +716,68 @@ enum TimelinePhotoLog {
     }()
 }
 
+// MARK: - Activity Rule Engine Models
+
+enum LogicalOperator: String, Codable, CaseIterable, Identifiable {
+    case and = "AND"
+    case or = "OR"
+    var id: String { rawValue }
+}
+
+enum ComparisonOperator: String, Codable, CaseIterable, Identifiable {
+    case lessThan = "Less than"
+    case moreThan = "More than"
+    case between = "Between"
+    var id: String { rawValue }
+}
+
+enum RuleConditionType: String, Codable, CaseIterable, Identifiable {
+    case startingPlace = "Starting place is"
+    case endingPlace = "Ending place is"
+    case speed = "Speed (km/h)"
+    case pointsCount = "Points count"
+    case overWaterPercent = "Over water %"
+    case iosActivityType = "iOS Activity Type %"
+    case totalDistance = "Total distance (m)"
+    case totalSteps = "Total steps"
+    case totalElevation = "Total elevation gain (m)"
+    case elevation = "Elevation (m)"
+    case distanceFromPlace = "% points from place"
+    
+    var id: String { rawValue }
+    
+    var requiresComparison: Bool {
+        switch self {
+        case .startingPlace, .endingPlace, .iosActivityType:
+            return false
+        default:
+            return true
+        }
+    }
+}
+
+enum SpeedCalculationType: String, Codable, CaseIterable, Identifiable {
+    case average = "Average"
+    case median = "Median"
+    var id: String { rawValue }
+}
+
+struct RuleCondition: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var logicalOperator: LogicalOperator
+    var conditionType: RuleConditionType
+    var comparisonOperator: ComparisonOperator?
+    var value1: String
+    var value2: String?
+    var value3: String?
+    var value4: String?
+    var speedCalculationType: SpeedCalculationType? = .average
+}
+
+struct ActivityRule: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var name: String
+    var resultingActivityType: String
+    var conditions: [RuleCondition]
+    var isActive: Bool = true
+}

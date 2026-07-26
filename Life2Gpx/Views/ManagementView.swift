@@ -38,6 +38,9 @@ struct ManagementView: View {
                     NavigationLink(destination: TrackTypesSettingsView()) {
                         Text("Track types")
                     }
+                    NavigationLink(destination: ActivityRulesListView()) {
+                        Text("Track activity rules")
+                    }
                     NavigationLink(destination: SettingsGPXFilesView()) {
                         Text("GPX Files")
                     }
