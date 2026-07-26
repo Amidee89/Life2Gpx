@@ -112,7 +112,8 @@ struct EditTrackView: View {
                     }
                     
                     if let track = workingCopy.track {
-                        ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
+                        ForEach(track.segments.indices, id: \.self) { segmentIndex in
+                            let segment = track.segments[segmentIndex]
                             if !isEditing || (isEditing && selectedPointIndex != nil && selectedSegmentIndex == segmentIndex) {
                                 Section("Segment \(segmentIndex + 1)") {
                                     if isEditing && selectedPointIndex != nil && selectedSegmentIndex == segmentIndex {
@@ -355,67 +356,20 @@ struct EditTrackView: View {
 
                                         }
                                     } else {
-                                        ForEach(Array(segment.points.enumerated()), id: \.offset) { pointIndex, point in
-                                            HStack {
-                                                if let pointTime = point.time {
-                                                    Text(pointTime.formatted(.dateTime.year().month().day()))
-                                                        .foregroundColor(.secondary)
-                                                    Text(pointTime.formatted(.dateTime.hour().minute().second()))
-                                                        .foregroundColor(.primary)
-                                                    Spacer()
-                                                } else {
-                                                    Text("No time")
-                                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        ForEach(segment.points.indices, id: \.self) { pointIndex in
+                                            let point = segment.points[pointIndex]
+                                            
+                                            TrackPointRow(
+                                                point: point,
+                                                isSelected: selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex,
+                                                isEditing: isEditing,
+                                                onSelect: {
+                                                    handlePointSelection(segmentIndex: segmentIndex, pointIndex: pointIndex, track: track)
+                                                },
+                                                onEdit: {
+                                                    isEditing = true
                                                 }
-                                                
-                                                if selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex {
-                                                    Button(action: {
-                                                        isEditing = true
-                                                    }) {
-                                                        Image(systemName: "square.and.pencil")
-                                                            .foregroundColor(.blue)
-                                                    }
-                                                    .buttonStyle(BorderlessButtonStyle())
-                                                }
-                                            }
-                                            .contentShape(Rectangle())
-                                            .onTapGesture {
-                                                withAnimation {
-                                                    if selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex {
-                                                        selectedPointIndex = nil
-                                                        selectedSegmentIndex = nil
-                                                    } else {
-                                                        selectedPointIndex = pointIndex
-                                                        selectedSegmentIndex = segmentIndex
-                                                        isEditing = false
-                                                        
-                                                        if let point = track.segments[segmentIndex].points[safe: pointIndex] {
-                                                            originalPointLatitude = point.latitude ?? 0.0
-                                                            originalPointLongitude = point.longitude ?? 0.0
-                                                            originalPointElevation = point.elevation ?? 0.0
-                                                            originalPointTime = point.time
-                                                            originalPoint = GPXUtils.deepCopyPoint(point) as? GPXTrackPoint
-                                                            
-                                                            originalExtensionsDict = [:]
-                                                            if let extensions = point.extensions {
-                                                                for child in extensions.children {
-                                                                    if let value = child.text {
-                                                                        originalExtensionsDict[child.name] = value
-                                                                    }
-                                                                }
-                                                            }
-                                                            editedExtensions = originalExtensionsDict
-
-                                                            selectedPointLatitude = point.latitude ?? 0.0
-                                                            selectedPointLongitude = point.longitude ?? 0.0
-                                                            selectedPointElevation = point.elevation ?? 0.0
-                                                            print("Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
-                                                            shouldUpdateCamera = true
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            .listRowBackground(selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
+                                            )
                                             .id("segment_\(segmentIndex)_point_\(pointIndex)")
                                         }
                                     }
@@ -572,6 +526,52 @@ struct EditTrackView: View {
         }
     }
     
+    // MARK: - Point Selection
+    private func handlePointSelection(segmentIndex: Int, pointIndex: Int, track: GPXTrack, fromMap: Bool = false) {
+        if fromMap && isEditing { return }
+        
+        withAnimation {
+            if selectedPointIndex == pointIndex && selectedSegmentIndex == segmentIndex && !fromMap {
+                selectedPointIndex = nil
+                selectedSegmentIndex = nil
+            } else {
+                selectedPointIndex = pointIndex
+                selectedSegmentIndex = segmentIndex
+                isEditing = false
+                
+                if let safePoint = track.segments[segmentIndex].points[safe: pointIndex] {
+                    originalPointLatitude = safePoint.latitude ?? 0.0
+                    originalPointLongitude = safePoint.longitude ?? 0.0
+                    originalPointElevation = safePoint.elevation ?? 0.0
+                    originalPointTime = safePoint.time
+                    originalPoint = GPXUtils.deepCopyPoint(safePoint) as? GPXTrackPoint
+                    
+                    originalExtensionsDict = [:]
+                    if let extensions = safePoint.extensions {
+                        for child in extensions.children {
+                            if let value = child.text {
+                                originalExtensionsDict[child.name] = value
+                            }
+                        }
+                    }
+                    editedExtensions = originalExtensionsDict
+
+                    selectedPointLatitude = safePoint.latitude ?? 0.0
+                    selectedPointLongitude = safePoint.longitude ?? 0.0
+                    selectedPointElevation = safePoint.elevation ?? 0.0
+                    
+                    let source = fromMap ? "Map Selected" : "Selected"
+                    print("\(source) point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
+                    shouldUpdateCamera = true
+                }
+            }
+        }
+        
+        if fromMap {
+            scrollTarget = "segment_\(segmentIndex)_point_\(pointIndex)"
+        }
+    }
+    
     // MARK: - Calculated Properties
     private var totalCalculatedSteps: Int {
         guard let track = workingCopy.track else { return 0 }
@@ -595,7 +595,8 @@ struct EditTrackView: View {
         MapReader { reader in
             Map(position: $cameraPosition) {
                 if let track = workingCopy.track {
-                    ForEach(Array(track.segments.enumerated()), id: \.offset) { segmentIndex, segment in
+                    ForEach(track.segments.indices, id: \.self) { segmentIndex in
+                        let segment = track.segments[segmentIndex]
                         let coordinates = CoordinateConverter.forMapDisplay(segment.points.compactMap { point in
                             point.latitude != nil && point.longitude != nil ?
                                 CLLocationCoordinate2D(latitude: point.latitude!, longitude: point.longitude!) : nil
@@ -610,7 +611,8 @@ struct EditTrackView: View {
                             .stroke(PreferencesManager.shared.color(for: workingCopy.trackType),
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .miter, miterLimit: 1))
                         
-                        ForEach(Array(segment.points.enumerated()), id: \.offset) { index, point in
+                        ForEach(segment.points.indices, id: \.self) { index in
+                            let point = segment.points[index]
                             if let lat = point.latitude, let lon = point.longitude, 
                                !(index == selectedPointIndex && segmentIndex == selectedSegmentIndex) {
                                 
@@ -637,37 +639,7 @@ struct EditTrackView: View {
                                                 .frame(width: 10, height: 10)
                                         }
                                         .onTapGesture {
-                                            if !isEditing {
-                                                withAnimation {
-                                                    selectedSegmentIndex = segmentIndex
-                                                    selectedPointIndex = index
-                                                    
-                                                    if let point = track.segments[segmentIndex].points[safe: index] {
-                                                        originalPointLatitude = point.latitude ?? 0.0
-                                                        originalPointLongitude = point.longitude ?? 0.0
-                                                        originalPointElevation = point.elevation ?? 0.0
-                                                        originalPointTime = point.time
-                                                        
-                                                        originalExtensionsDict = [:]
-                                                        if let extensions = point.extensions {
-                                                            for child in extensions.children {
-                                                                if let value = child.text {
-                                                                    originalExtensionsDict[child.name] = value
-                                                                }
-                                                            }
-                                                        }
-                                                        editedExtensions = originalExtensionsDict
-
-                                                        selectedPointLatitude = point.latitude ?? 0.0
-                                                        selectedPointLongitude = point.longitude ?? 0.0
-                                                        selectedPointElevation = point.elevation ?? 0.0
-                                                        print("Map Selected point values: Lat: \(selectedPointLatitude), Lon: \(selectedPointLongitude), Ele: \(selectedPointElevation)")
-                                                        shouldUpdateCamera = true
-                                                    }
-                                                }
-                                                // Trigger scroll slightly after selecting, or right away
-                                                scrollTarget = "segment_\(segmentIndex)_point_\(index)"
-                                            }
+                                            handlePointSelection(segmentIndex: segmentIndex, pointIndex: index, track: track, fromMap: true)
                                         }
                                     }
                                 }
@@ -1103,3 +1075,36 @@ extension Array {
     }
 }
 
+struct TrackPointRow: View {
+    let point: GPXTrackPoint
+    let isSelected: Bool
+    let isEditing: Bool
+    let onSelect: () -> Void
+    let onEdit: () -> Void
+    
+    var body: some View {
+        HStack {
+            if let pointTime = point.time {
+                Text(pointTime.formatted(.dateTime.year().month().day()))
+                    .foregroundColor(.secondary)
+                Text(pointTime.formatted(.dateTime.hour().minute().second()))
+                    .foregroundColor(.primary)
+                Spacer()
+            } else {
+                Text("No time")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            if isSelected {
+                Button(action: onEdit) {
+                    Image(systemName: "square.and.pencil")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .listRowBackground(isSelected && !isEditing ? Color.blue.opacity(0.3) : Color.clear)
+    }
+}
