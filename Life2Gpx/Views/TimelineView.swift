@@ -897,7 +897,7 @@ struct TimelineView: View {
     @State private var dayCalculatedTimeZone: TimeZone? = nil
 
     private var timelineLocalTimeMode: TimelineLocalTimeMode {
-        TimelineLocalTimeMode(rawValue: timelineLocalTimeModeRaw) ?? .never
+        TimelineLocalTimeMode(rawValue: timelineLocalTimeModeRaw) ?? .always
     }
 
     private var updatePlaceInformationMode: UpdatePlaceInformationMode {

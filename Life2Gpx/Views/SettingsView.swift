@@ -352,7 +352,7 @@ struct SettingsLayoutAppearanceView: View {
         }
         .navigationTitle("Timeline")
         .onChange(of: timelineLocalTimeMode) { _, newValue in
-            SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .never
+            SettingsManager.shared.timelineLocalTimeMode = TimelineLocalTimeMode(rawValue: newValue) ?? .always
         }
         .onChange(of: timelinePictureDisplayMode) { _, newValue in
             LogManager.shared.logData(

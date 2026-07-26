@@ -340,7 +340,7 @@ class SettingsManager {
             iCloudBackupIntervalUnitKey: "days",
             activitySummaryVisibilityKey: ActivitySummaryVisibility.onPullDown.rawValue,
             activitySummaryDistanceThresholdKey: 100,
-            timelineLocalTimeModeKey: TimelineLocalTimeMode.never.rawValue,
+            timelineLocalTimeModeKey: TimelineLocalTimeMode.always.rawValue,
             enableDeadMansSwitchKey: true,
             stationaryLocationAccuracyKey: LocationAccuracyLevel.medium.rawValue,
             movingLocationAccuracyKey: LocationAccuracyLevel.best.rawValue,
@@ -630,8 +630,8 @@ class SettingsManager {
 
     var timelineLocalTimeMode: TimelineLocalTimeMode {
         get {
-            let raw = defaults.string(forKey: timelineLocalTimeModeKey) ?? TimelineLocalTimeMode.never.rawValue
-            return TimelineLocalTimeMode(rawValue: raw) ?? .never
+            let raw = defaults.string(forKey: timelineLocalTimeModeKey) ?? TimelineLocalTimeMode.always.rawValue
+            return TimelineLocalTimeMode(rawValue: raw) ?? .always
         }
         set {
             defaults.set(newValue.rawValue, forKey: timelineLocalTimeModeKey)
