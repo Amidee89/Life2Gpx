@@ -16,6 +16,8 @@ struct SplitItemView: View {
     
     @State private var splitTime: Date
     @State private var showingSecondsPicker = false
+    @State private var showSplitError = false
+    @State private var splitErrorMessage = ""
     @State private var retainMetadataInFirst = true
     @State private var cameraPosition: MapCameraPosition = .automatic
     
@@ -158,6 +160,7 @@ struct SplitItemView: View {
                     }
                 }
             }
+            .errorBanner(isPresented: $showSplitError, message: splitErrorMessage)
             .sheet(item: $editTarget) { target in
                 let isFirst = target == .first
                 let tempObject = getTemporaryTimelineObject(for: target)
@@ -375,7 +378,17 @@ struct SplitItemView: View {
                 addWaypoints: [wp1, wp2],
                 addTracks: [],
                 forDate: fileDate
-            )
+            ) { success in
+                DispatchQueue.main.async {
+                    if success {
+                        self.onSaveChanges()
+                        self.dismiss()
+                    } else {
+                        self.splitErrorMessage = "Failed to match the selected item in the file. The file may have been modified. Please refresh and try again."
+                        self.showSplitError = true
+                    }
+                }
+            }
         } else if timelineObject.type == .track, let track = timelineObject.track {
             let (tr1, tr2) = GPXUtils.splitTrack(track, at: splitTime)
             
@@ -398,10 +411,17 @@ struct SplitItemView: View {
                 addWaypoints: [],
                 addTracks: [tr1, tr2],
                 forDate: fileDate
-            )
+            ) { success in
+                DispatchQueue.main.async {
+                    if success {
+                        self.onSaveChanges()
+                        self.dismiss()
+                    } else {
+                        self.splitErrorMessage = "Failed to match the selected item in the file. The file may have been modified. Please refresh and try again."
+                        self.showSplitError = true
+                    }
+                }
+            }
         }
-        
-        onSaveChanges()
-        dismiss()
     }
 }

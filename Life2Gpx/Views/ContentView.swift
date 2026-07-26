@@ -42,6 +42,8 @@ struct ContentView: View {
     @State private var selectedEditItems: Set<UUID> = []
     @State private var savedGroupingMinutes: Double = 0
     @State private var showDeleteConfirmation = false
+    @State private var showMergeError = false
+    @State private var mergeErrorMessage = ""
     @State private var showMergeTypePicker = false
     @State private var showSplitItemView = false
     @State private var showMergeVisitLocationPicker = false
@@ -453,10 +455,11 @@ struct ContentView: View {
             Button("Delete", role: .destructive) {
                 performBulkDelete()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will permanently delete the selected items. A backup will be created first.")
         }
+        .errorBanner(isPresented: $showMergeError, message: mergeErrorMessage)
         .sheet(isPresented: $showMergeTypePicker) {
             MergeTypePickerView(
                 isContiguous: mergeItemsContiguous,
@@ -847,11 +850,17 @@ struct ContentView: View {
         guard !selectedItems.isEmpty else { return }
 
         let (waypoints, tracks) = MergeHelpers.collectItemsForDeletion(from: selectedItems)
-        GPXManager.shared.deleteItems(waypointsToDelete: waypoints, tracksToDelete: tracks, forDate: selectedDate)
-
-        exitEditMode()
-        refreshData()
-        centerAllData()
+        GPXManager.shared.deleteItems(waypointsToDelete: waypoints, tracksToDelete: tracks, forDate: selectedDate) { success in
+            DispatchQueue.main.async {
+                self.exitEditMode()
+                if !success {
+                    self.mergeErrorMessage = "Failed to match the selected items in the file. The file may have been modified. Please refresh and try again."
+                    self.showMergeError = true
+                }
+                self.refreshData()
+                self.centerAllData()
+            }
+        }
     }
 
     private func performMergeTrackSave(updatedTrack: GPXTrack) {
@@ -864,12 +873,19 @@ struct ContentView: View {
             addWaypoint: nil,
             addTrack: updatedTrack,
             forDate: selectedDate
-        )
-
-        mergedTrackTimelineObject = nil
-        exitEditMode()
-        refreshData()
-        centerAllData()
+        ) { success in
+            DispatchQueue.main.async {
+                self.exitEditMode()
+                if success {
+                    self.mergedTrackTimelineObject = nil
+                } else {
+                    self.mergeErrorMessage = "Merge failed. The selected items could not be reliably matched in the file. This usually happens if the file was modified in the background. Please refresh and try again."
+                    self.showMergeError = true
+                }
+                self.refreshData()
+                self.centerAllData()
+            }
+        }
     }
 
     private func performMergeVisitSave(updatedWaypoint: GPXWaypoint) {
@@ -882,12 +898,19 @@ struct ContentView: View {
             addWaypoint: updatedWaypoint,
             addTrack: nil,
             forDate: selectedDate
-        )
-
-        mergedVisitTimelineObject = nil
-        exitEditMode()
-        refreshData()
-        centerAllData()
+        ) { success in
+            DispatchQueue.main.async {
+                self.exitEditMode()
+                if success {
+                    self.mergedVisitTimelineObject = nil
+                } else {
+                    self.mergeErrorMessage = "Merge failed. The selected items could not be reliably matched in the file. This usually happens if the file was modified in the background. Please refresh and try again."
+                    self.showMergeError = true
+                }
+                self.refreshData()
+                self.centerAllData()
+            }
+        }
     }
 
     private func checkPendingNotification() {
@@ -1094,4 +1117,93 @@ struct GpxOrganizePromptView: View {
 #Preview {
     ContentView()
         .environmentObject(LocationManager())
+}
+
+struct ErrorBannerModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let message: String
+    
+    func body(content: Content) -> some View {
+        ZStack(alignment: .top) {
+            content
+            
+            if isPresented {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                        Text("Action Failed")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Spacer()
+                        Button(action: {
+                            withAnimation {
+                                isPresented = false
+                            }
+                        }) {
+                            Image(systemName: "xmark")
+                                .foregroundColor(.white)
+                                .padding(4)
+                        }
+                    }
+                    
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Button(action: openLogsFolder) {
+                        Text("Open Logs Folder")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(6)
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .padding()
+                .background(Color.red.opacity(0.9))
+                .cornerRadius(12)
+                .shadow(radius: 5)
+                .padding(.horizontal)
+                .padding(.top, 50)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(100)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                        withAnimation {
+                            isPresented = false
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func openLogsFolder() {
+        let logsDirectory = FileManagerUtil.shared.getAppLogsDirectory()
+        if let sharedDocsUrl = URL(string: "shareddocuments://\(logsDirectory.path)"), UIApplication.shared.canOpenURL(sharedDocsUrl) {
+            UIApplication.shared.open(sharedDocsUrl)
+        } else {
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first,
+                  let rootViewController = window.rootViewController else { return }
+            
+            let controller = UIActivityViewController(activityItems: [logsDirectory], applicationActivities: nil)
+            controller.popoverPresentationController?.sourceView = window
+            controller.popoverPresentationController?.sourceRect = CGRect(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2, width: 0, height: 0)
+            controller.popoverPresentationController?.permittedArrowDirections = []
+            
+            rootViewController.present(controller, animated: true)
+        }
+    }
+}
+
+extension View {
+    func errorBanner(isPresented: Binding<Bool>, message: String) -> some View {
+        self.modifier(ErrorBannerModifier(isPresented: isPresented, message: message))
+    }
 }

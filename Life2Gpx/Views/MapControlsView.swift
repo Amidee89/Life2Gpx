@@ -23,45 +23,46 @@ struct MapControlsView: View {
             let noDataHeight: CGFloat = timelineObjects.isEmpty ? 92 : 0
             let dynamicTopPadding = max(0, min(safeAreaTop, geometry.size.height - (136 + noDataHeight)))
             
-            VStack {
-                Group{
-                    if timelineObjects.isEmpty{
-                        Text("No data for this day")
-                            .padding()
-                            .background(Color.black.opacity(0.8))
-                            .foregroundColor(Color.white)
-                            .cornerRadius(8)
-                            .padding()
-                    }
+            ZStack {
+                if timelineObjects.isEmpty {
+                    Text("No data for this day")
+                        .padding()
+                        .background(Color.black.opacity(0.8))
+                        .foregroundColor(Color.white)
+                        .cornerRadius(8)
+                        .padding()
                 }
-                Spacer()
-                HStack {
-                    Button(action: onCenter) {
-                        Image(systemName: "location.viewfinder")
-                            .frame(width: 20, height: 20)
-                            .font(.system(size: 22))
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .clipShape(Circle())
-                            .shadow(radius: 3)
-                    }
-                    .padding(.leading, 16)
-                    .padding(.bottom, 16)
+                
+                VStack {
                     Spacer()
-                    if !calendar.isDate(selectedDate, inSameDayAs: Date()) {
-                        Button(action: onSelectToday) {
-                            Image(systemName: "forward")
+                    HStack {
+                        Button(action: onCenter) {
+                            Image(systemName: "location.viewfinder")
                                 .frame(width: 20, height: 20)
                                 .font(.system(size: 22))
                                 .padding()
-                                .background(Color.orange)
+                                .background(Color.blue)
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
                                 .shadow(radius: 3)
                         }
-                        .padding(.trailing, 16)
+                        .padding(.leading, 16)
                         .padding(.bottom, 16)
+                        Spacer()
+                        if !calendar.isDate(selectedDate, inSameDayAs: Date()) {
+                            Button(action: onSelectToday) {
+                                Image(systemName: "forward")
+                                    .frame(width: 20, height: 20)
+                                    .font(.system(size: 22))
+                                    .padding()
+                                    .background(Color.orange)
+                                    .foregroundColor(.white)
+                                    .clipShape(Circle())
+                                    .shadow(radius: 3)
+                            }
+                            .padding(.trailing, 16)
+                            .padding(.bottom, 16)
+                        }
                     }
                 }
             }
