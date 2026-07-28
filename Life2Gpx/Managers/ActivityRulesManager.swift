@@ -97,7 +97,7 @@ class ActivityRulesManager: ObservableObject {
             ]
         )
         
-        return [walkingRule, runningRule, cyclingRule, trainRule, planeRule, automotiveRule, boatRule]
+        return [walkingRule, runningRule, cyclingRule, automotiveRule, trainRule, planeRule, boatRule]
     }
     
     private func loadRules() {

@@ -573,6 +573,23 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         } else {
             LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] No start date for pedometer query.", verbosity: 3)
         }
+        
+        if CMMotionActivityManager.isActivityAvailable() {
+            dispatchGroup.enter()
+            let activityQueryTime = location.timestamp
+            // We query from 60 seconds prior up to the location timestamp to catch the most recent activity in that window.
+            let activityQueryStart = activityQueryTime.addingTimeInterval(-60)
+            self.motionActivityManager.queryActivityStarting(from: activityQueryStart, to: activityQueryTime, to: .main) { activities, error in
+                defer { dispatchGroup.leave() }
+                if let activities = activities, !activities.isEmpty {
+                    self.latestActivity = activities.last
+                    LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Fetched historical activity ending at \(activityQueryTime).", verbosity: 4)
+                } else if let error = error {
+                    LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] CMMotionActivityManager query error: \(error.localizedDescription)", verbosity: 3)
+                }
+            }
+        }
+
         dispatchGroup.notify(queue: .main)
         {
             LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Pedometer query finished. Proceeding with GPX file operations.", verbosity: 4)
