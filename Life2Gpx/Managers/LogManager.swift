@@ -91,6 +91,52 @@ class LogManager {
         }
     }
 
+    func logMotionData(message: String) {
+        guard SettingsManager.shared.logMotionData else { return }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss.SSS"
+        let logTimestamp = dateFormatter.string(from: Date())
+        
+        let logMessage = "[\(logTimestamp)] \(message)\n"
+        
+        queue.async {
+            self.writeMotionLog(logMessage)
+        }
+    }
+
+    private func writeMotionLog(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let fileName = formatter.string(from: Date()) + ".log"
+        
+        let logsDirectory = FileManagerUtil.shared.getMotionLogsDirectory()
+        let logFileURL = logsDirectory.appendingPathComponent(fileName)
+        
+        if let data = message.data(using: .utf8) {
+            if fileManager.fileExists(atPath: logFileURL.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                } else {
+                    print("[V1] Could not open file handle for \(logFileURL.path)")
+                }
+            } else {
+                do {
+                    try message.write(to: logFileURL, atomically: true, encoding: .utf8)
+                } catch {
+                    print("[V1] Failed to write to \(logFileURL.path): \(error)")
+                }
+            }
+        }
+        
+        writeCount += 1
+        if writeCount % 50 == 0 {
+            enforceSizeLimit(for: logFileURL)
+        }
+    }
+
     func logData(context: String, content: String, verbosity: Int) {
         guard SettingsManager.shared.debugLogVerbosity > 0, 
               verbosity <= SettingsManager.shared.debugLogVerbosity else {

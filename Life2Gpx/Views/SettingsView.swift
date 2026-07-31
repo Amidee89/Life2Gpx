@@ -1068,6 +1068,7 @@ struct SettingsLoggingView: View {
     @AppStorage("logSizeLimitMB") private var logSizeLimitMB: Int = SettingsManager.shared.logSizeLimitMB
     @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
     @AppStorage("logAllReceivedPositions") private var logAllReceivedPositions: Bool = SettingsManager.shared.logAllReceivedPositions
+    @AppStorage("logMotionData") private var logMotionData: Bool = SettingsManager.shared.logMotionData
 
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
     @State private var diagnosticReportError: String?
@@ -1158,6 +1159,17 @@ struct SettingsLoggingView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         
                         Text("Appends all raw data from location manager to files in Logs/Location folder.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 10)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Log Motion data", isOn: $logMotionData)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Appends all raw data from CMMotionActivityManager to files in Logs/Motion folder.")
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)

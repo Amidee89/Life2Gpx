@@ -284,6 +284,7 @@ class SettingsManager {
     private let lastStationaryTimeThresholdKey = "lastStationaryTimeThreshold"
     private let lastStationaryDistanceThresholdKey = "lastStationaryDistanceThreshold"
     private let logAllReceivedPositionsKey = "logAllReceivedPositions"
+    private let logMotionDataKey = "logMotionData"
     private let suggestIncreasePlaceRadiusKey = "suggestIncreasePlaceRadius"
     private let overwriteExistingAddressOnNewPlaceCreationKey = "overwriteExistingAddressOnNewPlaceCreation"
     private let updatePlaceInformationModeKey = "updatePlaceInformationMode"
@@ -355,6 +356,7 @@ class SettingsManager {
             lastStationaryTimeThresholdKey: 1,
             lastStationaryDistanceThresholdKey: 20,
             logAllReceivedPositionsKey: false,
+            logMotionDataKey: false,
             suggestIncreasePlaceRadiusKey: true,
             overwriteExistingAddressOnNewPlaceCreationKey: true,
             updatePlaceInformationModeKey: UpdatePlaceInformationMode.always.rawValue,
@@ -894,6 +896,11 @@ class SettingsManager {
     var logAllReceivedPositions: Bool {
         get { return defaults.bool(forKey: logAllReceivedPositionsKey) }
         set { defaults.set(newValue, forKey: logAllReceivedPositionsKey) }
+    }
+
+    var logMotionData: Bool {
+        get { return defaults.bool(forKey: logMotionDataKey) }
+        set { defaults.set(newValue, forKey: logMotionDataKey) }
     }
 
     func apiKey(for provider: PlaceProvider) -> String {

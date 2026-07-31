@@ -774,6 +774,14 @@ struct RuleCondition: Identifiable, Codable, Hashable {
     var speedCalculationType: SpeedCalculationType? = .average
 }
 
+struct SplitRule: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var activityType: String
+    var minimumPoints: Int
+    var minimumConfidence: String
+    var isActive: Bool = true
+}
+
 struct ActivityRule: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String

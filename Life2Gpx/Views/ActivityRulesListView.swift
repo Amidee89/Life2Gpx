@@ -4,32 +4,70 @@ struct ActivityRulesListView: View {
     @ObservedObject var manager = ActivityRulesManager.shared
     @State private var showingAddRule = false
     @State private var ruleToEdit: ActivityRule?
+    @State private var selectedTab = 0
     
     var body: some View {
-        List {
-            Section(
-                header: Text("Rules are evaluated in order. Drag to reorder."),
-                footer: Text("These rules are evaluated when a track has been finalized, to further improve the quality of the result. If no rules match, the default categorization will be kept.")
-            ) {
-                ForEach($manager.rules) { $rule in
-                    NavigationLink(destination: EditActivityRuleView(rule: $rule, isNew: false) { updatedRule in
-                        if let index = manager.rules.firstIndex(where: { $0.id == updatedRule.id }) {
-                            manager.rules[index] = updatedRule
-                        }
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(rule.name).font(.headline)
-                                Text("Result: \(rule.resultingActivityType)").font(.subheadline).foregroundColor(.secondary)
+        VStack {
+            Picker("Mode", selection: $selectedTab) {
+                Text("Splitting").tag(0)
+                Text("Categorization").tag(1)
+            }
+            .pickerStyle(SegmentedPickerStyle())
+            .padding()
+            
+            if selectedTab == 0 {
+                List {
+                    Section(
+                        header: Text("Rules are evaluated in order. Drag to reorder."),
+                        footer: Text("These rules are used to split tracks into smaller segments based on activity.")
+                    ) {
+                        ForEach($manager.splitRules) { $rule in
+                            NavigationLink(destination: EditSplitRuleView(rule: $rule)) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(rule.activityType.capitalized).font(.headline)
+                                        if rule.activityType != "unknown" {
+                                            Text("Min points: \(rule.minimumPoints) (\(rule.minimumConfidence))").font(.subheadline).foregroundColor(.secondary)
+                                        } else {
+                                            Text("Min points: \(rule.minimumPoints)").font(.subheadline).foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Toggle("", isOn: $rule.isActive)
+                                        .labelsHidden()
+                                }
                             }
-                            Spacer()
-                            Toggle("", isOn: $rule.isActive)
-                                .labelsHidden()
                         }
+                        .onMove(perform: moveSplitRules)
                     }
                 }
-                .onMove(perform: moveRules)
-                .onDelete(perform: deleteRules)
+            } else {
+                List {
+                    Section(
+                        header: Text("Rules are evaluated in order. Drag to reorder."),
+                        footer: Text("These rules are evaluated when a track has been finalized, to further improve the quality of the result. If no rules match, the default categorization will be kept.")
+                    ) {
+                        ForEach($manager.rules) { $rule in
+                            NavigationLink(destination: EditActivityRuleView(rule: $rule, isNew: false) { updatedRule in
+                                if let index = manager.rules.firstIndex(where: { $0.id == updatedRule.id }) {
+                                    manager.rules[index] = updatedRule
+                                }
+                            }) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(rule.name).font(.headline)
+                                        Text("Result: \(rule.resultingActivityType)").font(.subheadline).foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Toggle("", isOn: $rule.isActive)
+                                        .labelsHidden()
+                                }
+                            }
+                        }
+                        .onMove(perform: moveRules)
+                        .onDelete(perform: deleteRules)
+                    }
+                }
             }
         }
         .navigationTitle("Activity Rules")
@@ -38,8 +76,10 @@ struct ActivityRulesListView: View {
                 EditButton()
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingAddRule = true }) {
-                    Image(systemName: "plus")
+                if selectedTab == 1 {
+                    Button(action: { showingAddRule = true }) {
+                        Image(systemName: "plus")
+                    }
                 }
             }
         }
@@ -61,7 +101,69 @@ struct ActivityRulesListView: View {
         manager.rules.move(fromOffsets: source, toOffset: destination)
     }
     
+    private func moveSplitRules(from source: IndexSet, to destination: Int) {
+        manager.splitRules.move(fromOffsets: source, toOffset: destination)
+    }
+    
     private func deleteRules(at offsets: IndexSet) {
         manager.rules.remove(atOffsets: offsets)
+    }
+}
+
+struct EditSplitRuleView: View {
+    @Binding var rule: SplitRule
+    
+    let confidenceOptions = ["High", "Medium", "Low"]
+    let allowedPoints = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]
+    
+    private var pointIndex: Binding<Double> {
+        Binding(
+            get: {
+                if let index = allowedPoints.firstIndex(of: rule.minimumPoints) {
+                    return Double(index)
+                }
+                return 0
+            },
+            set: { newValue in
+                let index = Int(newValue)
+                if index >= 0 && index < allowedPoints.count {
+                    rule.minimumPoints = allowedPoints[index]
+                }
+            }
+        )
+    }
+    
+    var body: some View {
+        Form {
+            Section(header: Text("Rule Settings")) {
+                Toggle("Active", isOn: $rule.isActive)
+                
+                HStack {
+                    Text("Activity Type")
+                    Spacer()
+                    Text(rule.activityType.capitalized)
+                        .foregroundColor(.secondary)
+                }
+                
+                if rule.activityType != "unknown" {
+                    Picker("Minimum Confidence", selection: $rule.minimumConfidence) {
+                        ForEach(confidenceOptions, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                }
+                
+                VStack(alignment: .leading) {
+                    Text("Minimum Points to Split: \(rule.minimumPoints)")
+                    Slider(
+                        value: pointIndex,
+                        in: 0...Double(allowedPoints.count - 1),
+                        step: 1
+                    )
+                }
+            }
+        }
+        .navigationTitle("Edit Split Rule")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

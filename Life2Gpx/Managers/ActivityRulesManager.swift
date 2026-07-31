@@ -10,7 +10,12 @@ class ActivityRulesManager: ObservableObject {
         didSet { saveRules() }
     }
     
+    @Published var splitRules: [SplitRule] {
+        didSet { saveSplitRules() }
+    }
+    
     private let rulesURL: URL
+    private let splitRulesURL: URL
     private let geocoder = CLGeocoder()
     
     private init() {
@@ -18,8 +23,10 @@ class ActivityRulesManager: ObservableObject {
         let documentsUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let preferencesDir = documentsUrl.appendingPathComponent("Preferences")
         self.rulesURL = preferencesDir.appendingPathComponent("activityrules.json")
+        self.splitRulesURL = preferencesDir.appendingPathComponent("splitrules.json")
         
         self.rules = []
+        self.splitRules = []
         
         // Ensure directory exists
         if !fileManager.fileExists(atPath: preferencesDir.path) {
@@ -31,6 +38,7 @@ class ActivityRulesManager: ObservableObject {
         }
         
         loadRules()
+        loadSplitRules()
     }
     
     private func defaultRules() -> [ActivityRule] {
@@ -40,6 +48,15 @@ class ActivityRulesManager: ObservableObject {
             conditions: [
                 RuleCondition(logicalOperator: .and, conditionType: .iosActivityType, value1: "walking", value2: "50"),
                 RuleCondition(logicalOperator: .and, conditionType: .speed, comparisonOperator: .lessThan, value1: "10")
+            ]
+        )
+        
+        let runningFromWalkingRule = ActivityRule(
+            name: "Running from Walking",
+            resultingActivityType: "running",
+            conditions: [
+                RuleCondition(logicalOperator: .and, conditionType: .iosActivityType, value1: "walking", value2: "50"),
+                RuleCondition(logicalOperator: .and, conditionType: .speed, comparisonOperator: .moreThan, value1: "10")
             ]
         )
         
@@ -97,7 +114,7 @@ class ActivityRulesManager: ObservableObject {
             ]
         )
         
-        return [walkingRule, runningRule, cyclingRule, automotiveRule, trainRule, planeRule, boatRule]
+        return [walkingRule, runningFromWalkingRule, runningRule, cyclingRule, automotiveRule, trainRule, planeRule, boatRule]
     }
     
     private func loadRules() {
@@ -124,6 +141,40 @@ class ActivityRulesManager: ObservableObject {
         }
     }
     
+    private func defaultSplitRules() -> [SplitRule] {
+        return [
+            SplitRule(activityType: "automotive", minimumPoints: 5, minimumConfidence: "High"),
+            SplitRule(activityType: "cycling", minimumPoints: 5, minimumConfidence: "High"),
+            SplitRule(activityType: "running", minimumPoints: 5, minimumConfidence: "High"),
+            SplitRule(activityType: "walking", minimumPoints: 5, minimumConfidence: "High"),
+            SplitRule(activityType: "unknown", minimumPoints: 5, minimumConfidence: "High")
+        ]
+    }
+    
+    private func loadSplitRules() {
+        if let data = try? Data(contentsOf: splitRulesURL) {
+            let decoder = JSONDecoder()
+            if let decoded = try? decoder.decode([SplitRule].self, from: data) {
+                self.splitRules = decoded
+                return
+            }
+        }
+        self.splitRules = defaultSplitRules()
+        saveSplitRules()
+    }
+    
+    private func saveSplitRules() {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        if let data = try? encoder.encode(splitRules) {
+            do {
+                try data.write(to: splitRulesURL, options: .atomic)
+            } catch {
+                print("Failed to save splitrules: \(error)")
+            }
+        }
+    }
+    
     func evaluate(track: GPXTrack, previousWaypoint: GPXWaypoint?, nextWaypoint: GPXWaypoint?) async -> String? {
         let activeRules = self.rules.filter { $0.isActive }
         
@@ -139,13 +190,165 @@ class ActivityRulesManager: ObservableObject {
     func evaluateAndUpdate(track: GPXTrack, previousWaypoint: GPXWaypoint?, nextWaypoint: GPXWaypoint?, date: Date) {
         // Run asynchronously
         Task {
-            if let newType = await evaluate(track: track, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
-                if track.type != newType {
-                    track.type = newType
-                    GPXManager.shared.updateTrack(originalTrack: track, updatedTrack: track, forDate: date)
+            let splitTracks = split(track: track)
+            var categorizedTracks: [GPXTrack] = []
+            
+            for splitTrack in splitTracks {
+                if let newType = await evaluate(track: splitTrack, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
+                    splitTrack.type = newType
+                }
+                categorizedTracks.append(splitTrack)
+            }
+            
+            var mergedTracks: [GPXTrack] = []
+            for categorizedTrack in categorizedTracks {
+                if let lastTrack = mergedTracks.last, lastTrack.type == categorizedTrack.type {
+                    let targetSegment = lastTrack.segments.last ?? {
+                        let newSegment = GPXTrackSegment()
+                        lastTrack.add(trackSegment: newSegment)
+                        return newSegment
+                    }()
+                    
+                    for segment in categorizedTrack.segments {
+                        for point in segment.points {
+                            targetSegment.add(trackpoint: point)
+                        }
+                    }
+                } else {
+                    mergedTracks.append(categorizedTrack)
                 }
             }
+            
+            if mergedTracks.count == 1 && track.type == mergedTracks[0].type {
+                // No split/merge resulting in a difference, do nothing
+                return
+            }
+            
+            GPXManager.shared.replaceItemWithMultiple(
+                deleteWaypoints: [],
+                deleteTracks: [track],
+                addWaypoints: [],
+                addTracks: mergedTracks,
+                forDate: date
+            )
         }
+    }
+    
+    func split(track: GPXTrack) -> [GPXTrack] {
+        guard let firstSegment = track.segments.first, !firstSegment.points.isEmpty else {
+            return [track]
+        }
+        
+        let allPoints = track.segments.flatMap { $0.points }
+        let activeSplitRules = splitRules.filter { $0.isActive }
+        
+        guard !activeSplitRules.isEmpty else { return [track] }
+        
+        var resultingTracks: [GPXTrack] = []
+        var currentTrackPoints: [GPXTrackPoint] = []
+        var currentRule: SplitRule? = nil
+        
+        var matchingRule: SplitRule? = nil
+        var matchingCount = 0
+        
+        for point in allPoints {
+            // Find the first rule that matches this point
+            var pointMatchedRule: SplitRule? = nil
+            for rule in activeSplitRules {
+                let activityConfidence = point.extensions?["ActivityConfidence"].text ?? "Unknown"
+                let confidenceLevel: Int
+                switch activityConfidence {
+                case "High": confidenceLevel = 3
+                case "Medium": confidenceLevel = 2
+                case "Low": confidenceLevel = 1
+                default: confidenceLevel = 0
+                }
+                
+                let ruleConfidenceLevel: Int
+                switch rule.minimumConfidence {
+                case "High": ruleConfidenceLevel = 3
+                case "Medium": ruleConfidenceLevel = 2
+                case "Low": ruleConfidenceLevel = 1
+                default: ruleConfidenceLevel = 0
+                }
+                
+                let hasActivity = (point.extensions?[rule.activityType.capitalized].text?.lowercased() == "true")
+                
+                // Special case for unknown: if we don't match any specific activity with required confidence
+                var matches = false
+                if rule.activityType == "unknown" {
+                    matches = true // Default match if we got here
+                } else {
+                    matches = hasActivity && (confidenceLevel >= ruleConfidenceLevel)
+                }
+                
+                if matches {
+                    pointMatchedRule = rule
+                    break
+                }
+            }
+            
+            currentTrackPoints.append(point)
+            
+            if let matched = pointMatchedRule {
+                if matched == matchingRule {
+                    matchingCount += 1
+                } else {
+                    matchingRule = matched
+                    matchingCount = 1
+                }
+                
+                if matchingCount >= matched.minimumPoints && currentRule != matched {
+                    if currentRule == nil {
+                        currentRule = matched
+                    } else {
+                        // Split happens here! We need to create a track with points up to this match sequence start.
+                        // The new track starts at `currentTrackPoints.count - matchingCount`.
+                        
+                        let splitIndex = currentTrackPoints.count - matchingCount
+                        if splitIndex > 0 {
+                            let previousPoints = Array(currentTrackPoints[0..<splitIndex])
+                            
+                            if !previousPoints.isEmpty {
+                                let newTrack = GPXTrack()
+                                let newSegment = GPXTrackSegment()
+                                previousPoints.forEach { newSegment.add(trackpoint: $0) }
+                                newTrack.add(trackSegment: newSegment)
+                                if let type = currentRule?.activityType {
+                                    newTrack.type = type
+                                } else {
+                                    newTrack.type = track.type
+                                }
+                                resultingTracks.append(newTrack)
+                            }
+                            
+                            // Keep the matching points for the new track
+                            currentTrackPoints = Array(currentTrackPoints[splitIndex...])
+                        }
+                        
+                        currentRule = matched
+                    }
+                }
+            } else {
+                matchingRule = nil
+                matchingCount = 0
+            }
+        }
+        
+        if !currentTrackPoints.isEmpty {
+            let newTrack = GPXTrack()
+            let newSegment = GPXTrackSegment()
+            currentTrackPoints.forEach { newSegment.add(trackpoint: $0) }
+            newTrack.add(trackSegment: newSegment)
+            if let type = currentRule?.activityType {
+                newTrack.type = type
+            } else {
+                newTrack.type = track.type
+            }
+            resultingTracks.append(newTrack)
+        }
+        
+        return resultingTracks
     }
     
     private func evaluateRule(_ rule: ActivityRule, track: GPXTrack, previousWaypoint: GPXWaypoint?, nextWaypoint: GPXWaypoint?) async -> Bool {

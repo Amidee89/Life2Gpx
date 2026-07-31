@@ -218,6 +218,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func setupMotionActivityManager() {
         if CMMotionActivityManager.isActivityAvailable() {
             motionActivityManager.startActivityUpdates(to: .main) { [weak self] activity in
+                if let activity = activity {
+                    LogManager.shared.logMotionData(message: "Real-time update: \(activity.startDate), w:\(activity.walking) r:\(activity.running) c:\(activity.cycling) a:\(activity.automotive) s:\(activity.stationary) u:\(activity.unknown) conf:\(activity.confidence.rawValue)")
+                }
                 self?.processActivity(activity)
             }
         }
@@ -582,10 +585,18 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.motionActivityManager.queryActivityStarting(from: activityQueryStart, to: activityQueryTime, to: .main) { activities, error in
                 defer { dispatchGroup.leave() }
                 if let activities = activities, !activities.isEmpty {
+                    for (index, activity) in activities.enumerated() {
+                        let isUsed = (index == activities.count - 1)
+                        let reason = isUsed ? "Used because it's the last (most recent) in the window." : "Skipped because a more recent one exists in the window."
+                        LogManager.shared.logMotionData(message: "Historical query [loc_ts: \(activityQueryTime)]: act_start: \(activity.startDate), w:\(activity.walking) r:\(activity.running) c:\(activity.cycling) a:\(activity.automotive) s:\(activity.stationary) u:\(activity.unknown) conf:\(activity.confidence.rawValue) -> \(reason)")
+                    }
                     self.latestActivity = activities.last
                     LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Fetched historical activity ending at \(activityQueryTime).", verbosity: 4)
                 } else if let error = error {
+                    LogManager.shared.logMotionData(message: "Historical query [loc_ts: \(activityQueryTime)] error: \(error.localizedDescription)")
                     LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] CMMotionActivityManager query error: \(error.localizedDescription)", verbosity: 3)
+                } else {
+                    LogManager.shared.logMotionData(message: "Historical query [loc_ts: \(activityQueryTime)] returned empty.")
                 }
             }
         }
@@ -687,30 +698,43 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         let lastSegment = lastTrack.segments.last,
                         lastSegment.points.last?.time ?? Date.distantFuture > gpxWaypoints.last?.time ?? Date.distantPast
                     {
+                        let modifiedLastTrack = lastTrack
+                        let modifiedLastSegment = lastSegment
+                        modifiedLastSegment.add(trackpoint: newTrackPoint)
                         
-                        if lastMajorActivityType != "" && lastMajorActivityType != lastTrack.type
-                            && (self.latestActivity?.confidence == CMMotionActivityConfidence.high || self.latestActivity?.confidence == CMMotionActivityConfidence.medium)
-                        {
-                            let newSegment = GPXTrackSegment()
-                            newSegment.add(trackpoint: newTrackPoint)
-                            let newTrack = GPXTrack()
-                            newTrack.add(trackSegment: newSegment)
-                            newTrack.type = lastMajorActivityType
-                            gpxTracks.append(newTrack)
+                        let pointsToCheck = Array(modifiedLastSegment.points.suffix(4))
+                        
+                        var predominantActivity = "unknown"
+                        let rules = ActivityRulesManager.shared.splitRules.filter { $0.isActive }
+                        
+                        for targetConfidence in ["High", "Medium", "Low", "Unknown"] {
+                            var counts: [String: Int] = [:]
+                            for point in pointsToCheck {
+                                let confidence = point.extensions?["ActivityConfidence"].text ?? "Unknown"
+                                if confidence == targetConfidence || targetConfidence == "Unknown" {
+                                    var pointActivity = "unknown"
+                                    for rule in rules {
+                                        if rule.activityType == "unknown" {
+                                            pointActivity = "unknown"
+                                            break
+                                        } else if point.extensions?[rule.activityType.capitalized].text?.lowercased() == "true" {
+                                            pointActivity = rule.activityType
+                                            break
+                                        }
+                                    }
+                                    counts[pointActivity, default: 0] += 1
+                                }
+                            }
                             
-                            if gpxTracks.count > 1 {
-                                let finishedTrack = gpxTracks[gpxTracks.count - 2]
-                                ActivityRulesManager.shared.evaluateAndUpdate(track: finishedTrack, previousWaypoint: gpxWaypoints.last, nextWaypoint: nil, date: Date())
+                            if let max = counts.max(by: { $0.value < $1.value }), max.value > 0 {
+                                predominantActivity = max.key
+                                break
                             }
                         }
-                        else
-                        {
-                            let modifiedLastTrack = lastTrack
-                            let modifiedLastSegment = lastSegment
-                            modifiedLastSegment.add(trackpoint: newTrackPoint)
-                            modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
-                            gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
-                        }
+                        
+                        modifiedLastTrack.type = predominantActivity
+                        modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
+                        gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
                         
                     } else {
                         // No tracks or segments found, or the last track was earlier than the last point so create and add a new track and segment
