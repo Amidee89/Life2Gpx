@@ -891,6 +891,7 @@ struct TimelineView: View {
     @AppStorage("timelineLocalTimeMode") private var timelineLocalTimeModeRaw: String = SettingsManager.shared.timelineLocalTimeMode.rawValue
     @AppStorage("updatePlaceInformationMode") private var updatePlaceInformationModeRaw: String = SettingsManager.shared.updatePlaceInformationMode.rawValue
     @AppStorage("matchUnknownPlacesMode") private var matchUnknownPlacesModeRaw: String = SettingsManager.shared.matchUnknownPlacesMode.rawValue
+    @AppStorage("timelineShowNumberOfPoints") private var timelineShowNumberOfPoints: Bool = SettingsManager.shared.timelineShowNumberOfPoints
 
     @State private var useOriginalTimeZoneForDay: Bool = false
     @State private var dayHasDifferentTimeZone: Bool = false
@@ -1592,10 +1593,12 @@ struct TimelineView: View {
                             }
                         }
                     }
-                    if item.numberOfPoints == 1 {
-                        Text("\(item.numberOfPoints) point").font(.footnote)
-                    } else if item.numberOfPoints > 1 {
-                        Text("\(item.numberOfPoints) points").font(.footnote)
+                    if timelineShowNumberOfPoints {
+                        if item.numberOfPoints == 1 {
+                            Text("\(item.numberOfPoints) point").font(.footnote)
+                        } else if item.numberOfPoints > 1 {
+                            Text("\(item.numberOfPoints) points").font(.footnote)
+                        }
                     }
                 }
 

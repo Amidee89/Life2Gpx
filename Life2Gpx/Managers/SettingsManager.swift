@@ -242,6 +242,7 @@ class SettingsManager {
     private let gpxOverwriteExistingKey = "gpxOverwriteExisting"
     private let gpxConflictResolutionKey = "gpxConflictResolution"
     private let timelinePictureDisplayModeKey = "timelinePictureDisplayMode"
+    private let timelineShowNumberOfPointsKey = "timelineShowNumberOfPoints"
     private let mapCoordinateSystemModeKey = "mapCoordinateSystemMode"
     private let suggestApplyToOtherPlacesKey = "suggestApplyToOtherPlaces"
     private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
@@ -316,6 +317,7 @@ class SettingsManager {
             gpxOverwriteExistingKey: false,
             gpxConflictResolutionKey: "keepExisting",
             timelinePictureDisplayModeKey: TimelinePictureDisplayMode.large.rawValue,
+            timelineShowNumberOfPointsKey: false,
             mapCoordinateSystemModeKey: MapCoordinateSystemMode.auto.rawValue,
             suggestApplyToOtherPlacesKey: true,
             mergeVisitAddStepsKey: true,
@@ -638,6 +640,11 @@ class SettingsManager {
         set {
             defaults.set(newValue.rawValue, forKey: timelineLocalTimeModeKey)
         }
+    }
+
+    var timelineShowNumberOfPoints: Bool {
+        get { defaults.bool(forKey: timelineShowNumberOfPointsKey) }
+        set { defaults.set(newValue, forKey: timelineShowNumberOfPointsKey) }
     }
 
     var updatePlaceInformationMode: UpdatePlaceInformationMode {

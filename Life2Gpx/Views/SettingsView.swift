@@ -246,6 +246,7 @@ struct SettingsLayoutAppearanceView: View {
     @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
     @AppStorage("photoCacheMemoryMB") private var photoCacheMemoryMB: Int = SettingsManager.shared.photoCacheMemoryMB
     @AppStorage("photoCacheCountLimit") private var photoCacheCountLimit: Int = SettingsManager.shared.photoCacheCountLimit
+    @AppStorage("timelineShowNumberOfPoints") private var timelineShowNumberOfPoints: Bool = SettingsManager.shared.timelineShowNumberOfPoints
 
     @State private var showAdvancedAppearance = false
 
@@ -313,6 +314,9 @@ struct SettingsLayoutAppearanceView: View {
                     .pickerStyle(.segmented)
                 }
                 .padding(.vertical, 8)
+
+                Toggle("Show number of points in tracks", isOn: $timelineShowNumberOfPoints)
+                    .padding(.vertical, 8)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Activity Summary")
