@@ -6,6 +6,7 @@ struct PlaceSearchView: View {
     let selectedIds: [PlaceProvider: String]
     let onSelect: (PlaceSearchResult) -> Void
     let onDone: () -> Void
+    var onUnselect: ((PlaceSearchResult) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedProvider: PlaceProvider?
@@ -207,7 +208,11 @@ struct PlaceSearchView: View {
                 LazyVStack(spacing: 0) {
                     ForEach(searchResults) { result in
                         Button {
-                            onSelect(result)
+                            if isResultSelected(result) {
+                                onUnselect?(result)
+                            } else {
+                                onSelect(result)
+                            }
                         } label: {
                             HStack(spacing: 10) {
                                 if isResultSelected(result) {

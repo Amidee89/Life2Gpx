@@ -787,6 +787,27 @@ struct EditPlaceView: View {
                         },
                         onDone: {
                             showingPlaceSearch = false
+                        },
+                        onUnselect: { result in
+                            switch result.provider {
+                            case .google:
+                                googlePlacesId = ""
+                            case .foursquare:
+                                foursquareVenueId = ""
+                                foursquareCategoryId = ""
+                            case .yelp:
+                                yelpId = ""
+                            case .mapbox:
+                                mapboxPlaceId = ""
+                            case .apple:
+                                applePlaceId = ""
+                            case .openStreetMap:
+                                osmNodeId = ""
+                            case .here:
+                                herePlaceId = ""
+                            case .gaode:
+                                gaodePlaceId = ""
+                            }
                         }
                     )
                     .navigationTitle("Find Place IDs")
