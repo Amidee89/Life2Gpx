@@ -57,12 +57,14 @@ struct EditPlaceView: View {
 
     let isNewPlace: Bool
     let onSave: ((Place) -> Void)?
+    let onDelete: (() -> Void)?
 
-    init(place: Place, isNewPlace: Bool = false, isFromEditVisit: Bool = false, onSave: ((Place) -> Void)? = nil) {
+    init(place: Place, isNewPlace: Bool = false, isFromEditVisit: Bool = false, onSave: ((Place) -> Void)? = nil, onDelete: (() -> Void)? = nil) {
         self.originalPlace = place
         self.isNewPlace = isNewPlace
         self.isFromEditVisit = isFromEditVisit
         self.onSave = onSave
+        self.onDelete = onDelete
         _editablePlace = State(initialValue: Place.EditableCopy(from: place))
         _editedPlaceId = State(initialValue: place.placeId)
         _name = State(initialValue: place.name)
@@ -727,10 +729,9 @@ struct EditPlaceView: View {
             } message: {
                 Text(errorMessage)
             }
-            .confirmationDialog(
+            .alert(
                 "Are you sure you want to delete this place?",
-                isPresented: $showingDeleteConfirmation,
-                titleVisibility: .visible
+                isPresented: $showingDeleteConfirmation
             ) {
                 Button("Delete", role: .destructive) {
                     deletePlace()
@@ -891,6 +892,7 @@ struct EditPlaceView: View {
     private func deletePlace() {
         do {
             try PlaceManager.shared.deletePlace(originalPlace)
+            onDelete?()
             presentationMode.wrappedValue.dismiss()
         } catch {
             errorMessage = "Failed to delete place: \(error.localizedDescription)"

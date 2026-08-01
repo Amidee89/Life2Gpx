@@ -395,6 +395,12 @@ struct EditVisitView: View {
                             if let coordinate = self.currentCoordinate {
                                 self.nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
                             }
+                        },
+                        onDelete: {
+                            selectedPlace = nil
+                            if let coordinate = self.currentCoordinate {
+                                self.nearbyPlaces = PlaceManager.shared.findClosePlaces(to: coordinate)
+                            }
                         }
                     )
                 }
