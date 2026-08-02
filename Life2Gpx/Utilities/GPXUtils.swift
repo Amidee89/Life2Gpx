@@ -522,16 +522,7 @@ class GPXUtils {
         return nil
     }
 
-    static func getMatchingPlaceForUnknownWaypoint(_ waypoint: GPXWaypoint) -> Place? {
-        let waypointPlaceId = waypoint.extensions?["PlaceId"].text
-        // Must be unknown (no PlaceId or empty PlaceId, and not explicit "-1" one-time visit)
-        if waypointPlaceId != nil && !waypointPlaceId!.isEmpty {
-            return nil
-        }
-        guard let lat = waypoint.latitude, let lon = waypoint.longitude else { return nil }
-        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-        return PlaceManager.shared.findPlaceAtCoordinates(for: coord)
-    }
+
 
     static func isWaypointPlaceInfoOutdated(_ waypoint: GPXWaypoint, matchingPlace place: Place) -> Bool {
         if (waypoint.name ?? "") != place.name { return true }

@@ -125,6 +125,38 @@ class PlaceManager {
         return nil
     }
     
+    func findPlacesAtCoordinates(for coordinate: CLLocationCoordinate2D) -> [Place] {
+        let cell = gridCellFor(coordinate: coordinate)
+        guard let candidates = gridIndex[cell] else {
+            return []
+        }
+        
+        var validPlaces: [(place: Place, distance: Double)] = []
+        for place in candidates {
+            let distance = coordinate.distance(to: place.centerCoordinate)
+            if distance <= place.radius {
+                validPlaces.append((place, distance))
+            }
+        }
+        
+        validPlaces.sort { $0.distance < $1.distance }
+        
+        var results: [Place] = []
+        for validPlace in validPlaces {
+            let place = validPlace.place
+            if let polygonPoints = place.perimeterPolygonPoints, !polygonPoints.isEmpty {
+                let polygon = polygonPoints.map { ($0.latitude, $0.longitude) }
+                if CoordinateConverter.pointInPolygon(lat: coordinate.latitude, lng: coordinate.longitude, polygon: polygon) {
+                    results.append(place)
+                }
+            } else {
+                results.append(place)
+            }
+        }
+        
+        return results
+    }
+    
     func findDuplicatePlaces() -> [(Place, Place)] {
         var duplicates: [(Place, Place)] = []
         var seenPlaces: [String: [Place]] = [:]

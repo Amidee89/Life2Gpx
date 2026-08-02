@@ -896,6 +896,7 @@ struct TimelineView: View {
     @State private var useOriginalTimeZoneForDay: Bool = false
     @State private var dayHasDifferentTimeZone: Bool = false
     @State private var dayCalculatedTimeZone: TimeZone? = nil
+    @State private var rejectedPlaceIds: [String: Set<String>] = [:]
 
     private var timelineLocalTimeMode: TimelineLocalTimeMode {
         TimelineLocalTimeMode(rawValue: timelineLocalTimeModeRaw) ?? .always
@@ -1406,6 +1407,9 @@ struct TimelineView: View {
                         timelineObject: timelineObject,
                         fileDate: selectedDate,
                         onSave: { place, wasUnknown in
+                            if place == nil, let wpTime = timelineObject.points.first?.time?.description {
+                                rejectedPlaceIds.removeValue(forKey: wpTime)
+                            }
                             onEditVisit?(timelineObject, place, wasUnknown)
                         }
                     )
@@ -1526,25 +1530,58 @@ struct TimelineView: View {
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.name ?? "Unknown Place")
-                                if item.isUnknownPlace, matchUnknownPlacesMode == .ask, let wp = item.points.first, let matchingPlace = GPXUtils.getMatchingPlaceForUnknownWaypoint(wp) {
-                                    Button(action: {
-                                        let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: GPXUtils.deepCopyPoint(wp), place: matchingPlace)
-                                        GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
-                                        onRefresh()
-                                    }) {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "arrow.up.circle.fill")
-                                                .font(.caption)
-                                            Text(matchingPlace.name)
-                                                .font(.caption.bold())
+                                if item.isUnknownPlace, matchUnknownPlacesMode == .ask, let wp = item.points.first {
+                                    let wpKey = wp.time?.description ?? ""
+                                    let rejectedForWp = rejectedPlaceIds[wpKey] ?? []
+                                    let allMatchingPlaces: [Place] = {
+                                        if let lat = wp.latitude, let lon = wp.longitude {
+                                            return PlaceManager.shared.findPlacesAtCoordinates(for: CLLocationCoordinate2D(latitude: lat, longitude: lon))
                                         }
-                                        .foregroundColor(.blue)
-                                        .padding(.vertical, 3)
-                                        .padding(.horizontal, 8)
-                                        .background(Color.blue.opacity(0.12))
-                                        .cornerRadius(8)
+                                        return []
+                                    }()
+                                    let remainingPlaces = allMatchingPlaces.filter { !rejectedForWp.contains($0.placeId) }
+                                    
+                                    if let matchingPlace = remainingPlaces.first {
+                                        HStack(spacing: 8) {
+                                            Button(action: {
+                                                let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: GPXUtils.deepCopyPoint(wp), place: matchingPlace)
+                                                GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
+                                                onRefresh()
+                                            }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "arrow.up.circle.fill")
+                                                        .font(.caption)
+                                                    Text(matchingPlace.name)
+                                                        .font(.caption.bold())
+                                                }
+                                                .foregroundColor(.blue)
+                                                .padding(.vertical, 3)
+                                                .padding(.horizontal, 8)
+                                                .background(Color.blue.opacity(0.12))
+                                                .cornerRadius(8)
+                                            }
+                                            .buttonStyle(BorderlessButtonStyle())
+                                            
+                                            Button(action: {
+                                                if remainingPlaces.count == 1 {
+                                                    let updated = GPXUtils.deepCopyPoint(wp)
+                                                    GPXUtils.updateExtension(for: updated, with: ["PlaceId": "-1"])
+                                                    GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
+                                                    onRefresh()
+                                                } else {
+                                                    rejectedPlaceIds[wpKey, default: []].insert(matchingPlace.placeId)
+                                                }
+                                            }) {
+                                                Image(systemName: "xmark")
+                                                    .font(.caption.bold())
+                                                    .foregroundColor(.gray)
+                                                    .padding(6)
+                                                    .background(Color.gray.opacity(0.15))
+                                                    .clipShape(Circle())
+                                            }
+                                            .buttonStyle(BorderlessButtonStyle())
+                                        }
                                     }
-                                    .buttonStyle(BorderlessButtonStyle())
                                 }
                                 Group {
                                     if item.meters > 0 || item.steps > 0 || item.averageSpeed > 0 {

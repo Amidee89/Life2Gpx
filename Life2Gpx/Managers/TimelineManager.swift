@@ -42,9 +42,14 @@ func loadTimelineForDate(_ selectedDate: Date, completion: @escaping ([TimelineO
                 }
                 
                 if matchUnknownMode == .always,
-                   let matchingPlace = GPXUtils.getMatchingPlaceForUnknownWaypoint(waypoint) {
-                    _ = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: matchingPlace)
-                    updatedAny = true
+                   let lat = waypoint.latitude, let lon = waypoint.longitude {
+                    let placeId = waypoint.extensions?["PlaceId"].text
+                    if placeId == nil || placeId!.isEmpty {
+                        if let matchingPlace = PlaceManager.shared.findPlacesAtCoordinates(for: CLLocationCoordinate2D(latitude: lat, longitude: lon)).first {
+                            _ = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: waypoint, place: matchingPlace)
+                            updatedAny = true
+                        }
+                    }
                 }
             }
 
