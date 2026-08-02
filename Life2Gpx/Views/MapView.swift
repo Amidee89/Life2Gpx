@@ -170,7 +170,7 @@ struct MapView: View {
                     if shouldShowPosition,
                    let location = locationManager.currentRawLocation?.coordinate
                 {
-                    Annotation(coordinate: location) {
+                    Annotation(coordinate: CoordinateConverter.forMapDisplay(location)) {
                         ZStack {
                             Image(systemName: "location.north.fill")
                                 .resizable()

@@ -705,6 +705,8 @@ struct EditVisitView: View {
             finalWaypoint = waypoint
         }
         
+        NotificationManager.shared.cancelUnknownPlaceNotification(forWaypointTime: self.originalWaypoint?.time)
+        
         if let customSave = customSaveAction {
             customSave(finalWaypoint, finalPlace, wasOriginallyUnknown)
         } else {
