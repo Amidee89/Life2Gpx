@@ -746,7 +746,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             
                             let wpLat = lastSkipped.coordinate.latitude
                             let wpLon = lastSkipped.coordinate.longitude
-                            let wpTime = lastSkipped.timestamp
+                            var wpTime = lastSkipped.timestamp
+                            
+                            if let lastVisitTime = gpxWaypoints.last?.time, lastVisitTime > wpTime {
+                                wpTime = lastVisitTime
+                            }
                             
                             if let newLat = newTrackPoint.latitude,
                                let newLon = newTrackPoint.longitude,
