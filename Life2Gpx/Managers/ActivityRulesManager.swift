@@ -180,7 +180,8 @@ class ActivityRulesManager: ObservableObject {
         
         for rule in activeRules {
             if await evaluateRule(rule, track: track, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
-                return rule.resultingActivityType
+                let type = rule.resultingActivityType
+                return type == "unknown" ? nil : type
             }
         }
         
@@ -195,7 +196,7 @@ class ActivityRulesManager: ObservableObject {
             
             for splitTrack in splitTracks {
                 if let newType = await evaluate(track: splitTrack, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
-                    splitTrack.type = newType
+                    splitTrack.type = newType == "unknown" ? nil : newType
                 }
                 categorizedTracks.append(splitTrack)
             }
@@ -315,9 +316,9 @@ class ActivityRulesManager: ObservableObject {
                                 previousPoints.forEach { newSegment.add(trackpoint: $0) }
                                 newTrack.add(trackSegment: newSegment)
                                 if let type = currentRule?.activityType {
-                                    newTrack.type = type
+                                    newTrack.type = type == "unknown" ? nil : type
                                 } else {
-                                    newTrack.type = track.type
+                                    newTrack.type = track.type == "unknown" ? nil : track.type
                                 }
                                 resultingTracks.append(newTrack)
                             }
@@ -341,9 +342,9 @@ class ActivityRulesManager: ObservableObject {
             currentTrackPoints.forEach { newSegment.add(trackpoint: $0) }
             newTrack.add(trackSegment: newSegment)
             if let type = currentRule?.activityType {
-                newTrack.type = type
+                newTrack.type = type == "unknown" ? nil : type
             } else {
-                newTrack.type = track.type
+                newTrack.type = track.type == "unknown" ? nil : track.type
             }
             resultingTracks.append(newTrack)
         }
