@@ -82,5 +82,7 @@
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Life2Gpx accesses your workout data to synchronize workout activity types with recorded GPX tracks.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Life2Gpx requires HealthKit access to synchronize workout data with recorded GPX track logs.</string>
 </dict>
 </plist>

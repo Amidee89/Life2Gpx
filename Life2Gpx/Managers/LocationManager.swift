@@ -577,6 +577,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] No start date for pedometer query.", verbosity: 3)
         }
         
+        var windowActivities: [CMMotionActivity] = []
         if CMMotionActivityManager.isActivityAvailable() {
             dispatchGroup.enter()
             let activityQueryTime = location.timestamp
@@ -585,6 +586,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.motionActivityManager.queryActivityStarting(from: activityQueryStart, to: activityQueryTime, to: .main) { activities, error in
                 defer { dispatchGroup.leave() }
                 if let activities = activities, !activities.isEmpty {
+                    windowActivities = activities
                     for (index, activity) in activities.enumerated() {
                         let isUsed = (index == activities.count - 1)
                         let reason = isUsed ? "Used because it's the last (most recent) in the window." : "Skipped because a more recent one exists in the window."
@@ -656,22 +658,64 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     if debug != "" {
                         customExtensionData[GPXExtensionKey.debug.rawValue] = debug
                     }
-                    if let activity = self.latestActivity {
-                        let activityConfidence: String = {
-                            switch activity.confidence {
-                            case .low: return ActivityConfidenceValue.low.rawValue
-                            case .medium: return ActivityConfidenceValue.medium.rawValue
-                            case .high: return ActivityConfidenceValue.high.rawValue
-                            @unknown default: return ActivityConfidenceValue.unknown.rawValue
-                            }
-                        }()
-                        customExtensionData[GPXExtensionKey.activityConfidence.rawValue] = activityConfidence
+                    
+                    var synthesizedConfidence: ActivityConfidenceValue = .unknown
+                    var isCycling = false
+                    var isRunning = false
+                    var isWalking = false
+                    var isAutomotive = false
+                    var isStationary = false
+
+                    if !windowActivities.isEmpty {
+                        let validEvents = windowActivities.filter { $0.confidence != .low }
+                        let eventsToUse = validEvents.isEmpty ? windowActivities : validEvents
                         
-                        if activity.walking { customExtensionData[GPXExtensionKey.walking.rawValue] = "True" }
-                        if activity.running { customExtensionData[GPXExtensionKey.running.rawValue] = "True" }
-                        if activity.cycling { customExtensionData[GPXExtensionKey.cycling.rawValue] = "True" }
-                        if activity.automotive { customExtensionData[GPXExtensionKey.automotive.rawValue] = "True" }
-                        if activity.stationary { customExtensionData[GPXExtensionKey.stationary.rawValue] = "True" }
+                        // Any point rule for cycling and running
+                        isCycling = eventsToUse.contains { $0.cycling }
+                        isRunning = eventsToUse.contains { $0.running }
+                        
+                        // Majority rule for walking and automotive
+                        let walkingCount = eventsToUse.filter { $0.walking }.count
+                        let automotiveCount = eventsToUse.filter { $0.automotive }.count
+                        let totalEvents = eventsToUse.count
+                        
+                        if walkingCount > 0 && (Double(walkingCount) / Double(totalEvents)) >= 0.4 {
+                            isWalking = true
+                        }
+                        if automotiveCount > 0 && (Double(automotiveCount) / Double(totalEvents)) >= 0.4 {
+                            isAutomotive = true
+                        }
+                        
+                        isStationary = eventsToUse.last?.stationary ?? false
+                        
+                        let maxConfInt = eventsToUse.map { $0.confidence.rawValue }.max() ?? 0
+                        switch maxConfInt {
+                        case 2: synthesizedConfidence = .high
+                        case 1: synthesizedConfidence = .medium
+                        case 0: synthesizedConfidence = .low
+                        default: synthesizedConfidence = .unknown
+                        }
+                    } else if let activity = self.latestActivity {
+                        isCycling = activity.cycling
+                        isRunning = activity.running
+                        isWalking = activity.walking
+                        isAutomotive = activity.automotive
+                        isStationary = activity.stationary
+                        switch activity.confidence {
+                        case .high: synthesizedConfidence = .high
+                        case .medium: synthesizedConfidence = .medium
+                        case .low: synthesizedConfidence = .low
+                        @unknown default: synthesizedConfidence = .unknown
+                        }
+                    }
+
+                    if synthesizedConfidence != .unknown {
+                        customExtensionData[GPXExtensionKey.activityConfidence.rawValue] = synthesizedConfidence.rawValue
+                        if isWalking { customExtensionData[GPXExtensionKey.walking.rawValue] = "True" }
+                        if isRunning { customExtensionData[GPXExtensionKey.running.rawValue] = "True" }
+                        if isCycling { customExtensionData[GPXExtensionKey.cycling.rawValue] = "True" }
+                        if isAutomotive { customExtensionData[GPXExtensionKey.automotive.rawValue] = "True" }
+                        if isStationary { customExtensionData[GPXExtensionKey.stationary.rawValue] = "True" }
                     }
                     
                     if let activeWorkout = WorkoutManager.shared.activeWorkoutType {

@@ -858,6 +858,7 @@ struct SplitRule: Identifiable, Codable, Hashable {
     var id = UUID()
     var activityType: String
     var minimumPoints: Int
+    var minimumPointsToStop: Int = 0
     var minimumConfidence: String
     var isActive: Bool = true
 }

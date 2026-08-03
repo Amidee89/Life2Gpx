@@ -173,11 +173,11 @@ class ActivityRulesManager: ObservableObject {
     
     private func defaultSplitRules() -> [SplitRule] {
         return [
-            SplitRule(activityType: "automotive", minimumPoints: 5, minimumConfidence: "High"),
-            SplitRule(activityType: "cycling", minimumPoints: 5, minimumConfidence: "High"),
-            SplitRule(activityType: "running", minimumPoints: 5, minimumConfidence: "High"),
-            SplitRule(activityType: "walking", minimumPoints: 5, minimumConfidence: "High"),
-            SplitRule(activityType: "unknown", minimumPoints: 5, minimumConfidence: "High")
+            SplitRule(activityType: "automotive", minimumPoints: 5, minimumPointsToStop: 2, minimumConfidence: "High"),
+            SplitRule(activityType: "cycling", minimumPoints: 2, minimumPointsToStop: 8, minimumConfidence: "High"),
+            SplitRule(activityType: "running", minimumPoints: 2, minimumPointsToStop: 4, minimumConfidence: "High"),
+            SplitRule(activityType: "walking", minimumPoints: 5, minimumPointsToStop: 2, minimumConfidence: "High"),
+            SplitRule(activityType: "unknown", minimumPoints: 5, minimumPointsToStop: 0, minimumConfidence: "High")
         ]
     }
     
@@ -409,7 +409,11 @@ class ActivityRulesManager: ObservableObject {
                     matchingCount = 1
                 }
                 
-                if matchingCount >= matched.minimumPoints && currentRule != matched {
+                let currentMinToStop = currentRule?.minimumPointsToStop ?? 0
+                let accumulatedPreviousPoints = currentTrackPoints.count - matchingCount
+                let canStopCurrentTrack = (currentRule == nil) || (accumulatedPreviousPoints >= currentMinToStop)
+                
+                if matchingCount >= matched.minimumPoints && canStopCurrentTrack && currentRule != matched {
                     if currentRule == nil {
                         currentRule = matched
                     } else {

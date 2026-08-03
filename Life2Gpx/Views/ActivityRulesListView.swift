@@ -41,9 +41,9 @@ struct ActivityRulesListView: View {
                                     VStack(alignment: .leading) {
                                         Text(rule.activityType.capitalized).font(.headline)
                                         if rule.activityType != "unknown" {
-                                            Text("Min points: \(rule.minimumPoints) (\(rule.minimumConfidence))").font(.subheadline).foregroundColor(.secondary)
+                                            Text("Min split: \(rule.minimumPoints), stop: \(rule.minimumPointsToStop) (\(rule.minimumConfidence))").font(.subheadline).foregroundColor(.secondary)
                                         } else {
-                                            Text("Min points: \(rule.minimumPoints)").font(.subheadline).foregroundColor(.secondary)
+                                            Text("Min split: \(rule.minimumPoints), stop: \(rule.minimumPointsToStop)").font(.subheadline).foregroundColor(.secondary)
                                         }
                                     }
                                     Spacer()
@@ -128,9 +128,9 @@ struct EditSplitRuleView: View {
     @Binding var rule: SplitRule
     
     let confidenceOptions = ["High", "Medium", "Low"]
-    let allowedPoints = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]
+    let allowedPoints = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]
     
-    private var pointIndex: Binding<Double> {
+    private var splitPointIndex: Binding<Double> {
         Binding(
             get: {
                 if let index = allowedPoints.firstIndex(of: rule.minimumPoints) {
@@ -142,6 +142,23 @@ struct EditSplitRuleView: View {
                 let index = Int(newValue)
                 if index >= 0 && index < allowedPoints.count {
                     rule.minimumPoints = allowedPoints[index]
+                }
+            }
+        )
+    }
+    
+    private var stopPointIndex: Binding<Double> {
+        Binding(
+            get: {
+                if let index = allowedPoints.firstIndex(of: rule.minimumPointsToStop) {
+                    return Double(index)
+                }
+                return 0
+            },
+            set: { newValue in
+                let index = Int(newValue)
+                if index >= 0 && index < allowedPoints.count {
+                    rule.minimumPointsToStop = allowedPoints[index]
                 }
             }
         )
@@ -167,14 +184,33 @@ struct EditSplitRuleView: View {
                     }
                 }
                 
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Minimum Points to Split: \(rule.minimumPoints)")
+                        .font(.headline)
+                    Text("At least this many points are needed for a new track of this type to be started")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     Slider(
-                        value: pointIndex,
+                        value: splitPointIndex,
                         in: 0...Double(allowedPoints.count - 1),
                         step: 1
                     )
                 }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Minimum Points to Stop: \(rule.minimumPointsToStop)")
+                        .font(.headline)
+                    Text("At least this many points of different type are needed to stop this track type")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Slider(
+                        value: stopPointIndex,
+                        in: 0...Double(allowedPoints.count - 1),
+                        step: 1
+                    )
+                }
+                .padding(.vertical, 4)
             }
         }
         .navigationTitle("Edit Split Rule")
