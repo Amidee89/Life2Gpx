@@ -110,13 +110,14 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
     case speedAccuracy = "SpeedAccuracy"
     case course = "Course"
     case courseAccuracy = "CourseAccuracy"
+    case workoutType = "WorkoutType"
 
     static var waypointCases: [GPXExtensionKey] {
         return [.address, .facebookPlaceId, .mapboxPlaceId, .mapboxCategoryId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .googlePlacesCategoryId, .yelpId, .yelpCategoryId, .applePlaceId, .appleCategoryId, .osmNodeId, .osmCategoryId, .herePlaceId, .hereCategoryId, .gaodePlaceId, .gaodeCategoryId, .placeId, .steps, .horizontalPrecision, .verticalPrecision, .debug]
     }
     
     static var trackpointCases: [GPXExtensionKey] {
-        return [.activityConfidence, .walking, .running, .cycling, .automotive, .stationary, .steps, .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy, .debug]
+        return [.workoutType, .activityConfidence, .walking, .running, .cycling, .automotive, .stationary, .steps, .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy, .debug]
     }
 
     var id: String { rawValue }
@@ -125,7 +126,7 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
         switch self {
         case .debug, .address, .facebookPlaceId, .mapboxPlaceId, .mapboxCategoryId, .foursquareVenueId,
              .foursquareCategoryId, .googlePlacesId, .googlePlacesCategoryId, .yelpId, .yelpCategoryId, .applePlaceId, .appleCategoryId,
-             .osmNodeId, .osmCategoryId, .herePlaceId, .hereCategoryId, .gaodePlaceId, .gaodeCategoryId, .placeId:
+             .osmNodeId, .osmCategoryId, .herePlaceId, .hereCategoryId, .gaodePlaceId, .gaodeCategoryId, .placeId, .workoutType:
             return .string
         case .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy:
             return .double

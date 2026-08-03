@@ -922,6 +922,14 @@ class SettingsManager {
 import Foundation
 import SwiftUI
 
+enum TrackTypeCategory: String, CaseIterable, Identifiable, Codable {
+    case basic = "Basic"
+    case workouts = "Workouts"
+    case otherWorkouts = "Other Workouts"
+    
+    var id: String { rawValue }
+}
+
 struct TrackType: Identifiable, Codable, Equatable, Hashable {
     var id: String
     var name: String
@@ -931,6 +939,18 @@ struct TrackType: Identifiable, Codable, Equatable, Hashable {
     
     var color: Color {
         Color(hex: colorHex) ?? .gray
+    }
+    
+    var category: TrackTypeCategory {
+        switch id.lowercased() {
+        case "walking", "running", "cycling", "automotive", "train", "plane", "boat", "unknown":
+            return .basic
+        case "functional_strength_training", "yoga", "pilates", "dance", "core_training",
+             "table_tennis", "tennis", "badminton", "elliptical", "soccer", "pickleball", "paddlesports", "basketball":
+            return .otherWorkouts
+        default:
+            return .workouts
+        }
     }
 }
 
@@ -955,6 +975,7 @@ class PreferencesManager: ObservableObject {
     
     private func defaultTrackTypes() -> [TrackType] {
         return [
+            // Basic
             TrackType(id: "walking", name: "Walking", colorHex: "#34C759", icon: "figure.walk", isDefault: true),
             TrackType(id: "running", name: "Running", colorHex: "#FF9500", icon: "figure.run", isDefault: true),
             TrackType(id: "cycling", name: "Cycling", colorHex: "#FF3B30", icon: "figure.outdoor.cycle", isDefault: true),
@@ -962,7 +983,33 @@ class PreferencesManager: ObservableObject {
             TrackType(id: "train", name: "Train", colorHex: "#5AC8FA", icon: "train.side.front.car", isDefault: true),
             TrackType(id: "plane", name: "Plane", colorHex: "#5856D6", icon: "airplane", isDefault: true),
             TrackType(id: "boat", name: "Boat", colorHex: "#00C7BE", icon: "sailboat.fill", isDefault: true),
-            TrackType(id: "unknown", name: "Unknown", colorHex: "#AF52DE", icon: "arrow.down", isDefault: true)
+            TrackType(id: "unknown", name: "Unknown", colorHex: "#AF52DE", icon: "arrow.down", isDefault: true),
+            
+            // Workouts
+            TrackType(id: "outdoor_cycling", name: "Outdoor Cycling", colorHex: "#FF3B30", icon: "figure.outdoor.cycle", isDefault: true),
+            TrackType(id: "hiking", name: "Hiking", colorHex: "#A2845E", icon: "figure.hiking", isDefault: true),
+            TrackType(id: "swimming", name: "Swimming", colorHex: "#1D70B8", icon: "figure.pool.swim", isDefault: true),
+            TrackType(id: "skiing", name: "Skiing", colorHex: "#64D2FF", icon: "figure.skiing.downhill", isDefault: true),
+            TrackType(id: "snowboarding", name: "Snowboarding", colorHex: "#30B0C7", icon: "figure.snowboarding", isDefault: true),
+            TrackType(id: "rowing", name: "Rowing", colorHex: "#32ADE6", icon: "figure.rower", isDefault: true),
+            TrackType(id: "stair_climbing", name: "Stair Climbing", colorHex: "#FFD60A", icon: "figure.stair.stepper", isDefault: true),
+            TrackType(id: "golf", name: "Golf", colorHex: "#30B0C7", icon: "figure.golf", isDefault: true),
+            TrackType(id: "wheelchair", name: "Wheelchair", colorHex: "#5856D6", icon: "figure.roll", isDefault: true),
+            
+            // Other Workouts
+            TrackType(id: "functional_strength_training", name: "Strength Training", colorHex: "#FF453A", icon: "figure.strengthtraining.functional", isDefault: true),
+            TrackType(id: "yoga", name: "Yoga", colorHex: "#BF5AF2", icon: "figure.yoga", isDefault: true),
+            TrackType(id: "pilates", name: "Pilates", colorHex: "#DA8FFF", icon: "figure.pilates", isDefault: true),
+            TrackType(id: "dance", name: "Dance", colorHex: "#FF375F", icon: "figure.dance", isDefault: true),
+            TrackType(id: "core_training", name: "Core Training", colorHex: "#FF9F0A", icon: "figure.core.training", isDefault: true),
+            TrackType(id: "basketball", name: "Basketball", colorHex: "#FF9500", icon: "figure.basketball", isDefault: true),
+            TrackType(id: "table_tennis", name: "Table Tennis", colorHex: "#40C8E0", icon: "figure.table.tennis", isDefault: true),
+            TrackType(id: "tennis", name: "Tennis", colorHex: "#66D4CF", icon: "figure.tennis", isDefault: true),
+            TrackType(id: "badminton", name: "Badminton", colorHex: "#30D158", icon: "figure.badminton", isDefault: true),
+            TrackType(id: "elliptical", name: "Elliptical", colorHex: "#FF6482", icon: "figure.elliptical", isDefault: true),
+            TrackType(id: "soccer", name: "Soccer", colorHex: "#34C759", icon: "figure.soccer", isDefault: true),
+            TrackType(id: "pickleball", name: "Pickleball", colorHex: "#63E6E2", icon: "figure.pickleball", isDefault: true),
+            TrackType(id: "paddlesports", name: "Paddlesports", colorHex: "#00C7BE", icon: "figure.open.water.swim", isDefault: true)
         ]
     }
     

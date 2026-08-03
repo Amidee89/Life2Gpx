@@ -17,6 +17,20 @@ struct ActivityRulesListView: View {
             
             if selectedTab == 0 {
                 List {
+                    Section(header: Text("Built-in Workout Splitting")) {
+                        NavigationLink(destination: EditSplitRuleView(rule: $manager.workoutSplitRule)) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Split by workout activities").font(.headline)
+                                    Text("Min points: \(manager.workoutSplitRule.minimumPoints)").font(.subheadline).foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $manager.workoutSplitRule.isActive)
+                                    .labelsHidden()
+                            }
+                        }
+                    }
+                    
                     Section(
                         header: Text("Rules are evaluated in order. Drag to reorder."),
                         footer: Text("These rules are used to split tracks into smaller segments based on activity.")

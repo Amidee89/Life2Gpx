@@ -80,5 +80,7 @@
 			<string>Any</string>
 		</dict>
 	</dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Life2Gpx accesses your workout data to synchronize workout activity types with recorded GPX tracks.</string>
 </dict>
 </plist>

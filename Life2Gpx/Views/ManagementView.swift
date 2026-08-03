@@ -268,23 +268,32 @@ struct TrackTypesSettingsView: View {
     
     var body: some View {
         List {
-            Section(header: Text("Track Types")) {
-                ForEach($preferencesManager.trackTypes) { $trackType in
-                    NavigationLink(destination: EditTrackTypeView(trackType: $trackType)) {
-                        HStack {
-                            PlaceIconView(icon: trackType.icon, fallbackColor: trackType.color)
-                                .frame(width: 30)
-                            Text(trackType.name)
-                            Spacer()
-                            if trackType.isDefault {
-                                Text("Default")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+            ForEach(TrackTypeCategory.allCases) { category in
+                let matchingTypes = preferencesManager.trackTypes.filter { $0.category == category }
+                if !matchingTypes.isEmpty {
+                    Section(header: Text(category.rawValue)) {
+                        ForEach($preferencesManager.trackTypes) { $trackType in
+                            if trackType.category == category {
+                                NavigationLink(destination: EditTrackTypeView(trackType: $trackType)) {
+                                    HStack {
+                                        PlaceIconView(icon: trackType.icon, fallbackColor: trackType.color)
+                                            .frame(width: 30)
+                                        Text(trackType.name)
+                                        Spacer()
+                                        if trackType.isDefault {
+                                            Text("Default")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
                             }
+                        }
+                        .onDelete { offsets in
+                            deleteTrackTypes(at: offsets, in: category)
                         }
                     }
                 }
-                .onDelete(perform: deleteTrackType)
             }
         }
         .navigationTitle("Track Types")
@@ -339,14 +348,18 @@ struct TrackTypesSettingsView: View {
         }
     }
     
-    private func deleteTrackType(at offsets: IndexSet) {
-        // Prevent deleting default types
-        let itemsToDelete = offsets.map { preferencesManager.trackTypes[$0] }
+    private func deleteTrackTypes(at offsets: IndexSet, in category: TrackTypeCategory) {
+        let matchingIndices = preferencesManager.trackTypes.enumerated().compactMap { index, type in
+            type.category == category ? index : nil
+        }
+        let realIndices = offsets.map { matchingIndices[$0] }
+        let itemsToDelete = realIndices.map { preferencesManager.trackTypes[$0] }
         if itemsToDelete.contains(where: { $0.isDefault }) {
-            // Optional: show an alert here
             return
         }
-        preferencesManager.trackTypes.remove(atOffsets: offsets)
+        for index in realIndices.sorted(by: >) {
+            preferencesManager.trackTypes.remove(at: index)
+        }
     }
 }
 

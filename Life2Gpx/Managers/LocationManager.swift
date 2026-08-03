@@ -674,6 +674,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         if activity.stationary { customExtensionData[GPXExtensionKey.stationary.rawValue] = "True" }
                     }
                     
+                    if let activeWorkout = WorkoutManager.shared.activeWorkoutType {
+                        customExtensionData[GPXExtensionKey.workoutType.rawValue] = activeWorkout
+                    }
+                    
                     let extensions = GPXExtensions()
                     extensions.append(at: nil, contents: customExtensionData)
                     newTrackPoint.extensions = extensions
@@ -732,8 +736,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             }
                         }
                         
-                        modifiedLastTrack.type = predominantActivity
-                        modifiedLastTrack.segments[modifiedLastTrack.segments.count - 1] = modifiedLastSegment
+                        if let workoutType = WorkoutManager.shared.activeWorkoutType ?? newTrackPoint.extensions?[GPXExtensionKey.workoutType.rawValue].text {
+                            modifiedLastTrack.type = workoutType
+                        } else {
+                            modifiedLastTrack.type = predominantActivity
+                        }
+                        modifiedLastSegment.points[modifiedLastSegment.points.count - 1] = newTrackPoint
                         gpxTracks[gpxTracks.count - 1] = modifiedLastTrack
                         
                     } else {
@@ -784,6 +792,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                                         customExtensionData[GPXExtensionKey.speedAccuracy.rawValue] = String(lastSkipped.speedAccuracy.roundedTo5DecimalPlaces())
                                     }
                                     
+                                    if let activeWorkout = WorkoutManager.shared.activeWorkoutType {
+                                        customExtensionData[GPXExtensionKey.workoutType.rawValue] = activeWorkout
+                                    }
+                                    
                                     let extensions = GPXExtensions()
                                     extensions.append(at: nil, contents: customExtensionData)
                                     firstPoint.extensions = extensions
@@ -796,7 +808,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         newSegment.add(trackpoint: newTrackPoint)
                         let newTrack = GPXTrack()
                         newTrack.add(trackSegment: newSegment)
-                        if (lastMajorActivityType != "" )
+                        if let workoutType = WorkoutManager.shared.activeWorkoutType ?? newTrackPoint.extensions?[GPXExtensionKey.workoutType.rawValue].text {
+                            newTrack.type = workoutType
+                        } else if (lastMajorActivityType != "" )
                         {
                             newTrack.type = lastMajorActivityType
                         }
@@ -934,8 +948,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     gpxWaypoints.append(newWaypoint)
                     
                     if let lastTrack = gpxTracks.last {
-                        let prevWp = gpxWaypoints.count > 1 ? gpxWaypoints[gpxWaypoints.count - 2] : nil
-                        ActivityRulesManager.shared.evaluateAndUpdate(track: lastTrack, previousWaypoint: prevWp, nextWaypoint: newWaypoint, date: Date())
+                        let hasWorkoutType = lastTrack.segments.flatMap({ $0.points }).contains(where: { $0.extensions?[GPXExtensionKey.workoutType.rawValue].text != nil })
+                        if !hasWorkoutType {
+                            let prevWp = gpxWaypoints.count > 1 ? gpxWaypoints[gpxWaypoints.count - 2] : nil
+                            ActivityRulesManager.shared.evaluateAndUpdate(track: lastTrack, previousWaypoint: prevWp, nextWaypoint: newWaypoint, date: Date())
+                        }
                     }
                 }
 
@@ -960,6 +977,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             lastBackgroundTaskCheck = now
             DispatchQueue.main.async {
                 iCloudBackupManager.shared.checkAndRunBackupIfNeeded()
+                WorkoutManager.shared.syncWorkoutsToGPX()
             }
         }
     }

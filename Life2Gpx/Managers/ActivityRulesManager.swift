@@ -14,8 +14,13 @@ class ActivityRulesManager: ObservableObject {
         didSet { saveSplitRules() }
     }
     
+    @Published var workoutSplitRule: SplitRule {
+        didSet { saveWorkoutSplitRule() }
+    }
+    
     private let rulesURL: URL
     private let splitRulesURL: URL
+    private let workoutSplitRuleURL: URL
     private let geocoder = CLGeocoder()
     
     private init() {
@@ -24,9 +29,11 @@ class ActivityRulesManager: ObservableObject {
         let preferencesDir = documentsUrl.appendingPathComponent("Preferences")
         self.rulesURL = preferencesDir.appendingPathComponent("activityrules.json")
         self.splitRulesURL = preferencesDir.appendingPathComponent("splitrules.json")
+        self.workoutSplitRuleURL = preferencesDir.appendingPathComponent("workoutsplitrule.json")
         
         self.rules = []
         self.splitRules = []
+        self.workoutSplitRule = SplitRule(activityType: "workout", minimumPoints: 3, minimumConfidence: "Low", isActive: true)
         
         // Ensure directory exists
         if !fileManager.fileExists(atPath: preferencesDir.path) {
@@ -39,6 +46,29 @@ class ActivityRulesManager: ObservableObject {
         
         loadRules()
         loadSplitRules()
+        loadWorkoutSplitRule()
+    }
+    
+    private func loadWorkoutSplitRule() {
+        if let data = try? Data(contentsOf: workoutSplitRuleURL),
+           let decoded = try? JSONDecoder().decode(SplitRule.self, from: data) {
+            self.workoutSplitRule = decoded
+        } else {
+            self.workoutSplitRule = SplitRule(activityType: "workout", minimumPoints: 3, minimumConfidence: "Low", isActive: true)
+            saveWorkoutSplitRule()
+        }
+    }
+    
+    private func saveWorkoutSplitRule() {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        if let data = try? encoder.encode(workoutSplitRule) {
+            do {
+                try data.write(to: workoutSplitRuleURL, options: .atomic)
+            } catch {
+                print("Failed to save workoutsplitrule: \(error)")
+            }
+        }
     }
     
     private func defaultRules() -> [ActivityRule] {
@@ -195,8 +225,14 @@ class ActivityRulesManager: ObservableObject {
             var categorizedTracks: [GPXTrack] = []
             
             for splitTrack in splitTracks {
-                if let newType = await evaluate(track: splitTrack, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
-                    splitTrack.type = newType == "unknown" ? nil : newType
+                let hasWorkoutType = splitTrack.segments.flatMap({ $0.points }).contains(where: {
+                    $0.extensions?[GPXExtensionKey.workoutType.rawValue].text != nil
+                })
+                
+                if !hasWorkoutType {
+                    if let newType = await evaluate(track: splitTrack, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
+                        splitTrack.type = newType == "unknown" ? nil : newType
+                    }
                 }
                 categorizedTracks.append(splitTrack)
             }
@@ -241,6 +277,82 @@ class ActivityRulesManager: ObservableObject {
         }
         
         let allPoints = track.segments.flatMap { $0.points }
+        
+        if workoutSplitRule.isActive {
+            let workoutSubtracks = splitByWorkout(points: allPoints)
+            if !workoutSubtracks.isEmpty {
+                var finalTracks: [GPXTrack] = []
+                for subtrack in workoutSubtracks {
+                    let points = subtrack.segments.flatMap { $0.points }
+                    let isWorkoutTrack = points.contains(where: { $0.extensions?[GPXExtensionKey.workoutType.rawValue].text != nil })
+                    if isWorkoutTrack {
+                        finalTracks.append(subtrack)
+                    } else {
+                        finalTracks.append(contentsOf: splitByMotionRules(track: subtrack))
+                    }
+                }
+                return finalTracks
+            }
+        }
+        
+        return splitByMotionRules(track: track)
+    }
+
+    private func splitByWorkout(points: [GPXTrackPoint]) -> [GPXTrack] {
+        var resultingTracks: [GPXTrack] = []
+        var currentTrackPoints: [GPXTrackPoint] = []
+        var currentWorkoutType: String? = nil
+        var pendingType: String? = nil
+        var matchCount = 0
+        
+        for point in points {
+            let pointWorkoutType = point.extensions?[GPXExtensionKey.workoutType.rawValue].text
+            
+            if pointWorkoutType == pendingType {
+                matchCount += 1
+            } else {
+                pendingType = pointWorkoutType
+                matchCount = 1
+            }
+            
+            if matchCount >= workoutSplitRule.minimumPoints && pendingType != currentWorkoutType {
+                let splitIndex = currentTrackPoints.count + 1 - matchCount
+                if splitIndex > 0 {
+                    let previousPoints = Array(currentTrackPoints[0..<splitIndex])
+                    if !previousPoints.isEmpty {
+                        let newTrack = GPXTrack()
+                        let newSegment = GPXTrackSegment()
+                        previousPoints.forEach { newSegment.add(trackpoint: $0) }
+                        newTrack.add(trackSegment: newSegment)
+                        newTrack.type = currentWorkoutType
+                        resultingTracks.append(newTrack)
+                    }
+                    currentTrackPoints = Array(currentTrackPoints[splitIndex...])
+                }
+                currentWorkoutType = pendingType
+            }
+            
+            currentTrackPoints.append(point)
+        }
+        
+        if !currentTrackPoints.isEmpty {
+            let newTrack = GPXTrack()
+            let newSegment = GPXTrackSegment()
+            currentTrackPoints.forEach { newSegment.add(trackpoint: $0) }
+            newTrack.add(trackSegment: newSegment)
+            newTrack.type = currentWorkoutType
+            resultingTracks.append(newTrack)
+        }
+        
+        return resultingTracks
+    }
+
+    private func splitByMotionRules(track: GPXTrack) -> [GPXTrack] {
+        guard let firstSegment = track.segments.first, !firstSegment.points.isEmpty else {
+            return [track]
+        }
+        
+        let allPoints = track.segments.flatMap { $0.points }
         let activeSplitRules = splitRules.filter { $0.isActive }
         
         guard !activeSplitRules.isEmpty else { return [track] }
@@ -253,7 +365,6 @@ class ActivityRulesManager: ObservableObject {
         var matchingCount = 0
         
         for point in allPoints {
-            // Find the first rule that matches this point
             var pointMatchedRule: SplitRule? = nil
             for rule in activeSplitRules {
                 let activityConfidence = point.extensions?["ActivityConfidence"].text ?? "Unknown"
@@ -275,10 +386,9 @@ class ActivityRulesManager: ObservableObject {
                 
                 let hasActivity = (point.extensions?[rule.activityType.capitalized].text?.lowercased() == "true")
                 
-                // Special case for unknown: if we don't match any specific activity with required confidence
                 var matches = false
                 if rule.activityType == "unknown" {
-                    matches = true // Default match if we got here
+                    matches = true
                 } else {
                     matches = hasActivity && (confidenceLevel >= ruleConfidenceLevel)
                 }
@@ -303,9 +413,6 @@ class ActivityRulesManager: ObservableObject {
                     if currentRule == nil {
                         currentRule = matched
                     } else {
-                        // Split happens here! We need to create a track with points up to this match sequence start.
-                        // The new track starts at `currentTrackPoints.count - matchingCount`.
-                        
                         let splitIndex = currentTrackPoints.count - matchingCount
                         if splitIndex > 0 {
                             let previousPoints = Array(currentTrackPoints[0..<splitIndex])
@@ -323,7 +430,6 @@ class ActivityRulesManager: ObservableObject {
                                 resultingTracks.append(newTrack)
                             }
                             
-                            // Keep the matching points for the new track
                             currentTrackPoints = Array(currentTrackPoints[splitIndex...])
                         }
                         
