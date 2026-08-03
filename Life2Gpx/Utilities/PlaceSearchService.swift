@@ -142,8 +142,19 @@ struct PlaceSearchResult: Identifiable {
     let latitude: Double
     let longitude: Double
     let provider: PlaceProvider
-    let foursquareCategoryId: String?
     let categoryIds: [String]
+
+    static let genericGoogleTypes: Set<String> = [
+        "point_of_interest", "establishment", "geocode", "political",
+        "premise", "subpremise", "route", "intersection", "street_address"
+    ]
+
+    var primaryCategoryId: String? {
+        if provider == .google {
+            return categoryIds.first(where: { !Self.genericGoogleTypes.contains($0) })
+        }
+        return categoryIds.first
+    }
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -317,7 +328,6 @@ class PlaceSearchService {
                     latitude: converted.latitude,
                     longitude: converted.longitude,
                     provider: result.provider,
-                    foursquareCategoryId: result.foursquareCategoryId,
                     categoryIds: result.categoryIds
                 )
             }
@@ -409,10 +419,14 @@ class PlaceSearchService {
 
             let vicinity = item["vicinity"] as? String
             let types = item["types"] as? [String] ?? []
+            let specificTypes = types.filter { !PlaceSearchResult.genericGoogleTypes.contains($0) }
+            let genericTypes = types.filter { PlaceSearchResult.genericGoogleTypes.contains($0) }
+            let orderedTypes = specificTypes + genericTypes
+
             return PlaceSearchResult(id: placeId, name: name, address: vicinity,
                                      latitude: lat, longitude: lng,
-                                     provider: .google, foursquareCategoryId: nil,
-                                     categoryIds: types)
+                                     provider: .google,
+                                     categoryIds: orderedTypes)
         }
     }
 
@@ -477,7 +491,7 @@ class PlaceSearchService {
 
             return PlaceSearchResult(id: fsqId, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .foursquare, foursquareCategoryId: categoryId,
+                                     provider: .foursquare,
                                      categoryIds: allCategoryIds)
         }
     }
@@ -534,7 +548,7 @@ class PlaceSearchService {
 
             return PlaceSearchResult(id: yelpId, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .yelp, foursquareCategoryId: nil,
+                                     provider: .yelp,
                                      categoryIds: categoryAliases)
         }
     }
@@ -590,7 +604,7 @@ class PlaceSearchService {
             let poiCategoryIds = properties["poi_category_ids"] as? [String] ?? []
             return PlaceSearchResult(id: mapboxId, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .mapbox, foursquareCategoryId: nil,
+                                     provider: .mapbox,
                                      categoryIds: poiCategoryIds)
         }
     }
@@ -600,11 +614,12 @@ class PlaceSearchService {
     private func searchOpenStreetMap(coordinate: CLLocationCoordinate2D, query searchQuery: String? = nil, limit: Int) async throws -> [PlaceSearchResult] {
         let radius = searchQuery != nil ? SettingsManager.shared.placeSearchKeywordRadius : SettingsManager.shared.placeSearchDefaultRadius
         let nameFilter = searchQuery.map { "\"name\"~\"\($0)\",i" } ?? "\"name\""
+        let categoryKeyPattern = "^(amenity|shop|tourism|leisure|office|craft|natural|historic|railway|aeroway|public_transport|sport)$"
         let query = """
         [out:json][timeout:10];
         (
-          node(around:\(radius),\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."][\(nameFilter)];
-          way(around:\(radius),\(coordinate.latitude),\(coordinate.longitude))[~"^(amenity|shop|tourism|leisure|office|craft)$"~"."][\(nameFilter)];
+          node(around:\(radius),\(coordinate.latitude),\(coordinate.longitude))[~"\(categoryKeyPattern)"~"."][\(nameFilter)];
+          way(around:\(radius),\(coordinate.latitude),\(coordinate.longitude))[~"\(categoryKeyPattern)"~"."][\(nameFilter)];
         );
         out center body \(limit);
         """
@@ -649,7 +664,7 @@ class PlaceSearchService {
                 .joined(separator: " ")
 
             var osmCategoryTags: [String] = []
-            let categoryKeys = ["amenity", "shop", "tourism", "leisure", "office", "craft"]
+            let categoryKeys = ["amenity", "shop", "tourism", "leisure", "office", "craft", "natural", "historic", "railway", "aeroway", "public_transport", "sport"]
             for key in categoryKeys {
                 if let value = tags[key] {
                     osmCategoryTags.append("\(key)=\(value)")
@@ -663,7 +678,6 @@ class PlaceSearchService {
                 latitude: lat,
                 longitude: lon,
                 provider: .openStreetMap,
-                foursquareCategoryId: nil,
                 categoryIds: osmCategoryTags
             )
         }
@@ -727,7 +741,6 @@ class PlaceSearchService {
                 latitude: lat,
                 longitude: lng,
                 provider: .here,
-                foursquareCategoryId: nil,
                 categoryIds: hereCategoryIds
             )
         }
@@ -803,7 +816,18 @@ class PlaceSearchService {
 
             var appleCategoryIds: [String] = []
             if let category = item.pointOfInterestCategory {
-                appleCategoryIds.append(category.rawValue)
+                let raw = category.rawValue
+                appleCategoryIds.append(raw)
+                var cleaned = raw
+                if cleaned.hasPrefix("MKPOICategory") {
+                    cleaned = String(cleaned.dropFirst("MKPOICategory".count))
+                }
+                if let firstChar = cleaned.first {
+                    let normalized = firstChar.lowercased() + cleaned.dropFirst()
+                    if normalized != raw && !appleCategoryIds.contains(normalized) {
+                        appleCategoryIds.append(normalized)
+                    }
+                }
             }
 
             log(
@@ -814,7 +838,7 @@ class PlaceSearchService {
 
             return PlaceSearchResult(id: identifier, name: name, address: address,
                                      latitude: lat, longitude: lng,
-                                     provider: .apple, foursquareCategoryId: nil,
+                                     provider: .apple,
                                      categoryIds: appleCategoryIds)
         }
     }
@@ -881,7 +905,6 @@ class PlaceSearchService {
                 latitude: lat,
                 longitude: lng,
                 provider: .gaode,
-                foursquareCategoryId: nil,
                 categoryIds: gaodeCategoryIds
             )
         }

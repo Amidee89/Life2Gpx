@@ -250,18 +250,7 @@ struct ManagePlacesView: View {
                     center: Center(latitude: userLocation?.latitude ?? 37.7749,
                                   longitude: userLocation?.longitude ?? -122.4194),
                     radius: Double(SettingsManager.shared.defaultNewPlaceRadius),
-                    streetAddress: nil,
-                    secondsFromGMT: TimeZone.current.secondsFromGMT(),
-                    lastSaved: nil,
-                    facebookPlaceId: nil,
-                    mapboxPlaceId: nil,
-                    foursquareVenueId: nil,
-                    foursquareCategoryId: nil,
-                    previousIds: nil,
-                    lastVisited: nil,
-                    isFavorite: nil,
-                    customIcon: nil,
-                    elevation: nil
+                    secondsFromGMT: TimeZone.current.secondsFromGMT()
                 ), isNewPlace: true)
                 .onDisappear {
                     viewModel.loadPlaces()

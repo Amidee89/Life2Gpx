@@ -588,12 +588,6 @@ struct EditPlaceView: View {
                         TextField("Enter Foursquare Venue ID", text: $foursquareVenueId)
                     }
                     
-                    VStack(alignment: .leading) {
-                        Text("Foursquare Category ID")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        TextField("Enter Foursquare Category ID", text: $foursquareCategoryId)
-                    }
 
                     VStack(alignment: .leading) {
                         Text("Yelp ID")
@@ -755,7 +749,7 @@ struct EditPlaceView: View {
                                 googlePlacesId = result.id
                             case .foursquare:
                                 foursquareVenueId = result.id
-                                if let catId = result.foursquareCategoryId {
+                                if let catId = result.primaryCategoryId {
                                     foursquareCategoryId = catId
                                 }
                             case .yelp:
@@ -866,14 +860,21 @@ struct EditPlaceView: View {
             lastSaved: editablePlace.lastSaved,
             facebookPlaceId: facebookPlaceId.isEmpty ? nil : facebookPlaceId.trim(),
             mapboxPlaceId: mapboxPlaceId.isEmpty ? nil : mapboxPlaceId.trim(),
+            mapboxCategoryId: editablePlace.mapboxCategoryId,
             foursquareVenueId: foursquareVenueId.isEmpty ? nil : foursquareVenueId.trim(),
             foursquareCategoryId: foursquareCategoryId.isEmpty ? nil : foursquareCategoryId.trim(),
             googlePlacesId: googlePlacesId.isEmpty ? nil : googlePlacesId.trim(),
+            googlePlacesCategoryId: editablePlace.googlePlacesCategoryId,
             yelpId: yelpId.isEmpty ? nil : yelpId.trim(),
+            yelpCategoryId: editablePlace.yelpCategoryId,
             applePlaceId: applePlaceId.isEmpty ? nil : applePlaceId.trim(),
+            appleCategoryId: editablePlace.appleCategoryId,
             osmNodeId: osmNodeId.isEmpty ? nil : osmNodeId.trim(),
+            osmCategoryId: editablePlace.osmCategoryId,
             herePlaceId: herePlaceId.isEmpty ? nil : herePlaceId.trim(),
+            hereCategoryId: editablePlace.hereCategoryId,
             gaodePlaceId: gaodePlaceId.isEmpty ? nil : gaodePlaceId.trim(),
+            gaodeCategoryId: editablePlace.gaodeCategoryId,
             previousIds: editablePlace.previousIds,
             lastVisited: editablePlace.lastVisited,
             isFavorite: isFavorite ? true : nil,
@@ -927,9 +928,8 @@ struct EditPlaceView_Previews: PreviewProvider {
         let previewPlaceWithElevation = Place(
             placeId: "preview1", name: "Preview Place",
             center: Center(latitude: 40.0, longitude: -74.0), radius: 100,
-            streetAddress: "123 Preview St", secondsFromGMT: -18000, lastSaved: nil,
-            facebookPlaceId: nil, mapboxPlaceId: nil, foursquareVenueId: nil,
-            foursquareCategoryId: nil, previousIds: nil, lastVisited: Date(),
+            streetAddress: "123 Preview St", secondsFromGMT: -18000, 
+            lastVisited: Date(),
             isFavorite: true, customIcon: "star.fill", elevation: 15.5
         )
         EditPlaceView(place: previewPlaceWithElevation)

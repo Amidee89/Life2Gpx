@@ -506,17 +506,23 @@ struct ImportProgressView: View {
                 radius: duplicate.radius,
                 streetAddress: duplicate.streetAddress,
                 secondsFromGMT: duplicate.secondsFromGMT,
-                lastSaved: nil,
                 facebookPlaceId: duplicate.facebookPlaceId,
                 mapboxPlaceId: duplicate.mapboxPlaceId,
+                mapboxCategoryId: duplicate.mapboxCategoryId,
                 foursquareVenueId: duplicate.foursquareVenueId,
                 foursquareCategoryId: duplicate.foursquareCategoryId,
                 googlePlacesId: duplicate.googlePlacesId,
+                googlePlacesCategoryId: duplicate.googlePlacesCategoryId,
                 yelpId: duplicate.yelpId,
+                yelpCategoryId: duplicate.yelpCategoryId,
                 applePlaceId: duplicate.applePlaceId,
+                appleCategoryId: duplicate.appleCategoryId,
                 osmNodeId: duplicate.osmNodeId,
+                osmCategoryId: duplicate.osmCategoryId,
                 herePlaceId: duplicate.herePlaceId,
+                hereCategoryId: duplicate.hereCategoryId,
                 gaodePlaceId: duplicate.gaodePlaceId,
+                gaodeCategoryId: duplicate.gaodeCategoryId,
                 previousIds: previousIds,
                 lastVisited: duplicate.lastVisited,
                 isFavorite: duplicate.isFavorite,
@@ -549,14 +555,21 @@ struct ImportProgressView: View {
                 lastSaved: nil,
                 facebookPlaceId: updatedPlace.facebookPlaceId,
                 mapboxPlaceId: updatedPlace.mapboxPlaceId,
+                mapboxCategoryId: updatedPlace.mapboxCategoryId,
                 foursquareVenueId: updatedPlace.foursquareVenueId,
                 foursquareCategoryId: updatedPlace.foursquareCategoryId,
                 googlePlacesId: updatedPlace.googlePlacesId,
+                googlePlacesCategoryId: updatedPlace.googlePlacesCategoryId,
                 yelpId: updatedPlace.yelpId,
+                yelpCategoryId: updatedPlace.yelpCategoryId,
                 applePlaceId: updatedPlace.applePlaceId,
+                appleCategoryId: updatedPlace.appleCategoryId,
                 osmNodeId: updatedPlace.osmNodeId,
+                osmCategoryId: updatedPlace.osmCategoryId,
                 herePlaceId: updatedPlace.herePlaceId,
+                hereCategoryId: updatedPlace.hereCategoryId,
                 gaodePlaceId: updatedPlace.gaodePlaceId,
+                gaodeCategoryId: updatedPlace.gaodeCategoryId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: updatedPlace.lastVisited,
                 isFavorite: updatedPlace.isFavorite,
@@ -574,17 +587,23 @@ struct ImportProgressView: View {
                 radius: updatedPlace.radius,
                 streetAddress: place.streetAddress,
                 secondsFromGMT: place.secondsFromGMT,
-                lastSaved: nil,
                 facebookPlaceId: place.facebookPlaceId,
                 mapboxPlaceId: place.mapboxPlaceId,
+                mapboxCategoryId: place.mapboxCategoryId,
                 foursquareVenueId: place.foursquareVenueId,
                 foursquareCategoryId: place.foursquareCategoryId,
                 googlePlacesId: place.googlePlacesId,
+                googlePlacesCategoryId: place.googlePlacesCategoryId,
                 yelpId: place.yelpId,
+                yelpCategoryId: place.yelpCategoryId,
                 applePlaceId: place.applePlaceId,
+                appleCategoryId: place.appleCategoryId,
                 osmNodeId: place.osmNodeId,
+                osmCategoryId: place.osmCategoryId,
                 herePlaceId: place.herePlaceId,
+                hereCategoryId: place.hereCategoryId,
                 gaodePlaceId: place.gaodePlaceId,
+                gaodeCategoryId: place.gaodeCategoryId,
                 previousIds: updatedPlace.previousIds,
                 lastVisited: place.lastVisited,
                 isFavorite: place.isFavorite,
@@ -597,14 +616,21 @@ struct ImportProgressView: View {
             let mergedSecondsFromGMT = updatedPlace.secondsFromGMT ?? place.secondsFromGMT
             let mergedFacebookId = updatedPlace.facebookPlaceId ?? place.facebookPlaceId
             let mergedMapboxId = updatedPlace.mapboxPlaceId ?? place.mapboxPlaceId
+            let mergedMapboxCatId = updatedPlace.mapboxCategoryId ?? place.mapboxCategoryId
             let mergedFoursquareId = updatedPlace.foursquareVenueId ?? place.foursquareVenueId
             let mergedFoursquareCatId = updatedPlace.foursquareCategoryId ?? place.foursquareCategoryId
             let mergedGoogleId = updatedPlace.googlePlacesId ?? place.googlePlacesId
+            let mergedGoogleCatId = updatedPlace.googlePlacesCategoryId ?? place.googlePlacesCategoryId
             let mergedYelpId = updatedPlace.yelpId ?? place.yelpId
+            let mergedYelpCatId = updatedPlace.yelpCategoryId ?? place.yelpCategoryId
             let mergedAppleId = updatedPlace.applePlaceId ?? place.applePlaceId
+            let mergedAppleCatId = updatedPlace.appleCategoryId ?? place.appleCategoryId
             let mergedOsmId = updatedPlace.osmNodeId ?? place.osmNodeId
+            let mergedOsmCatId = updatedPlace.osmCategoryId ?? place.osmCategoryId
             let mergedHereId = updatedPlace.herePlaceId ?? place.herePlaceId
+            let mergedHereCatId = updatedPlace.hereCategoryId ?? place.hereCategoryId
             let mergedGaodeId = updatedPlace.gaodePlaceId ?? place.gaodePlaceId
+            let mergedGaodeCatId = updatedPlace.gaodeCategoryId ?? place.gaodeCategoryId
             let mergedLastVisited = updatedPlace.lastVisited ?? place.lastVisited
             let mergedIsFavorite = updatedPlace.isFavorite ?? place.isFavorite
             let mergedCustomIcon = updatedPlace.customIcon ?? place.customIcon
@@ -614,14 +640,21 @@ struct ImportProgressView: View {
                mergedSecondsFromGMT != updatedPlace.secondsFromGMT ||
                mergedFacebookId != updatedPlace.facebookPlaceId ||
                mergedMapboxId != updatedPlace.mapboxPlaceId ||
+               mergedMapboxCatId != updatedPlace.mapboxCategoryId ||
                mergedFoursquareId != updatedPlace.foursquareVenueId ||
                mergedFoursquareCatId != updatedPlace.foursquareCategoryId ||
                mergedGoogleId != updatedPlace.googlePlacesId ||
+               mergedGoogleCatId != updatedPlace.googlePlacesCategoryId ||
                mergedYelpId != updatedPlace.yelpId ||
+               mergedYelpCatId != updatedPlace.yelpCategoryId ||
                mergedAppleId != updatedPlace.applePlaceId ||
+               mergedAppleCatId != updatedPlace.appleCategoryId ||
                mergedOsmId != updatedPlace.osmNodeId ||
+               mergedOsmCatId != updatedPlace.osmCategoryId ||
                mergedHereId != updatedPlace.herePlaceId ||
+               mergedHereCatId != updatedPlace.hereCategoryId ||
                mergedGaodeId != updatedPlace.gaodePlaceId ||
+               mergedGaodeCatId != updatedPlace.gaodeCategoryId ||
                mergedLastVisited != updatedPlace.lastVisited ||
                mergedIsFavorite != updatedPlace.isFavorite ||
                mergedCustomIcon != updatedPlace.customIcon ||
@@ -634,17 +667,23 @@ struct ImportProgressView: View {
                     radius: updatedPlace.radius,
                     streetAddress: mergedStreetAddress,
                     secondsFromGMT: mergedSecondsFromGMT,
-                    lastSaved: nil,
                     facebookPlaceId: mergedFacebookId,
                     mapboxPlaceId: mergedMapboxId,
+                    mapboxCategoryId: mergedMapboxCatId,
                     foursquareVenueId: mergedFoursquareId,
                     foursquareCategoryId: mergedFoursquareCatId,
                     googlePlacesId: mergedGoogleId,
+                    googlePlacesCategoryId: mergedGoogleCatId,
                     yelpId: mergedYelpId,
+                    yelpCategoryId: mergedYelpCatId,
                     applePlaceId: mergedAppleId,
+                    appleCategoryId: mergedAppleCatId,
                     osmNodeId: mergedOsmId,
+                    osmCategoryId: mergedOsmCatId,
                     herePlaceId: mergedHereId,
+                    hereCategoryId: mergedHereCatId,
                     gaodePlaceId: mergedGaodeId,
+                    gaodeCategoryId: mergedGaodeCatId,
                     previousIds: updatedPlace.previousIds,
                     lastVisited: mergedLastVisited,
                     isFavorite: mergedIsFavorite,

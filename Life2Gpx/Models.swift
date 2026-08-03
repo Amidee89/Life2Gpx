@@ -86,14 +86,21 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
     case address = "Address"
     case facebookPlaceId = "FacebookPlaceId"
     case mapboxPlaceId = "MapboxPlaceId"
+    case mapboxCategoryId = "MapboxCategoryId"
     case foursquareVenueId = "FoursquareVenueId"
     case foursquareCategoryId = "FoursquareCategoryId"
     case googlePlacesId = "GooglePlacesId"
+    case googlePlacesCategoryId = "GooglePlacesCategoryId"
     case yelpId = "YelpId"
+    case yelpCategoryId = "YelpCategoryId"
     case applePlaceId = "ApplePlaceId"
+    case appleCategoryId = "AppleCategoryId"
     case osmNodeId = "OsmNodeId"
+    case osmCategoryId = "OsmCategoryId"
     case herePlaceId = "HerePlaceId"
+    case hereCategoryId = "HereCategoryId"
     case gaodePlaceId = "GaodePlaceId"
+    case gaodeCategoryId = "GaodeCategoryId"
     case placeId = "PlaceId"
     case timezoneOffset = "TimezoneOffset"
     case steps = "Steps"
@@ -105,7 +112,7 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
     case courseAccuracy = "CourseAccuracy"
 
     static var waypointCases: [GPXExtensionKey] {
-        return [.address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId, .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId, .steps, .horizontalPrecision, .verticalPrecision, .debug]
+        return [.address, .facebookPlaceId, .mapboxPlaceId, .mapboxCategoryId, .foursquareVenueId, .foursquareCategoryId, .googlePlacesId, .googlePlacesCategoryId, .yelpId, .yelpCategoryId, .applePlaceId, .appleCategoryId, .osmNodeId, .osmCategoryId, .herePlaceId, .hereCategoryId, .gaodePlaceId, .gaodeCategoryId, .placeId, .steps, .horizontalPrecision, .verticalPrecision, .debug]
     }
     
     static var trackpointCases: [GPXExtensionKey] {
@@ -116,9 +123,9 @@ enum GPXExtensionKey: String, CaseIterable, Identifiable {
     
     var valueType: GPXExtensionType {
         switch self {
-        case .debug, .address, .facebookPlaceId, .mapboxPlaceId, .foursquareVenueId,
-             .foursquareCategoryId, .googlePlacesId, .yelpId, .applePlaceId,
-             .osmNodeId, .herePlaceId, .gaodePlaceId, .placeId:
+        case .debug, .address, .facebookPlaceId, .mapboxPlaceId, .mapboxCategoryId, .foursquareVenueId,
+             .foursquareCategoryId, .googlePlacesId, .googlePlacesCategoryId, .yelpId, .yelpCategoryId, .applePlaceId, .appleCategoryId,
+             .osmNodeId, .osmCategoryId, .herePlaceId, .hereCategoryId, .gaodePlaceId, .gaodeCategoryId, .placeId:
             return .string
         case .horizontalPrecision, .verticalPrecision, .speed, .speedAccuracy, .course, .courseAccuracy:
             return .double
@@ -353,14 +360,21 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     var lastSaved: String?
     let facebookPlaceId: String?
     let mapboxPlaceId: String?
+    let mapboxCategoryId: String?
     let foursquareVenueId: String?
     let foursquareCategoryId: String?
     var googlePlacesId: String? = nil
+    var googlePlacesCategoryId: String? = nil
     var yelpId: String? = nil
+    var yelpCategoryId: String? = nil
     var applePlaceId: String? = nil
+    var appleCategoryId: String? = nil
     var osmNodeId: String? = nil
+    var osmCategoryId: String? = nil
     var herePlaceId: String? = nil
+    var hereCategoryId: String? = nil
     var gaodePlaceId: String? = nil
+    var gaodeCategoryId: String? = nil
     let previousIds: [String?]?
     let lastVisited: Date?
     let isFavorite: Bool?
@@ -368,6 +382,72 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
     let elevation: Double?
     var perimeterPolygonPoints: [Center]? = nil
     var isActive: Bool? = true
+
+    init(
+        placeId: String,
+        name: String,
+        center: Center,
+        radius: Double,
+        streetAddress: String? = nil,
+        secondsFromGMT: Int? = nil,
+        lastSaved: String? = nil,
+        facebookPlaceId: String? = nil,
+        mapboxPlaceId: String? = nil,
+        mapboxCategoryId: String? = nil,
+        foursquareVenueId: String? = nil,
+        foursquareCategoryId: String? = nil,
+        googlePlacesId: String? = nil,
+        googlePlacesCategoryId: String? = nil,
+        yelpId: String? = nil,
+        yelpCategoryId: String? = nil,
+        applePlaceId: String? = nil,
+        appleCategoryId: String? = nil,
+        osmNodeId: String? = nil,
+        osmCategoryId: String? = nil,
+        herePlaceId: String? = nil,
+        hereCategoryId: String? = nil,
+        gaodePlaceId: String? = nil,
+        gaodeCategoryId: String? = nil,
+        previousIds: [String?]? = nil,
+        lastVisited: Date? = nil,
+        isFavorite: Bool? = nil,
+        customIcon: String? = nil,
+        elevation: Double? = nil,
+        perimeterPolygonPoints: [Center]? = nil,
+        isActive: Bool? = true
+    ) {
+        self.placeId = placeId
+        self.name = name
+        self.center = center
+        self.radius = radius
+        self.streetAddress = streetAddress
+        self.secondsFromGMT = secondsFromGMT
+        self.lastSaved = lastSaved
+        self.facebookPlaceId = facebookPlaceId
+        self.mapboxPlaceId = mapboxPlaceId
+        self.mapboxCategoryId = mapboxCategoryId
+        self.foursquareVenueId = foursquareVenueId
+        self.foursquareCategoryId = foursquareCategoryId
+        self.googlePlacesId = googlePlacesId
+        self.googlePlacesCategoryId = googlePlacesCategoryId
+        self.yelpId = yelpId
+        self.yelpCategoryId = yelpCategoryId
+        self.applePlaceId = applePlaceId
+        self.appleCategoryId = appleCategoryId
+        self.osmNodeId = osmNodeId
+        self.osmCategoryId = osmCategoryId
+        self.herePlaceId = herePlaceId
+        self.hereCategoryId = hereCategoryId
+        self.gaodePlaceId = gaodePlaceId
+        self.gaodeCategoryId = gaodeCategoryId
+        self.previousIds = previousIds
+        self.lastVisited = lastVisited
+        self.isFavorite = isFavorite
+        self.customIcon = customIcon
+        self.elevation = elevation
+        self.perimeterPolygonPoints = perimeterPolygonPoints
+        self.isActive = isActive
+    }
     var id: String { placeId }
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
@@ -384,14 +464,21 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
         var lastSaved: String?
         var facebookPlaceId: String?
         var mapboxPlaceId: String?
+        var mapboxCategoryId: String?
         var foursquareVenueId: String?
         var foursquareCategoryId: String?
         var googlePlacesId: String?
+        var googlePlacesCategoryId: String?
         var yelpId: String?
+        var yelpCategoryId: String?
         var applePlaceId: String?
+        var appleCategoryId: String?
         var osmNodeId: String?
+        var osmCategoryId: String?
         var herePlaceId: String?
+        var hereCategoryId: String?
         var gaodePlaceId: String?
+        var gaodeCategoryId: String?
         var previousIds: [String?]?
         var lastVisited: Date?
         var isFavorite: Bool?
@@ -410,14 +497,21 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
             self.lastSaved = place.lastSaved
             self.facebookPlaceId = place.facebookPlaceId
             self.mapboxPlaceId = place.mapboxPlaceId
+            self.mapboxCategoryId = place.mapboxCategoryId
             self.foursquareVenueId = place.foursquareVenueId
             self.foursquareCategoryId = place.foursquareCategoryId
             self.googlePlacesId = place.googlePlacesId
+            self.googlePlacesCategoryId = place.googlePlacesCategoryId
             self.yelpId = place.yelpId
+            self.yelpCategoryId = place.yelpCategoryId
             self.applePlaceId = place.applePlaceId
+            self.appleCategoryId = place.appleCategoryId
             self.osmNodeId = place.osmNodeId
+            self.osmCategoryId = place.osmCategoryId
             self.herePlaceId = place.herePlaceId
+            self.hereCategoryId = place.hereCategoryId
             self.gaodePlaceId = place.gaodePlaceId
+            self.gaodeCategoryId = place.gaodeCategoryId
             self.previousIds = place.previousIds
             self.lastVisited = place.lastVisited
             self.isFavorite = place.isFavorite
@@ -438,14 +532,21 @@ struct Place: Identifiable, Codable, Equatable, Hashable {
                 lastSaved: lastSaved,
                 facebookPlaceId: facebookPlaceId,
                 mapboxPlaceId: mapboxPlaceId,
+                mapboxCategoryId: mapboxCategoryId,
                 foursquareVenueId: foursquareVenueId,
                 foursquareCategoryId: foursquareCategoryId,
                 googlePlacesId: googlePlacesId,
+                googlePlacesCategoryId: googlePlacesCategoryId,
                 yelpId: yelpId,
+                yelpCategoryId: yelpCategoryId,
                 applePlaceId: applePlaceId,
+                appleCategoryId: appleCategoryId,
                 osmNodeId: osmNodeId,
+                osmCategoryId: osmCategoryId,
                 herePlaceId: herePlaceId,
+                hereCategoryId: hereCategoryId,
                 gaodePlaceId: gaodePlaceId,
+                gaodeCategoryId: gaodeCategoryId,
                 previousIds: previousIds,
                 lastVisited: lastVisited,
                 isFavorite: isFavorite,
@@ -584,16 +685,7 @@ extension Place {
              streetAddress: "New York, NY", 
              secondsFromGMT: -18000, 
              lastSaved: "2024-10-18", 
-             facebookPlaceId: nil, 
-             mapboxPlaceId: nil, 
-             foursquareVenueId: nil, 
-             foursquareCategoryId: nil, 
-             previousIds: [nil],
-             lastVisited: nil,
-             isFavorite: nil,
-             customIcon: nil,
-             elevation: 45.0,
-             perimeterPolygonPoints: nil),
+             elevation: 45.0),
         Place(placeId: "2", 
              name: "Golden Gate Park", 
              center: Center(latitude: 37.769421, longitude: -122.486214), 
@@ -602,15 +694,8 @@ extension Place {
              secondsFromGMT: -28800, 
              lastSaved: "2024-10-19", 
              facebookPlaceId: "goldengatepark.sanfrancisco", 
-             mapboxPlaceId: nil, 
              foursquareVenueId: "445e36bff964a520fb321fe3", 
-             foursquareCategoryId: "16032", 
-             previousIds: [nil],
-             lastVisited: nil,
-             isFavorite: nil,
-             customIcon: nil,
-             elevation: nil,
-             perimeterPolygonPoints: nil),
+             foursquareCategoryId: "16032"),
         Place(placeId: "3", 
              name: "Golden Gate Park", 
              center: Center(latitude: 37.769421, longitude: -122.486314), 
@@ -619,15 +704,9 @@ extension Place {
              secondsFromGMT: -28800, 
              lastSaved: "2024-10-19", 
              facebookPlaceId: "goldengatepark.sanfrancisco", 
-             mapboxPlaceId: nil, 
              foursquareVenueId: "445e36bff964a520fb321fe3", 
              foursquareCategoryId: "16032", 
-             previousIds: [nil],
-             lastVisited: nil,
-             isFavorite: nil,
-             customIcon: nil,
-             elevation: 30.5,
-             perimeterPolygonPoints: nil)
+             elevation: 30.5)
     ]
     
     static let previewPlace: Place = previewPlaces[0]

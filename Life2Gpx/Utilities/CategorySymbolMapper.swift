@@ -211,6 +211,21 @@ class CategorySymbolMapper: ObservableObject {
                 }
                 return ids
             }
+        } else if provider == .apple {
+            effectiveIds = categoryIds.flatMap { id -> [String] in
+                var ids = [id]
+                var cleaned = id
+                if cleaned.hasPrefix("MKPOICategory") {
+                    cleaned = String(cleaned.dropFirst("MKPOICategory".count))
+                }
+                if let firstChar = cleaned.first {
+                    let normalized = firstChar.lowercased() + cleaned.dropFirst()
+                    if !ids.contains(normalized) {
+                        ids.append(normalized)
+                    }
+                }
+                return ids
+            }
         } else {
             effectiveIds = categoryIds
         }

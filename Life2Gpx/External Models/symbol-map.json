@@ -429,7 +429,7 @@
     "yelp": [],
     "mapbox": ["beach"],
     "here": ["550-5520-0209"],
-    "osm": ["natural=beach"],
+    "osm": ["natural=beach","leisure=beach"],
     "gaode": ["110300","110301","110302"],
     "apple": ["beach"]
   },
@@ -457,7 +457,7 @@
     "yelp": ["landmarks","tours"],
     "mapbox": ["tourist_attraction","landmark","monument"],
     "here": ["300-3000-0000","300-3000-0023","300-3000-0024","300-3000-0025","300-3000-0026"],
-    "osm": ["tourism=attraction","tourism=viewpoint","historic=monument","historic=castle","historic=ruins"],
+    "osm": ["tourism=attraction","tourism=viewpoint","historic=monument","historic=castle","historic=ruins","tourism=information"],
     "gaode": ["110500","110501","110502","110503","110504","110505"],
     "apple": []
   },
@@ -555,7 +555,7 @@
     "yelp": [],
     "mapbox": ["swimming_pool"],
     "here": ["800-8600-0193"],
-    "osm": ["leisure=swimming_pool"],
+    "osm": ["leisure=swimming_pool","sport=swimming"],
     "gaode": ["080400","080401","080402"],
     "apple": []
   },
@@ -789,7 +789,7 @@
     "emoji": "📍",
     "label": "General / Other",
     "foursquare": [],
-    "google": ["point_of_interest","establishment"],
+    "google": [],
     "yelp": [],
     "mapbox": ["poi"],
     "here": [],

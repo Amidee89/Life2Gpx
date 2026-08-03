@@ -211,7 +211,8 @@ struct GPXExportFields: Codable, Equatable {
     init(isWaypoint: Bool = false, isTrack: Bool = false) {
         if isWaypoint {
             for ext in GPXExtensionKey.waypointCases {
-                extensions[ext.rawValue] = GPXFieldState(export: true)
+                let defaultExport = ext.rawValue.hasSuffix("CategoryId") ? false : true
+                extensions[ext.rawValue] = GPXFieldState(export: defaultExport)
             }
         } else if !isTrack {
             for ext in GPXExtensionKey.trackpointCases {
