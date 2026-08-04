@@ -287,6 +287,7 @@ class SettingsManager {
     private let lastStationaryDistanceThresholdKey = "lastStationaryDistanceThreshold"
     private let logAllReceivedPositionsKey = "logAllReceivedPositions"
     private let logMotionDataKey = "logMotionData"
+    private let logFitnessDataKey = "logFitnessData"
     private let suggestIncreasePlaceRadiusKey = "suggestIncreasePlaceRadius"
     private let overwriteExistingAddressOnNewPlaceCreationKey = "overwriteExistingAddressOnNewPlaceCreation"
     private let updatePlaceInformationModeKey = "updatePlaceInformationMode"
@@ -360,6 +361,7 @@ class SettingsManager {
             lastStationaryDistanceThresholdKey: 20,
             logAllReceivedPositionsKey: false,
             logMotionDataKey: false,
+            logFitnessDataKey: false,
             suggestIncreasePlaceRadiusKey: true,
             overwriteExistingAddressOnNewPlaceCreationKey: true,
             updatePlaceInformationModeKey: UpdatePlaceInformationMode.always.rawValue,
@@ -911,6 +913,11 @@ class SettingsManager {
         set { defaults.set(newValue, forKey: logMotionDataKey) }
     }
 
+    var logFitnessData: Bool {
+        get { return defaults.bool(forKey: logFitnessDataKey) }
+        set { defaults.set(newValue, forKey: logFitnessDataKey) }
+    }
+
     func apiKey(for provider: PlaceProvider) -> String {
         return defaults.string(forKey: provider.settingsKey) ?? ""
     }
@@ -945,11 +952,10 @@ struct TrackType: Identifiable, Codable, Equatable, Hashable {
         switch id.lowercased() {
         case "walking", "running", "cycling", "automotive", "train", "plane", "boat", "unknown":
             return .basic
-        case "functional_strength_training", "yoga", "pilates", "dance", "core_training",
-             "table_tennis", "tennis", "badminton", "elliptical", "soccer", "pickleball", "paddlesports", "basketball":
-            return .otherWorkouts
-        default:
+        case "outdoor_cycling", "hiking", "swimming", "skiing", "snowboarding", "rowing", "stair_climbing", "golf", "wheelchair", "equestrian_sports", "skating_sports", "surfing_sports", "paddlesports", "sailing", "climbing", "track_and_field", "swim_bike_run", "underwater_diving", "hand_cycling", "hunting", "water_sports":
             return .workouts
+        default:
+            return .otherWorkouts
         }
     }
 }
@@ -995,8 +1001,10 @@ class PreferencesManager: ObservableObject {
             TrackType(id: "stair_climbing", name: "Stair Climbing", colorHex: "#FFD60A", icon: "figure.stair.stepper", isDefault: true),
             TrackType(id: "golf", name: "Golf", colorHex: "#30B0C7", icon: "figure.golf", isDefault: true),
             TrackType(id: "wheelchair", name: "Wheelchair", colorHex: "#5856D6", icon: "figure.roll", isDefault: true),
+            TrackType(id: "equestrian_sports", name: "Equestrian Sports", colorHex: "#A2845E", icon: "figure.equestrian.sports", isDefault: true),
+            TrackType(id: "swim_bike_run", name: "Triathlon", colorHex: "#FF9500", icon: "figure.open.water.swim", isDefault: true),
             
-            // Other Workouts
+            // Other Workouts (Confined to a place)
             TrackType(id: "functional_strength_training", name: "Strength Training", colorHex: "#FF453A", icon: "figure.strengthtraining.functional", isDefault: true),
             TrackType(id: "yoga", name: "Yoga", colorHex: "#BF5AF2", icon: "figure.yoga", isDefault: true),
             TrackType(id: "pilates", name: "Pilates", colorHex: "#DA8FFF", icon: "figure.pilates", isDefault: true),
@@ -1009,7 +1017,45 @@ class PreferencesManager: ObservableObject {
             TrackType(id: "elliptical", name: "Elliptical", colorHex: "#FF6482", icon: "figure.elliptical", isDefault: true),
             TrackType(id: "soccer", name: "Soccer", colorHex: "#34C759", icon: "figure.soccer", isDefault: true),
             TrackType(id: "pickleball", name: "Pickleball", colorHex: "#63E6E2", icon: "figure.pickleball", isDefault: true),
-            TrackType(id: "paddlesports", name: "Paddlesports", colorHex: "#00C7BE", icon: "figure.open.water.swim", isDefault: true)
+            TrackType(id: "paddlesports", name: "Paddlesports", colorHex: "#00C7BE", icon: "figure.open.water.swim", isDefault: true),
+            TrackType(id: "american_football", name: "American Football", colorHex: "#A2845E", icon: "figure.american.football", isDefault: true),
+            TrackType(id: "archery", name: "Archery", colorHex: "#8E8E93", icon: "figure.archery", isDefault: true),
+            TrackType(id: "australian_football", name: "Australian Football", colorHex: "#FF9500", icon: "figure.australian.football", isDefault: true),
+            TrackType(id: "baseball", name: "Baseball", colorHex: "#FFCC00", icon: "figure.baseball", isDefault: true),
+            TrackType(id: "bowling", name: "Bowling", colorHex: "#5AC8FA", icon: "figure.bowling", isDefault: true),
+            TrackType(id: "boxing", name: "Boxing", colorHex: "#FF3B30", icon: "figure.boxing", isDefault: true),
+            TrackType(id: "cricket", name: "Cricket", colorHex: "#4CD964", icon: "figure.cricket", isDefault: true),
+            TrackType(id: "cross_training", name: "Cross Training", colorHex: "#FF9500", icon: "figure.cross.training", isDefault: true),
+            TrackType(id: "curling", name: "Curling", colorHex: "#5AC8FA", icon: "figure.curling", isDefault: true),
+            TrackType(id: "fencing", name: "Fencing", colorHex: "#8E8E93", icon: "figure.fencing", isDefault: true),
+            TrackType(id: "fitness_gaming", name: "Fitness Gaming", colorHex: "#AF52DE", icon: "gamecontroller", isDefault: true),
+            TrackType(id: "flexibility", name: "Flexibility", colorHex: "#DA8FFF", icon: "figure.flexibility", isDefault: true),
+            TrackType(id: "gymnastics", name: "Gymnastics", colorHex: "#FF2D55", icon: "figure.gymnastics", isDefault: true),
+            TrackType(id: "handball", name: "Handball", colorHex: "#FF9500", icon: "figure.handball", isDefault: true),
+            TrackType(id: "hiit", name: "HIIT", colorHex: "#FF3B30", icon: "figure.highintensity.intervaltraining", isDefault: true),
+            TrackType(id: "hockey", name: "Hockey", colorHex: "#007AFF", icon: "figure.hockey", isDefault: true),
+            TrackType(id: "jump_rope", name: "Jump Rope", colorHex: "#FFCC00", icon: "figure.jumprope", isDefault: true),
+            TrackType(id: "kickboxing", name: "Kickboxing", colorHex: "#FF3B30", icon: "figure.kickboxing", isDefault: true),
+            TrackType(id: "martial_arts", name: "Martial Arts", colorHex: "#FF453A", icon: "figure.martial.arts", isDefault: true),
+            TrackType(id: "mind_and_body", name: "Mind & Body", colorHex: "#BF5AF2", icon: "figure.mind.and.body", isDefault: true),
+            TrackType(id: "mixed_cardio", name: "Mixed Cardio", colorHex: "#FF9500", icon: "figure.mixed.cardio", isDefault: true),
+            TrackType(id: "cooldown", name: "Cooldown", colorHex: "#5AC8FA", icon: "figure.cooldown", isDefault: true),
+            TrackType(id: "racquetball", name: "Racquetball", colorHex: "#66D4CF", icon: "figure.racquetball", isDefault: true),
+            TrackType(id: "rugby", name: "Rugby", colorHex: "#A2845E", icon: "figure.rugby", isDefault: true),
+            TrackType(id: "softball", name: "Softball", colorHex: "#FFCC00", icon: "figure.softball", isDefault: true),
+            TrackType(id: "squash", name: "Squash", colorHex: "#66D4CF", icon: "figure.squash", isDefault: true),
+            TrackType(id: "stairs", name: "Stairs / Stepper", colorHex: "#FFD60A", icon: "figure.stair.stepper", isDefault: true),
+            TrackType(id: "step_training", name: "Step Training", colorHex: "#FFD60A", icon: "figure.step.training", isDefault: true),
+            TrackType(id: "tai_chi", name: "Tai Chi", colorHex: "#BF5AF2", icon: "figure.tai.chi", isDefault: true),
+            TrackType(id: "volleyball", name: "Volleyball", colorHex: "#FF9500", icon: "figure.volleyball", isDefault: true),
+            TrackType(id: "water_fitness", name: "Water Fitness", colorHex: "#1D70B8", icon: "figure.water.fitness", isDefault: true),
+            TrackType(id: "water_polo", name: "Water Polo", colorHex: "#1D70B8", icon: "figure.waterpolo", isDefault: true),
+            TrackType(id: "wrestling", name: "Wrestling", colorHex: "#FF3B30", icon: "figure.wrestling", isDefault: true),
+            TrackType(id: "barre", name: "Barre", colorHex: "#DA8FFF", icon: "figure.barre", isDefault: true),
+            TrackType(id: "disc_sports", name: "Disc Sports", colorHex: "#30B0C7", icon: "figure.disc.sports", isDefault: true),
+            TrackType(id: "lacrosse", name: "Lacrosse", colorHex: "#FF9500", icon: "figure.lacrosse", isDefault: true),
+            TrackType(id: "play", name: "Play", colorHex: "#FFCC00", icon: "figure.play", isDefault: true),
+            TrackType(id: "transition", name: "Transition", colorHex: "#8E8E93", icon: "arrow.triangle.2.circlepath", isDefault: true)
         ]
     }
     

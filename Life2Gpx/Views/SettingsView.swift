@@ -33,6 +33,8 @@ struct SettingsView: View {
                 NavigationLink("Location and steps tracking", destination: SettingsLocationTrackingView())
                 NavigationLink("Place updating", destination: SettingsPlaceSearchView())
                 NavigationLink("Automatic cleanups", destination: SettingsAutomaticCleanupsView())
+                NavigationLink("Track types", destination: SettingsTrackTypesView())
+                NavigationLink("Track activity rules", destination: SettingsActivityRulesView())
                 NavigationLink("Logging", destination: SettingsLoggingView())
             }
         }
@@ -1073,6 +1075,7 @@ struct SettingsLoggingView: View {
     @AppStorage("trackResourceUsage") private var trackResourceUsage: Bool = SettingsManager.shared.trackResourceUsage
     @AppStorage("logAllReceivedPositions") private var logAllReceivedPositions: Bool = SettingsManager.shared.logAllReceivedPositions
     @AppStorage("logMotionData") private var logMotionData: Bool = SettingsManager.shared.logMotionData
+    @AppStorage("logFitnessData") private var logFitnessData: Bool = SettingsManager.shared.logFitnessData
 
     @State private var diagnosticReportShareItem: DiagnosticReportShareItem?
     @State private var diagnosticReportError: String?
@@ -1174,6 +1177,17 @@ struct SettingsLoggingView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         
                         Text("Appends all raw data from CMMotionActivityManager to files in Logs/Motion folder.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 10)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Log Fitness data", isOn: $logFitnessData)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Appends all raw data from HKHealthStore / WorkoutManager to files in Logs/Fitness folder.")
                             .font(.caption)
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)

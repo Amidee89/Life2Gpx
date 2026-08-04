@@ -1,7 +1,7 @@
 import SwiftUI
 import SymbolPicker
 
-struct CategoryIconsView: View {
+struct SettingsCategoryIconsView: View {
     @ObservedObject private var mapper = CategorySymbolMapper.shared
     @State private var editingMapping: CategoryMapping?
     @State private var showingResetConfirmation = false
@@ -218,6 +218,6 @@ struct EditCategoryIconSheet: View {
 
 #Preview {
     NavigationView {
-        CategoryIconsView()
+        SettingsCategoryIconsView()
     }
 }

@@ -233,6 +233,9 @@ class ActivityRulesManager: ObservableObject {
                     if let newType = await evaluate(track: splitTrack, previousWaypoint: previousWaypoint, nextWaypoint: nextWaypoint) {
                         splitTrack.type = newType == "unknown" ? nil : newType
                     }
+                } else if splitTrack.type == nil || splitTrack.type == "unknown" {
+                    let workoutType = splitTrack.segments.flatMap({ $0.points }).compactMap({ $0.extensions?[GPXExtensionKey.workoutType.rawValue].text }).first
+                    splitTrack.type = workoutType
                 }
                 categorizedTracks.append(splitTrack)
             }
@@ -340,7 +343,12 @@ class ActivityRulesManager: ObservableObject {
             let newSegment = GPXTrackSegment()
             currentTrackPoints.forEach { newSegment.add(trackpoint: $0) }
             newTrack.add(trackSegment: newSegment)
-            newTrack.type = currentWorkoutType
+            if currentWorkoutType == nil {
+                let fallbackWorkoutType = currentTrackPoints.compactMap({ $0.extensions?[GPXExtensionKey.workoutType.rawValue].text }).first
+                newTrack.type = fallbackWorkoutType
+            } else {
+                newTrack.type = currentWorkoutType
+            }
             resultingTracks.append(newTrack)
         }
         

@@ -70,6 +70,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             scheduleMidnightUpdate()
             scheduleDeadMansSwitchNotification()
             startNotificationResetTimer()
+            WorkoutManager.shared.checkActiveOrRecentWorkouts()
         }
         
         setupPedometer()
@@ -720,6 +721,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     
                     if let activeWorkout = WorkoutManager.shared.activeWorkoutType {
                         customExtensionData[GPXExtensionKey.workoutType.rawValue] = activeWorkout
+                        LogManager.shared.logFitnessData(message: "Attached active workout '\(activeWorkout)' to new trackpoint at \(location.coordinate.latitude), \(location.coordinate.longitude)")
                     }
                     
                     let extensions = GPXExtensions()

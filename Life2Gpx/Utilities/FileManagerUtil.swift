@@ -180,6 +180,20 @@ class FileManagerUtil {
         return logsDirectory
     }
 
+    func getFitnessLogsDirectory() -> URL {
+        let fileManager = FileManager.default
+        let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs/Fitness")
+        if !fileManager.fileExists(atPath: logsDirectory.path) {
+            do {
+                try fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Failed to create Logs/Fitness directory: \(error)")
+            }
+        }
+        return logsDirectory
+    }
+
     /// Returns GPX files found directly in the Documents root (not in Gpx/ subfolders).
     /// Includes both normal ".gpx" files and duplicate variants like ".gpx 2" created by Files app.
     func gpxFilesInRoot() -> [URL] {

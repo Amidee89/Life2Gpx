@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ActivityRulesListView: View {
+struct SettingsActivityRulesView: View {
     @ObservedObject var manager = ActivityRulesManager.shared
     @State private var showingAddRule = false
     @State private var ruleToEdit: ActivityRule?
@@ -217,3 +217,6 @@ struct EditSplitRuleView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
+/// Alias for backward compatibility
+typealias ActivityRulesListView = SettingsActivityRulesView

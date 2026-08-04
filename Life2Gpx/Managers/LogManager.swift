@@ -137,6 +137,52 @@ class LogManager {
         }
     }
 
+    func logFitnessData(message: String) {
+        guard SettingsManager.shared.logFitnessData else { return }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "HH:mm:ss.SSS"
+        let logTimestamp = dateFormatter.string(from: Date())
+        
+        let logMessage = "[\(logTimestamp)] \(message)\n"
+        
+        queue.async {
+            self.writeFitnessLog(logMessage)
+        }
+    }
+
+    private func writeFitnessLog(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let fileName = formatter.string(from: Date()) + ".log"
+        
+        let logsDirectory = FileManagerUtil.shared.getFitnessLogsDirectory()
+        let logFileURL = logsDirectory.appendingPathComponent(fileName)
+        
+        if let data = message.data(using: .utf8) {
+            if fileManager.fileExists(atPath: logFileURL.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                } else {
+                    print("[V1] Could not open file handle for \(logFileURL.path)")
+                }
+            } else {
+                do {
+                    try message.write(to: logFileURL, atomically: true, encoding: .utf8)
+                } catch {
+                    print("[V1] Failed to write to \(logFileURL.path): \(error)")
+                }
+            }
+        }
+        
+        writeCount += 1
+        if writeCount % 50 == 0 {
+            enforceSizeLimit(for: logFileURL)
+        }
+    }
+
     func logData(context: String, content: String, verbosity: Int) {
         guard SettingsManager.shared.debugLogVerbosity > 0, 
               verbosity <= SettingsManager.shared.debugLogVerbosity else {
@@ -225,18 +271,26 @@ class LogManager {
         let retentionDays = SettingsManager.shared.logRetentionDays
         if retentionDays == -1 { return }
         
-        let logsDirectory = FileManagerUtil.shared.getAppLogsDirectory()
+        let directories = [
+            FileManagerUtil.shared.getAppLogsDirectory(),
+            FileManagerUtil.shared.getLocationLogsDirectory(),
+            FileManagerUtil.shared.getMotionLogsDirectory(),
+            FileManagerUtil.shared.getFitnessLogsDirectory()
+        ]
         
-        guard let files = try? fileManager.contentsOfDirectory(at: logsDirectory, includingPropertiesForKeys: [.creationDateKey], options: .skipsHiddenFiles) else { return }
-        
-        let logFiles = files.filter { $0.pathExtension == "log" }
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
         
-        for file in logFiles {
-            if let attributes = try? fileManager.attributesOfItem(atPath: file.path),
-               let creationDate = attributes[.creationDate] as? Date {
-                if creationDate < cutoffDate {
-                    try? fileManager.removeItem(at: file)
+        for logsDirectory in directories {
+            guard let files = try? fileManager.contentsOfDirectory(at: logsDirectory, includingPropertiesForKeys: [.creationDateKey], options: .skipsHiddenFiles) else { continue }
+            
+            let logFiles = files.filter { $0.pathExtension == "log" }
+            
+            for file in logFiles {
+                if let attributes = try? fileManager.attributesOfItem(atPath: file.path),
+                   let creationDate = attributes[.creationDate] as? Date {
+                    if creationDate < cutoffDate {
+                        try? fileManager.removeItem(at: file)
+                    }
                 }
             }
         }
