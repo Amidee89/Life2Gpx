@@ -671,19 +671,27 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         let validEvents = windowActivities.filter { $0.confidence != .low }
                         let eventsToUse = validEvents.isEmpty ? windowActivities : validEvents
                         
-                        // Any point rule for cycling and running
-                        isCycling = eventsToUse.contains { $0.cycling }
-                        isRunning = eventsToUse.contains { $0.running }
+                        let totalEvents = Double(eventsToUse.count)
+                        
+                        // At least 30% rule for cycling and running
+                        let cyclingCount = eventsToUse.filter { $0.cycling }.count
+                        let runningCount = eventsToUse.filter { $0.running }.count
+                        
+                        if cyclingCount > 0 && totalEvents > 0 && (Double(cyclingCount) / totalEvents) >= 0.3 {
+                            isCycling = true
+                        }
+                        if runningCount > 0 && totalEvents > 0 && (Double(runningCount) / totalEvents) >= 0.3 {
+                            isRunning = true
+                        }
                         
                         // Majority rule for walking and automotive
                         let walkingCount = eventsToUse.filter { $0.walking }.count
                         let automotiveCount = eventsToUse.filter { $0.automotive }.count
-                        let totalEvents = eventsToUse.count
                         
-                        if walkingCount > 0 && (Double(walkingCount) / Double(totalEvents)) >= 0.4 {
+                        if walkingCount > 0 && totalEvents > 0 && (Double(walkingCount) / totalEvents) >= 0.4 {
                             isWalking = true
                         }
-                        if automotiveCount > 0 && (Double(automotiveCount) / Double(totalEvents)) >= 0.4 {
+                        if automotiveCount > 0 && totalEvents > 0 && (Double(automotiveCount) / totalEvents) >= 0.4 {
                             isAutomotive = true
                         }
                         
@@ -908,7 +916,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                     if case .filteredBeforeFirstWaypoint(let trackStartTime) = filterResult {
                         newWaypoint.time = trackStartTime
                     } else {
-                        newWaypoint.time = Date()
+                        newWaypoint.time = location.timestamp
                     }
                     newWaypoint.elevation = location.altitude.roundedTo5DecimalPlaces()
                     
