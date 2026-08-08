@@ -11,11 +11,12 @@ import os
 class GPXManager {
     static let shared = GPXManager()
 
-    private let comparisonConfidenceLevel = 5
+    private let comparisonConfidenceLevel = 4
 
     private init() {}
 
-    func saveLocationData(_ waypoints: [GPXWaypoint], tracks: [GPXTrack], forDate date: Date) {
+    @discardableResult
+    func saveLocationData(_ waypoints: [GPXWaypoint], tracks: [GPXTrack], forDate date: Date) -> Bool {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let fileName = "\(dateFormatter.string(from: date)).gpx"
@@ -45,9 +46,11 @@ class GPXManager {
             let gpxString = gpx.gpx()
             try gpxString.write(to: fileURL, atomically: true, encoding: .utf8)
             LogManager.shared.logData(context: "GPXManager", content: "GPX data saved successfully to \(fileName).", verbosity: 3)
+            return true
         } catch {
             print("Error writing GPX file: \(error)")
             LogManager.shared.logData(context: "GPXManager", content: "Error writing GPX file \(fileName): \(error.localizedDescription)", verbosity: 1)
+            return false
         }
     }
     
@@ -162,12 +165,16 @@ class GPXManager {
         }
     }
 
-    func updateWaypoint(originalWaypoint: GPXWaypoint, updatedWaypoint: GPXWaypoint, forDate date: Date) {
+    func updateWaypoint(originalWaypoint: GPXWaypoint, updatedWaypoint: GPXWaypoint, forDate date: Date, completion: ((Bool, String?) -> Void)? = nil) {
         loadFile(forDate: date) { [weak self] waypoints, tracks in
-            guard let self = self else { return }
+            guard let self = self else {
+                completion?(false, "Internal system error.")
+                return
+            }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
-            LogManager.shared.logData(context: "GPXManager", content: "Attempting to update waypoint for date: \(dateFormatter.string(from: date))", verbosity: 4)
+            let dateStr = dateFormatter.string(from: date)
+            LogManager.shared.logData(context: "GPXManager", content: "Attempting to update waypoint for date: \(dateStr)", verbosity: 4)
 
             var fileWaypoints = waypoints
             if let index = fileWaypoints.firstIndex(where: { currentFileWaypoint in
@@ -175,10 +182,16 @@ class GPXManager {
             }) {
                 fileWaypoints[index] = updatedWaypoint
                 LogManager.shared.logData(context: "GPXManager", content: "Found waypoint at index \(index). Updating.", verbosity: 3)
-                self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)
+                let success = self.saveLocationData(fileWaypoints, tracks: tracks, forDate: date)
+                if success {
+                    completion?(true, nil)
+                } else {
+                    completion?(false, "Failed to write GPX file for date \(dateStr). Check available storage space and permissions.")
+                }
             } else {
                 print("Waypoint not found")
                 LogManager.shared.logData(context: "GPXManager", content: "Waypoint not found for update.", verbosity: 2)
+                completion?(false, "The visit could not be matched in the GPX file for \(dateStr). The file may have been modified or deleted.")
             }
         }
     }
@@ -225,12 +238,16 @@ class GPXManager {
         }
     }
 
-    func updateTrack(originalTrack: GPXTrack, updatedTrack: GPXTrack, forDate date: Date) {
+    func updateTrack(originalTrack: GPXTrack, updatedTrack: GPXTrack, forDate date: Date, completion: ((Bool, String?) -> Void)? = nil) {
         loadFile(forDate: date) { [weak self] waypoints, tracks in
-            guard let self = self else { return }
+            guard let self = self else {
+                completion?(false, "Internal system error.")
+                return
+            }
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy-MM-dd"
-            LogManager.shared.logData(context: "GPXManager", content: "Attempting to update track for date: \(dateFormatter.string(from: date))", verbosity: 4)
+            let dateStr = dateFormatter.string(from: date)
+            LogManager.shared.logData(context: "GPXManager", content: "Attempting to update track for date: \(dateStr)", verbosity: 4)
 
             var fileTracks = tracks
             if let index = fileTracks.firstIndex(where: { currentFileTrack in
@@ -238,10 +255,16 @@ class GPXManager {
             }) {
                 fileTracks[index] = updatedTrack
                 LogManager.shared.logData(context: "GPXManager", content: "Found track at index \(index). Updating.", verbosity: 3)
-                self.saveLocationData(waypoints, tracks: fileTracks, forDate: date)
+                let success = self.saveLocationData(waypoints, tracks: fileTracks, forDate: date)
+                if success {
+                    completion?(true, nil)
+                } else {
+                    completion?(false, "Failed to write GPX file for date \(dateStr). Check available storage space and permissions.")
+                }
             } else {
                 print("Track not found for update")
                 LogManager.shared.logData(context: "GPXManager", content: "Track not found for update.", verbosity: 2)
+                completion?(false, "The track could not be matched in the GPX file for \(dateStr). The file may have been modified or deleted.")
             }
         }
     }

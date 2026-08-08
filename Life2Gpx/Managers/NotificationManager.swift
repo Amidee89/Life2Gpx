@@ -48,4 +48,5 @@ class NotificationManager: ObservableObject {
 
 extension Notification.Name {
     static let openEditVisitForUnknownPlace = Notification.Name("openEditVisitForUnknownPlace")
+    static let gpxSaveFailed = Notification.Name("gpxSaveFailed")
 }

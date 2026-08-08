@@ -417,7 +417,12 @@ struct EditTrackView: View {
                     if let customSave = customSaveAction {
                         customSave(updatedTrack)
                     } else {
-                        GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate)
+                        GPXManager.shared.updateTrack(originalTrack: originalTrack, updatedTrack: updatedTrack, forDate: fileDate) { success, errorMsg in
+                            if !success {
+                                let msg = errorMsg ?? "Failed to save track to GPX file."
+                                NotificationCenter.default.post(name: .gpxSaveFailed, object: nil, userInfo: ["message": msg])
+                            }
+                        }
                         onSaveChanges()
                     }
 

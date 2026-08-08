@@ -44,6 +44,8 @@ struct ContentView: View {
     @State private var showDeleteConfirmation = false
     @State private var showMergeError = false
     @State private var mergeErrorMessage = ""
+    @State private var showSaveError = false
+    @State private var saveErrorMessage = ""
     @State private var showMergeTypePicker = false
     @State private var showSplitItemView = false
     @State private var showMergeVisitLocationPicker = false
@@ -411,6 +413,12 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openEditVisitForUnknownPlace)) { _ in
             checkPendingNotification()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .gpxSaveFailed)) { notification in
+            if let message = notification.userInfo?["message"] as? String {
+                self.saveErrorMessage = message
+                self.showSaveError = true
+            }
+        }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             logContentSnapshot("ContentView scene phase \(oldPhase) -> \(newPhase)")
         }
@@ -460,6 +468,7 @@ struct ContentView: View {
             Text("This will permanently delete the selected items. A backup will be created first.")
         }
         .errorBanner(isPresented: $showMergeError, message: mergeErrorMessage)
+        .errorBanner(isPresented: $showSaveError, message: saveErrorMessage)
         .sheet(isPresented: $showMergeTypePicker) {
             MergeTypePickerView(
                 isContiguous: mergeItemsContiguous,

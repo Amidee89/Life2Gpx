@@ -696,6 +696,8 @@ struct EditVisitView: View {
                 selectedPlace = updatedPlace
             } catch {
                 print("Failed to update place radius: \(error)")
+                let msg = "Failed to update place radius: \(error.localizedDescription)"
+                NotificationCenter.default.post(name: .gpxSaveFailed, object: nil, userInfo: ["message": msg])
             }
         }
         
@@ -715,7 +717,12 @@ struct EditVisitView: View {
             timelineObject.startDate = visitDate
             
             if let originalWaypoint = self.originalWaypoint {
-                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: fileDate)
+                GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: finalWaypoint, forDate: fileDate) { success, errorMsg in
+                    if !success {
+                        let msg = errorMsg ?? "Failed to save visit to GPX file."
+                        NotificationCenter.default.post(name: .gpxSaveFailed, object: nil, userInfo: ["message": msg])
+                    }
+                }
             }
             
             onSave(finalPlace, wasOriginallyUnknown)

@@ -158,138 +158,164 @@ class GPXUtils {
         return copy
     }
     
-    static func arePointsTheSame(_ point1: GPXWaypoint, _ point2: GPXWaypoint, confidenceLevel: Int) -> Bool {
+    static func areExtensionsTheSame(_ ext1: GPXExtensions?, _ ext2: GPXExtensions?) -> Bool {
+        if ext1 == nil && ext2 == nil { return true }
+        guard let ext1 = ext1, let ext2 = ext2 else { return false }
+        
+        var dict1 = [String: String]()
+        for child in ext1.children {
+            if let text = child.text, !child.name.isEmpty {
+                dict1[child.name] = text
+            }
+        }
+        
+        var dict2 = [String: String]()
+        for child in ext2.children {
+            if let text = child.text, !child.name.isEmpty {
+                dict2[child.name] = text
+            }
+        }
+        
+        return dict1 == dict2
+    }
+
+    static func arePointsTheSame(_ point1: GPXWaypoint, _ point2: GPXWaypoint, confidenceLevel: Int, fields: GPXExportFields = SettingsManager.shared.gpxExportSettings.waypoints) -> Bool {
         LogManager.shared.logData(context: "GPXUtils", content: "arePointsTheSame called with confidence level \(confidenceLevel).", verbosity: 5)
         guard confidenceLevel >= 1 && confidenceLevel <= 5 else {
             LogManager.shared.logData(context: "GPXUtils", content: "arePointsTheSame: Invalid confidence level \(confidenceLevel). Defaulting to 3.", verbosity: 2)
-            return arePointsTheSame(point1, point2, confidenceLevel: 3)
+            return arePointsTheSame(point1, point2, confidenceLevel: 3, fields: fields)
         }
+        
+        let filteredPoint1 = deepCopyPoint(point1)
+        filterPoint(filteredPoint1, fields: fields)
+        let filteredPoint2 = deepCopyPoint(point2)
+        filterPoint(filteredPoint2, fields: fields)
         
         var totalFields = 0
         var matchingFields = 0
         
-        if let lat1 = point1.latitude, let lat2 = point2.latitude, 
-           let lon1 = point1.longitude, let lon2 = point2.longitude {
+        if let lat1 = filteredPoint1.latitude, let lat2 = filteredPoint2.latitude, 
+           let lon1 = filteredPoint1.longitude, let lon2 = filteredPoint2.longitude {
             totalFields += 2
             if abs(lat1 - lat2) < Constants.coordinateEqualityTolerance { matchingFields += 1 }
             if abs(lon1 - lon2) < Constants.coordinateEqualityTolerance { matchingFields += 1 }
         }
         
-        if point1.elevation != nil || point2.elevation != nil {
+        if filteredPoint1.elevation != nil || filteredPoint2.elevation != nil {
             totalFields += 1
-            if let elevation1 = point1.elevation, let elevation2 = point2.elevation, 
+            if let elevation1 = filteredPoint1.elevation, let elevation2 = filteredPoint2.elevation, 
                abs(elevation1 - elevation2) < Constants.elevationEqualityTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.time != nil || point2.time != nil {
+        if filteredPoint1.time != nil || filteredPoint2.time != nil {
             totalFields += 1
-            if let time1 = point1.time, let time2 = point2.time,
+            if let time1 = filteredPoint1.time, let time2 = filteredPoint2.time,
                abs(time1.timeIntervalSince(time2)) < Constants.timeEqualityTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.magneticVariation != nil || point2.magneticVariation != nil {
+        if filteredPoint1.magneticVariation != nil || filteredPoint2.magneticVariation != nil {
             totalFields += 1
-            if let mv1 = point1.magneticVariation, let mv2 = point2.magneticVariation,
+            if let mv1 = filteredPoint1.magneticVariation, let mv2 = filteredPoint2.magneticVariation,
                abs(mv1 - mv2) < Constants.magneticVariationTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.geoidHeight != nil || point2.geoidHeight != nil {
+        if filteredPoint1.geoidHeight != nil || filteredPoint2.geoidHeight != nil {
             totalFields += 1
-            if let gh1 = point1.geoidHeight, let gh2 = point2.geoidHeight,
+            if let gh1 = filteredPoint1.geoidHeight, let gh2 = filteredPoint2.geoidHeight,
                abs(gh1 - gh2) < Constants.geoidHeightTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.name != nil || point2.name != nil {
+        if filteredPoint1.name != nil || filteredPoint2.name != nil {
             totalFields += 1
-            if point1.name == point2.name { matchingFields += 1 }
+            if filteredPoint1.name == filteredPoint2.name { matchingFields += 1 }
         }
         
-        if point1.comment != nil || point2.comment != nil {
+        if filteredPoint1.comment != nil || filteredPoint2.comment != nil {
             totalFields += 1
-            if point1.comment == point2.comment { matchingFields += 1 }
+            if filteredPoint1.comment == filteredPoint2.comment { matchingFields += 1 }
         }
         
-        if point1.desc != nil || point2.desc != nil {
+        if filteredPoint1.desc != nil || filteredPoint2.desc != nil {
             totalFields += 1
-            if point1.desc == point2.desc { matchingFields += 1 }
+            if filteredPoint1.desc == filteredPoint2.desc { matchingFields += 1 }
         }
         
-        if point1.source != nil || point2.source != nil {
+        if filteredPoint1.source != nil || filteredPoint2.source != nil {
             totalFields += 1
-            if point1.source == point2.source { matchingFields += 1 }
+            if filteredPoint1.source == filteredPoint2.source { matchingFields += 1 }
         }
         
-        if point1.symbol != nil || point2.symbol != nil {
+        if filteredPoint1.symbol != nil || filteredPoint2.symbol != nil {
             totalFields += 1
-            if point1.symbol == point2.symbol { matchingFields += 1 }
+            if filteredPoint1.symbol == filteredPoint2.symbol { matchingFields += 1 }
         }
         
-        if point1.type != nil || point2.type != nil {
+        if filteredPoint1.type != nil || filteredPoint2.type != nil {
             totalFields += 1
-            if point1.type == point2.type { matchingFields += 1 }
+            if filteredPoint1.type == filteredPoint2.type { matchingFields += 1 }
         }
         
-        if point1.fix != nil || point2.fix != nil {
+        if filteredPoint1.fix != nil || filteredPoint2.fix != nil {
             totalFields += 1
-            if point1.fix == point2.fix { matchingFields += 1 }
+            if filteredPoint1.fix == filteredPoint2.fix { matchingFields += 1 }
         }
         
-        if point1.satellites != nil || point2.satellites != nil {
+        if filteredPoint1.satellites != nil || filteredPoint2.satellites != nil {
             totalFields += 1
-            if point1.satellites == point2.satellites { matchingFields += 1 }
+            if filteredPoint1.satellites == filteredPoint2.satellites { matchingFields += 1 }
         }
         
-        if point1.horizontalDilution != nil || point2.horizontalDilution != nil {
+        if filteredPoint1.horizontalDilution != nil || filteredPoint2.horizontalDilution != nil {
             totalFields += 1
-            if let hd1 = point1.horizontalDilution, let hd2 = point2.horizontalDilution, 
+            if let hd1 = filteredPoint1.horizontalDilution, let hd2 = filteredPoint2.horizontalDilution, 
                abs(hd1 - hd2) < Constants.dilutionOfPrecisionTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.verticalDilution != nil || point2.verticalDilution != nil {
+        if filteredPoint1.verticalDilution != nil || filteredPoint2.verticalDilution != nil {
             totalFields += 1
-            if let vd1 = point1.verticalDilution, let vd2 = point2.verticalDilution, 
+            if let vd1 = filteredPoint1.verticalDilution, let vd2 = filteredPoint2.verticalDilution, 
                abs(vd1 - vd2) < Constants.dilutionOfPrecisionTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.positionDilution != nil || point2.positionDilution != nil {
+        if filteredPoint1.positionDilution != nil || filteredPoint2.positionDilution != nil {
             totalFields += 1
-            if let pd1 = point1.positionDilution, let pd2 = point2.positionDilution, 
+            if let pd1 = filteredPoint1.positionDilution, let pd2 = filteredPoint2.positionDilution, 
                abs(pd1 - pd2) < Constants.dilutionOfPrecisionTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.ageofDGPSData != nil || point2.ageofDGPSData != nil {
+        if filteredPoint1.ageofDGPSData != nil || filteredPoint2.ageofDGPSData != nil {
             totalFields += 1
-            if let age1 = point1.ageofDGPSData, let age2 = point2.ageofDGPSData, 
+            if let age1 = filteredPoint1.ageofDGPSData, let age2 = filteredPoint2.ageofDGPSData, 
                abs(age1 - age2) < Constants.ageofDGPSDataTolerance {
                 matchingFields += 1
             }
         }
         
-        if point1.DGPSid != nil || point2.DGPSid != nil {
+        if filteredPoint1.DGPSid != nil || filteredPoint2.DGPSid != nil {
             totalFields += 1
-            if point1.DGPSid == point2.DGPSid { matchingFields += 1 }
+            if filteredPoint1.DGPSid == filteredPoint2.DGPSid { matchingFields += 1 }
         }
         
-        if !point1.links.isEmpty || !point2.links.isEmpty {
+        if !filteredPoint1.links.isEmpty || !filteredPoint2.links.isEmpty {
             totalFields += 1
             
-            if point1.links.count == point2.links.count {
-                let hrefs1 = Set(point1.links.compactMap { $0.href })
-                let hrefs2 = Set(point2.links.compactMap { $0.href })
+            if filteredPoint1.links.count == filteredPoint2.links.count {
+                let hrefs1 = Set(filteredPoint1.links.compactMap { $0.href })
+                let hrefs2 = Set(filteredPoint2.links.compactMap { $0.href })
                 
                 if hrefs1 == hrefs2 {
                     matchingFields += 1
@@ -297,33 +323,10 @@ class GPXUtils {
             }
         }
         
-        if point1.extensions != nil || point2.extensions != nil {
+        if filteredPoint1.extensions != nil || filteredPoint2.extensions != nil {
             totalFields += 1
-            
-            if let ext1 = point1.extensions, let ext2 = point2.extensions {
-                if let contents1 = ext1.get(from: nil), let contents2 = ext2.get(from: nil),
-                   contents1 == contents2 {
-                    matchingFields += 1
-                } else {
-                    let children1 = Set(ext1.children.map { $0.name })
-                    let children2 = Set(ext2.children.map { $0.name })
-                    
-                    if children1 == children2 {
-                        var childrenMatch = true
-                        for childName in children1 {
-                            if let childContent1 = ext1.get(from: childName),
-                               let childContent2 = ext2.get(from: childName),
-                               childContent1 != childContent2 {
-                                childrenMatch = false
-                                break
-                            }
-                        }
-                        
-                        if childrenMatch {
-                            matchingFields += 1
-                        }
-                    }
-                }
+            if areExtensionsTheSame(filteredPoint1.extensions, filteredPoint2.extensions) {
+                matchingFields += 1
             }
         }
         
@@ -356,45 +359,68 @@ class GPXUtils {
             return false
         }
         
+        let trackSettings = SettingsManager.shared.gpxExportSettings.tracks
+        let tpSettings = SettingsManager.shared.gpxExportSettings.trackpoints
+        
+        let filteredTrack1 = deepCopyTrack(track1)
+        if !trackSettings.name.export { filteredTrack1.name = nil }
+        if !trackSettings.comment.export { filteredTrack1.comment = nil }
+        if !trackSettings.desc.export { filteredTrack1.desc = nil }
+        if !trackSettings.source.export { filteredTrack1.source = nil }
+        if !trackSettings.number.export { filteredTrack1.number = nil }
+        if !trackSettings.type.export { filteredTrack1.type = nil }
+        if !trackSettings.links.export { filteredTrack1.links.removeAll() }
+        filteredTrack1.extensions = filterExtensions(filteredTrack1.extensions, fields: trackSettings)
+        
+        let filteredTrack2 = deepCopyTrack(track2)
+        if !trackSettings.name.export { filteredTrack2.name = nil }
+        if !trackSettings.comment.export { filteredTrack2.comment = nil }
+        if !trackSettings.desc.export { filteredTrack2.desc = nil }
+        if !trackSettings.source.export { filteredTrack2.source = nil }
+        if !trackSettings.number.export { filteredTrack2.number = nil }
+        if !trackSettings.type.export { filteredTrack2.type = nil }
+        if !trackSettings.links.export { filteredTrack2.links.removeAll() }
+        filteredTrack2.extensions = filterExtensions(filteredTrack2.extensions, fields: trackSettings)
+        
         var totalFields = 0
         var matchingFields = 0
         
-        if track1.name != nil || track2.name != nil {
+        if filteredTrack1.name != nil || filteredTrack2.name != nil {
             totalFields += 1
-            if track1.name == track2.name { matchingFields += 1 }
+            if filteredTrack1.name == filteredTrack2.name { matchingFields += 1 }
         }
         
-        if track1.comment != nil || track2.comment != nil {
+        if filteredTrack1.comment != nil || filteredTrack2.comment != nil {
             totalFields += 1
-            if track1.comment == track2.comment { matchingFields += 1 }
+            if filteredTrack1.comment == filteredTrack2.comment { matchingFields += 1 }
         }
         
-        if track1.desc != nil || track2.desc != nil {
+        if filteredTrack1.desc != nil || filteredTrack2.desc != nil {
             totalFields += 1
-            if track1.desc == track2.desc { matchingFields += 1 }
+            if filteredTrack1.desc == filteredTrack2.desc { matchingFields += 1 }
         }
         
-        if track1.source != nil || track2.source != nil {
+        if filteredTrack1.source != nil || filteredTrack2.source != nil {
             totalFields += 1
-            if track1.source == track2.source { matchingFields += 1 }
+            if filteredTrack1.source == filteredTrack2.source { matchingFields += 1 }
         }
         
-        if track1.number != nil || track2.number != nil {
+        if filteredTrack1.number != nil || filteredTrack2.number != nil {
             totalFields += 1
-            if track1.number == track2.number { matchingFields += 1 }
+            if filteredTrack1.number == filteredTrack2.number { matchingFields += 1 }
         }
         
-        if track1.type != nil || track2.type != nil {
+        if filteredTrack1.type != nil || filteredTrack2.type != nil {
             totalFields += 1
-            if track1.type == track2.type { matchingFields += 1 }
+            if filteredTrack1.type == filteredTrack2.type { matchingFields += 1 }
         }
         
-        if !track1.links.isEmpty || !track2.links.isEmpty {
+        if !filteredTrack1.links.isEmpty || !filteredTrack2.links.isEmpty {
             totalFields += 1
             
-            if track1.links.count == track2.links.count {
-                let hrefs1 = Set(track1.links.compactMap { $0.href })
-                let hrefs2 = Set(track2.links.compactMap { $0.href })
+            if filteredTrack1.links.count == filteredTrack2.links.count {
+                let hrefs1 = Set(filteredTrack1.links.compactMap { $0.href })
+                let hrefs2 = Set(filteredTrack2.links.compactMap { $0.href })
                 
                 if hrefs1 == hrefs2 {
                     matchingFields += 1
@@ -402,40 +428,16 @@ class GPXUtils {
             }
         }
         
-        if track1.extensions != nil || track2.extensions != nil {
+        if filteredTrack1.extensions != nil || filteredTrack2.extensions != nil {
             totalFields += 1
-            
-            if let ext1 = track1.extensions, let ext2 = track2.extensions {
-                if let contents1 = ext1.get(from: nil), let contents2 = ext2.get(from: nil),
-                   contents1 == contents2 {
-                    matchingFields += 1
-                } else {
-                    let children1 = Set(ext1.children.map { $0.name })
-                    let children2 = Set(ext2.children.map { $0.name })
-                    
-                    if children1 == children2 {
-                        var childrenMatch = true
-                        
-                        for childName in children1 {
-                            if let childContent1 = ext1.get(from: childName),
-                               let childContent2 = ext2.get(from: childName),
-                               childContent1 != childContent2 {
-                                childrenMatch = false
-                                break
-                            }
-                        }
-                        
-                        if childrenMatch {
-                            matchingFields += 1
-                        }
-                    }
-                }
+            if areExtensionsTheSame(filteredTrack1.extensions, filteredTrack2.extensions) {
+                matchingFields += 1
             }
         }
         
-        for i in 0..<track1.segments.count {
-            let segment1 = track1.segments[i]
-            let segment2 = track2.segments[i]
+        for i in 0..<filteredTrack1.segments.count {
+            let segment1 = filteredTrack1.segments[i]
+            let segment2 = filteredTrack2.segments[i]
             
             if segment1.points.count != segment2.points.count {
                 return false
@@ -443,32 +445,8 @@ class GPXUtils {
             
             if segment1.extensions != nil || segment2.extensions != nil {
                 totalFields += 1
-                
-                if let ext1 = segment1.extensions, let ext2 = segment2.extensions {
-                    if let contents1 = ext1.get(from: nil), let contents2 = ext2.get(from: nil),
-                       contents1 == contents2 {
-                        matchingFields += 1
-                    } else {
-                        let children1 = Set(ext1.children.map { $0.name })
-                        let children2 = Set(ext2.children.map { $0.name })
-                        
-                        if children1 == children2 {
-                            var childrenMatch = true
-                            
-                            for childName in children1 {
-                                if let childContent1 = ext1.get(from: childName),
-                                   let childContent2 = ext2.get(from: childName),
-                                   childContent1 != childContent2 {
-                                    childrenMatch = false
-                                    break
-                                }
-                            }
-                            
-                            if childrenMatch {
-                                matchingFields += 1
-                            }
-                        }
-                    }
+                if areExtensionsTheSame(segment1.extensions, segment2.extensions) {
+                    matchingFields += 1
                 }
             }
             
@@ -477,7 +455,7 @@ class GPXUtils {
                 let point2 = segment2.points[j]
                 
                 totalFields += 1
-                if arePointsTheSame(point1, point2, confidenceLevel: confidenceLevel) {
+                if arePointsTheSame(point1, point2, confidenceLevel: confidenceLevel, fields: tpSettings) {
                     matchingFields += 1
                 }
             }
