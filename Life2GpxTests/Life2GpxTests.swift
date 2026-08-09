@@ -108,6 +108,19 @@ final class Life2GpxTests: XCTestCase {
         XCTAssertEqual(tracks.count, 2)
     }
 
+    func testAutomotiveDefaultRuleSpeedCondition() {
+        let rules = ActivityRulesManager.shared.rules
+        guard let automotiveRule = rules.first(where: { $0.resultingActivityType == "automotive" }) else {
+            XCTFail("Automotive rule not found")
+            return
+        }
+        
+        let speedCondition = automotiveRule.conditions.first(where: { $0.conditionType == .speed })
+        XCTAssertNotNil(speedCondition, "Automotive rule should have a speed condition")
+        XCTAssertEqual(speedCondition?.comparisonOperator, .lessThan)
+        XCTAssertEqual(speedCondition?.value1, "150")
+    }
+
     private func makeTrack(type: String?, pointCount: Int, startingAt start: Date) -> GPXTrack {
         let track = GPXTrack()
         track.type = type

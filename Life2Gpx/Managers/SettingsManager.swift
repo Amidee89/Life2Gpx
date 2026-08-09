@@ -931,10 +931,20 @@ import SwiftUI
 
 enum TrackTypeCategory: String, CaseIterable, Identifiable, Codable {
     case basic = "Basic"
+    case custom = "Custom"
     case workouts = "Workouts"
     case otherWorkouts = "Other Workouts"
     
     var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .basic: return "Basic"
+        case .custom: return "Custom"
+        case .workouts: return "Workouts"
+        case .otherWorkouts: return "Other Activities"
+        }
+    }
 }
 
 struct TrackType: Identifiable, Codable, Equatable, Hashable {
@@ -949,6 +959,9 @@ struct TrackType: Identifiable, Codable, Equatable, Hashable {
     }
     
     var category: TrackTypeCategory {
+        if !isDefault {
+            return .custom
+        }
         switch id.lowercased() {
         case "walking", "running", "cycling", "automotive", "train", "plane", "boat", "unknown":
             return .basic
@@ -1046,7 +1059,7 @@ class PreferencesManager: ObservableObject {
             TrackType(id: "squash", name: "Squash", colorHex: "#66D4CF", icon: "figure.squash", isDefault: true),
             TrackType(id: "stairs", name: "Stairs / Stepper", colorHex: "#FFD60A", icon: "figure.stair.stepper", isDefault: true),
             TrackType(id: "step_training", name: "Step Training", colorHex: "#FFD60A", icon: "figure.step.training", isDefault: true),
-            TrackType(id: "tai_chi", name: "Tai Chi", colorHex: "#BF5AF2", icon: "figure.tai.chi", isDefault: true),
+            TrackType(id: "tai_chi", name: "Tai Chi", colorHex: "#BF5AF2", icon: "figure.taichi", isDefault: true),
             TrackType(id: "volleyball", name: "Volleyball", colorHex: "#FF9500", icon: "figure.volleyball", isDefault: true),
             TrackType(id: "water_fitness", name: "Water Fitness", colorHex: "#1D70B8", icon: "figure.water.fitness", isDefault: true),
             TrackType(id: "water_polo", name: "Water Polo", colorHex: "#1D70B8", icon: "figure.waterpolo", isDefault: true),
@@ -1067,6 +1080,11 @@ class PreferencesManager: ObservableObject {
                 for defaultType in defaultTrackTypes() {
                     if !mergedTypes.contains(where: { $0.id == defaultType.id }) {
                         mergedTypes.append(defaultType)
+                    }
+                }
+                for i in 0..<mergedTypes.count {
+                    if mergedTypes[i].id == "tai_chi" && mergedTypes[i].icon == "figure.tai.chi" {
+                        mergedTypes[i].icon = "figure.taichi"
                     }
                 }
                 self.trackTypes = mergedTypes

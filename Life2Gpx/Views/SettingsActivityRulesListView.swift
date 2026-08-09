@@ -5,6 +5,7 @@ struct SettingsActivityRulesView: View {
     @State private var showingAddRule = false
     @State private var ruleToEdit: ActivityRule?
     @State private var selectedTab = 0
+    @State private var newRule = ActivityRule(name: "New Rule", resultingActivityType: "walking", conditions: [])
     
     var body: some View {
         VStack {
@@ -97,10 +98,11 @@ struct SettingsActivityRulesView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddRule) {
-            let newRule = ActivityRule(name: "New Rule", resultingActivityType: "walking", conditions: [])
+        .sheet(isPresented: $showingAddRule, onDismiss: {
+            newRule = ActivityRule(name: "New Rule", resultingActivityType: "walking", conditions: [])
+        }) {
             NavigationView {
-                EditActivityRuleView(rule: .constant(newRule), isNew: true) { addedRule in
+                EditActivityRuleView(rule: $newRule, isNew: true) { addedRule in
                     manager.rules.append(addedRule)
                     showingAddRule = false
                 }

@@ -133,7 +133,10 @@ typealias TrackTypesSettingsView = SettingsTrackTypesView
 
 struct EditTrackTypeView: View {
     @Binding var trackType: TrackType
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var preferencesManager = PreferencesManager.shared
     @State private var color: Color
+    @State private var showingDeleteConfirmation = false
     
     init(trackType: Binding<TrackType>) {
         self._trackType = trackType
@@ -165,9 +168,31 @@ struct EditTrackTypeView: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
+            } else {
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Delete Activity")
+                                .foregroundColor(.red)
+                            Spacer()
+                        }
+                    }
+                }
             }
         }
         .navigationTitle(trackType.name)
+        .confirmationDialog("Are you sure you want to delete this custom activity?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete Activity", role: .destructive) {
+                if let index = preferencesManager.trackTypes.firstIndex(where: { $0.id == trackType.id }) {
+                    preferencesManager.trackTypes.remove(at: index)
+                }
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 
@@ -176,3 +201,42 @@ struct EditTrackTypeView: View {
         SettingsTrackTypesView()
     }
 }
+
+struct TrackTypePickerView: View {
+    @Binding var selectedId: String
+    @ObservedObject var prefs = PreferencesManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List {
+            ForEach(TrackTypeCategory.allCases) { category in
+                let matchingTypes = prefs.trackTypes.filter { $0.category == category }
+                if !matchingTypes.isEmpty {
+                    Section(header: Text(category.displayName)) {
+                        ForEach(matchingTypes) { type in
+                            Button {
+                                selectedId = type.id
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    PlaceIconView(icon: type.icon, fallbackColor: type.color)
+                                        .frame(width: 24)
+                                    Text(type.name)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    if type.id.lowercased() == selectedId.lowercased() {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.accentColor)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Track Type")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+

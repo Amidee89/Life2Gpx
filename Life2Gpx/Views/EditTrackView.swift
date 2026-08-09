@@ -92,9 +92,21 @@ struct EditTrackView: View {
 
                     if !isEditing {
                         Section("Track Info") {
-                            Picker("Track Type", selection: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown")) {
-                                ForEach(PreferencesManager.shared.trackTypes) { trackType in
-                                    Text(trackType.name).tag(trackType.id)
+                            NavigationLink {
+                                TrackTypePickerView(selectedId: $workingCopy.trackType.toUnwrapped(defaultValue: "unknown"))
+                            } label: {
+                                HStack {
+                                    Text("Track Type")
+                                    Spacer()
+                                    if let currentType = PreferencesManager.shared.trackType(for: workingCopy.trackType) {
+                                        PlaceIconView(icon: currentType.icon, fallbackColor: currentType.color)
+                                            .frame(width: 20)
+                                        Text(currentType.name)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text(workingCopy.trackType ?? "Unknown")
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                             }
                             .onChange(of: workingCopy.trackType) { oldValue, newValue in

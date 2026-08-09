@@ -130,7 +130,8 @@ class ActivityRulesManager: ObservableObject {
             name: "Automotive",
             resultingActivityType: "automotive",
             conditions: [
-                RuleCondition(logicalOperator: .and, conditionType: .iosActivityType, value1: "automotive", value2: "50")
+                RuleCondition(logicalOperator: .and, conditionType: .iosActivityType, value1: "automotive", value2: "50"),
+                RuleCondition(logicalOperator: .and, conditionType: .speed, comparisonOperator: .lessThan, value1: "150")
             ]
         )
         

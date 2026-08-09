@@ -23,9 +23,21 @@ struct EditActivityRuleView: View {
             Section(header: Text("Rule Info")) {
                 TextField("Rule Name", text: $localRule.name)
                 
-                Picker("Resulting Track Type", selection: $localRule.resultingActivityType) {
-                    ForEach(prefs.trackTypes) { type in
-                        Text(type.name).tag(type.id)
+                NavigationLink {
+                    TrackTypePickerView(selectedId: $localRule.resultingActivityType)
+                } label: {
+                    HStack {
+                        Text("Resulting Track Type")
+                        Spacer()
+                        if let currentType = prefs.trackType(for: localRule.resultingActivityType) {
+                            PlaceIconView(icon: currentType.icon, fallbackColor: currentType.color)
+                                .frame(width: 20)
+                            Text(currentType.name)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text(localRule.resultingActivityType)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
@@ -138,6 +150,7 @@ struct EditConditionView: View {
                         Text(type.rawValue).tag(type)
                     }
                 }
+                .pickerStyle(.menu)
             }
             
             if condition.conditionType == .speed || condition.conditionType == .elevation {
