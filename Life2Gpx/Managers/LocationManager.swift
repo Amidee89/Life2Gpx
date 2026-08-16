@@ -1006,6 +1006,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         if !hasWorkoutType {
                             let prevWp = gpxWaypoints.count > 1 ? gpxWaypoints[gpxWaypoints.count - 2] : nil
                             ActivityRulesManager.shared.evaluateAndUpdate(track: lastTrack, previousWaypoint: prevWp, nextWaypoint: newWaypoint, date: Date())
+                        } else {
+                            NotificationManager.shared.checkAndNotifyUnknownTracks(tracks: gpxTracks, forDate: Date())
                         }
                     }
                 }

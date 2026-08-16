@@ -261,7 +261,8 @@ class ActivityRulesManager: ObservableObject {
             }
             
             if mergedTracks.count == 1 && track.type == mergedTracks[0].type {
-                // No split/merge resulting in a difference, do nothing
+                // No split/merge resulting in a difference, but refresh unknown track notification
+                NotificationManager.shared.checkAndNotifyUnknownTracks(forDate: date)
                 return
             }
             
@@ -271,7 +272,11 @@ class ActivityRulesManager: ObservableObject {
                 addWaypoints: [],
                 addTracks: mergedTracks,
                 forDate: date
-            )
+            ) { success in
+                if success {
+                    NotificationManager.shared.checkAndNotifyUnknownTracks(forDate: date)
+                }
+            }
         }
     }
     

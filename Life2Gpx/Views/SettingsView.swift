@@ -401,6 +401,7 @@ struct SettingsLayoutAppearanceView: View {
 
 struct SettingsNotificationsView: View {
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
+    @AppStorage("notifyOfSavedUnknownTrackTypes") private var notifyOfSavedUnknownTrackTypes: Bool = SettingsManager.shared.notifyOfSavedUnknownTrackTypes
     @AppStorage("unknownPlaceNotificationValue") private var unknownPlaceNotificationValue: Int = SettingsManager.shared.unknownPlaceNotificationValue
     @AppStorage("unknownPlaceNotificationUnit") private var unknownPlaceNotificationUnit: String = SettingsManager.shared.unknownPlaceNotificationUnit
     @AppStorage("enableDeadMansSwitch") private var enableDeadMansSwitch: Bool = SettingsManager.shared.enableDeadMansSwitch
@@ -441,6 +442,17 @@ struct SettingsNotificationsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .foregroundColor(.gray)
                     }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Notify of saved unknown track types", isOn: $notifyOfSavedUnknownTrackTypes)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Text("Sends a notification when tracks with unknown activity type are saved, allowing you to quickly categorize them.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Notify if the app seems to have stopped", isOn: $enableDeadMansSwitch)
                             .fixedSize(horizontal: false, vertical: true)

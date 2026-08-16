@@ -121,6 +121,33 @@ final class Life2GpxTests: XCTestCase {
         XCTAssertEqual(speedCondition?.value1, "150")
     }
 
+    func testNotifyOfSavedUnknownTrackTypesDefault() {
+        XCTAssertTrue(SettingsManager.shared.notifyOfSavedUnknownTrackTypes)
+    }
+
+    func testNotificationManagerIsUnknownTrack() {
+        let nilTrack = makeTrack(type: nil, pointCount: 1, startingAt: Date())
+        XCTAssertTrue(NotificationManager.isUnknownTrack(nilTrack))
+
+        let emptyTrack = makeTrack(type: "", pointCount: 1, startingAt: Date())
+        XCTAssertTrue(NotificationManager.isUnknownTrack(emptyTrack))
+
+        let whitespaceTrack = makeTrack(type: "   ", pointCount: 1, startingAt: Date())
+        XCTAssertTrue(NotificationManager.isUnknownTrack(whitespaceTrack))
+
+        let unknownTrack = makeTrack(type: "unknown", pointCount: 1, startingAt: Date())
+        XCTAssertTrue(NotificationManager.isUnknownTrack(unknownTrack))
+
+        let unknownUpperTrack = makeTrack(type: "UNKNOWN", pointCount: 1, startingAt: Date())
+        XCTAssertTrue(NotificationManager.isUnknownTrack(unknownUpperTrack))
+
+        let knownTrack = makeTrack(type: "walking", pointCount: 1, startingAt: Date())
+        XCTAssertFalse(NotificationManager.isUnknownTrack(knownTrack))
+
+        let cyclingTrack = makeTrack(type: "cycling", pointCount: 1, startingAt: Date())
+        XCTAssertFalse(NotificationManager.isUnknownTrack(cyclingTrack))
+    }
+
     private func makeTrack(type: String?, pointCount: Int, startingAt start: Date) -> GPXTrack {
         let track = GPXTrack()
         track.type = type

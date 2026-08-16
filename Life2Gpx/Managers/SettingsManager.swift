@@ -249,6 +249,7 @@ class SettingsManager {
     private let mergeVisitAddStepsKey = "mergeVisitAddSteps"
     private let autoReverseLookupUnknownVisitsKey = "autoReverseLookupUnknownVisits"
     private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
+    private let notifyOfSavedUnknownTrackTypesKey = "notifyOfSavedUnknownTrackTypes"
     private let unknownPlaceNotificationValueKey = "unknownPlaceNotificationValue"
     private let unknownPlaceNotificationUnitKey = "unknownPlaceNotificationUnit"
     private let trackResourceUsageKey = "trackResourceUsage"
@@ -325,6 +326,7 @@ class SettingsManager {
             mergeVisitAddStepsKey: true,
             autoReverseLookupUnknownVisitsKey: true,
             sendNotificationOnUnknownPlaceKey: true,
+            notifyOfSavedUnknownTrackTypesKey: true,
             unknownPlaceNotificationValueKey: 10,
             unknownPlaceNotificationUnitKey: "minutes",
             trackResourceUsageKey: false,
@@ -712,6 +714,11 @@ class SettingsManager {
     var sendNotificationOnUnknownPlace: Bool {
         get { return defaults.bool(forKey: sendNotificationOnUnknownPlaceKey) }
         set { defaults.set(newValue, forKey: sendNotificationOnUnknownPlaceKey) }
+    }
+
+    var notifyOfSavedUnknownTrackTypes: Bool {
+        get { return defaults.bool(forKey: notifyOfSavedUnknownTrackTypesKey) }
+        set { defaults.set(newValue, forKey: notifyOfSavedUnknownTrackTypesKey) }
     }
 
     var unknownPlaceNotificationValue: Int {

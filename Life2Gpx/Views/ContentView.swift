@@ -52,6 +52,7 @@ struct ContentView: View {
     @State private var mergedTrackTimelineObject: TimelineObject?
     @State private var mergedVisitTimelineObject: TimelineObject?
     @State private var editingWaypointFromNotification: TimelineObject? = nil
+    @State private var editingTrackFromNotification: TimelineObject? = nil
     @State private var mergeItemsContiguous: Bool = true
 
     let defaults = UserDefaults.standard
@@ -413,6 +414,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openEditVisitForUnknownPlace)) { _ in
             checkPendingNotification()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openEditTrackForUnknownTrack)) { _ in
+            checkPendingNotification()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .gpxSaveFailed)) { notification in
             if let message = notification.userInfo?["message"] as? String {
                 self.saveErrorMessage = message
@@ -547,6 +551,19 @@ struct ContentView: View {
                 fileDate: selectedDate,
                 onSave: { place, wasUnknown in
                     handleVisitEdit(timelineObject: timelineObject, place: place, wasUnknown: wasUnknown)
+                }
+            )
+        }
+        .sheet(item: $editingTrackFromNotification, onDismiss: {
+            editingTrackFromNotification = nil
+        }) { timelineObject in
+            EditTrackView(
+                timelineObject: timelineObject,
+                fileDate: selectedDate,
+                onSaveChanges: {
+                    refreshData()
+                    centerAllData()
+                    NotificationManager.shared.checkAndNotifyUnknownTracks(forDate: selectedDate)
                 }
             )
         }
@@ -927,6 +944,10 @@ struct ContentView: View {
             NotificationManager.shared.pendingUnknownPlaceUserInfo = nil
             handleIncomingUnknownPlaceNotification(userInfo: userInfo)
         }
+        if let userInfo = NotificationManager.shared.pendingUnknownTrackUserInfo {
+            NotificationManager.shared.pendingUnknownTrackUserInfo = nil
+            handleIncomingUnknownTrackNotification(userInfo: userInfo)
+        }
     }
 
     private func handleIncomingUnknownPlaceNotification(userInfo: [AnyHashable: Any]) {
@@ -952,6 +973,57 @@ struct ContentView: View {
                 LogManager.shared.logData(context: "ContentView", content: "Deep-linked to EditVisitView for waypoint: \(matchingObj.id)", verbosity: 3)
             } else {
                 LogManager.shared.logData(context: "ContentView", content: "Failed to find matching waypoint in loaded timeline for \(targetDate)", verbosity: 2)
+            }
+        }
+    }
+
+    private func handleIncomingUnknownTrackNotification(userInfo: [AnyHashable: Any]) {
+        let targetDate: Date
+        if let fileTimestamp = userInfo["fileDateTimestamp"] as? TimeInterval {
+            targetDate = Date(timeIntervalSince1970: fileTimestamp)
+        } else if let trackTimestamp = userInfo["trackTimestamp"] as? TimeInterval {
+            targetDate = Date(timeIntervalSince1970: trackTimestamp)
+        } else {
+            targetDate = Date()
+        }
+        
+        let trackTimestamp = userInfo["trackTimestamp"] as? TimeInterval
+        
+        LogManager.shared.logData(context: "ContentView", content: "Handling unknown track notification for date: \(targetDate), trackTimestamp: \(String(describing: trackTimestamp))", verbosity: 3)
+        
+        // 1. Set the selected date to match the target date
+        self.selectedDate = targetDate
+        
+        // 2. Fetch the timeline objects for this day
+        loadTimelineForDate(targetDate) { loadedObjects in
+            self.timelineObjects = loadedObjects
+            
+            // 3. Find the matching unknown track
+            let unknownTracks = loadedObjects.filter { obj in
+                guard obj.type == .track else { return false }
+                let type = obj.trackType?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                return type.isEmpty || type.caseInsensitiveCompare("unknown") == .orderedSame
+            }
+            
+            var matchingTrack: TimelineObject? = nil
+            if let trackTimestamp = trackTimestamp {
+                let trackDate = Date(timeIntervalSince1970: trackTimestamp)
+                matchingTrack = unknownTracks.first(where: { obj in
+                    guard let start = obj.startDate else { return false }
+                    return abs(start.timeIntervalSince(trackDate)) < 60.0
+                })
+            }
+            
+            if matchingTrack == nil {
+                matchingTrack = unknownTracks.first
+            }
+            
+            if let targetTrack = matchingTrack {
+                // 4. Open the edit track sheet
+                self.editingTrackFromNotification = targetTrack
+                LogManager.shared.logData(context: "ContentView", content: "Deep-linked to EditTrackView for track: \(targetTrack.id)", verbosity: 3)
+            } else {
+                LogManager.shared.logData(context: "ContentView", content: "Failed to find matching unknown track in loaded timeline for \(targetDate)", verbosity: 2)
             }
         }
     }

@@ -201,6 +201,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         if identifier == "UnknownPlaceCheckIn" {
             NotificationManager.shared.handleNotificationTap(userInfo: userInfo)
+        } else if identifier == "UnknownTrackType" || (userInfo["notificationType"] as? String) == "unknownTrack" {
+            NotificationManager.shared.handleUnknownTrackNotificationTap(userInfo: userInfo)
         }
         
         completionHandler()
