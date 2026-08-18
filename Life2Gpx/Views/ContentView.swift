@@ -428,6 +428,7 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showSettings) {
             ManagementView()
+                .environmentObject(locationManager)
         }
         .sheet(item: $bulkApplyContext) { context in
             BulkApplyPlaceView(context: context) { selectedObjects in
