@@ -148,6 +148,27 @@ final class Life2GpxTests: XCTestCase {
         XCTAssertFalse(NotificationManager.isUnknownTrack(cyclingTrack))
     }
 
+    func testCalculateDuration() {
+        let base = Date(timeIntervalSince1970: 1_000_000)
+
+        // Under 1 minute
+        XCTAssertEqual(calculateDuration(from: base, to: base), "0m 0s")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(1)), "0m 1s")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(45)), "0m 45s")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(59)), "0m 59s")
+
+        // 1 minute to under 60 minutes
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(60)), "1m")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(75)), "1m")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(300)), "5m")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(3599)), "59m")
+
+        // 60 minutes and above
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(3600)), "1h 0m")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(3660)), "1h 1m")
+        XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(7320)), "2h 2m")
+    }
+
     private func makeTrack(type: String?, pointCount: Int, startingAt start: Date) -> GPXTrack {
         let track = GPXTrack()
         track.type = type
