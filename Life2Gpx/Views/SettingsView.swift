@@ -1080,6 +1080,21 @@ struct SettingsAutomaticCleanupsView: View {
     }
 }
 
+private struct SettingsOpenFolderButton: View {
+    let url: URL
+    
+    var body: some View {
+        Button(action: {
+            FileManagerUtil.shared.openFolderInFilesApp(url)
+        }) {
+            Image(systemName: "folder")
+                .foregroundColor(.accentColor)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Open folder in Files app")
+    }
+}
+
 struct SettingsLoggingView: View {
     @AppStorage("debugLogVerbosity") private var debugLogVerbosity: Int = SettingsManager.shared.debugLogVerbosity
     @AppStorage("logRetentionDays") private var logRetentionDays: Int = SettingsManager.shared.logRetentionDays
@@ -1096,7 +1111,11 @@ struct SettingsLoggingView: View {
     var body: some View {
         Form {
             Section(header: Text("Logging")) {
-                Text("Adjust the level of detail for application logs.")
+                HStack {
+                    Text("Adjust the level of detail for application logs.")
+                    Spacer()
+                    SettingsOpenFolderButton(url: FileManagerUtil.shared.getAppLogsDirectory())
+                }
                 
                 VStack(alignment: .leading) {
                     HStack {
@@ -1157,8 +1176,11 @@ struct SettingsLoggingView: View {
                     .padding(.vertical, 4)
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Track resource usage", isOn: $trackResourceUsage)
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Toggle("Track resource usage", isOn: $trackResourceUsage)
+                                .fixedSize(horizontal: false, vertical: true)
+                            SettingsOpenFolderButton(url: FileManagerUtil.shared.getResourcesLogsDirectory())
+                        }
                         
                         Text("Record detailed battery, memory, and CPU usage during background activities over time.")
                             .font(.caption)
@@ -1174,8 +1196,11 @@ struct SettingsLoggingView: View {
                     .padding(.top, 10)
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Log all received positions to file", isOn: $logAllReceivedPositions)
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Toggle("Log all received positions to file", isOn: $logAllReceivedPositions)
+                                .fixedSize(horizontal: false, vertical: true)
+                            SettingsOpenFolderButton(url: FileManagerUtil.shared.getLocationLogsDirectory())
+                        }
                         
                         Text("Appends all raw data from location manager to files in Logs/Location folder.")
                             .font(.caption)
@@ -1185,8 +1210,11 @@ struct SettingsLoggingView: View {
                     .padding(.top, 10)
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Log Motion data", isOn: $logMotionData)
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Toggle("Log Motion data", isOn: $logMotionData)
+                                .fixedSize(horizontal: false, vertical: true)
+                            SettingsOpenFolderButton(url: FileManagerUtil.shared.getMotionLogsDirectory())
+                        }
                         
                         Text("Appends all raw data from CMMotionActivityManager to files in Logs/Motion folder.")
                             .font(.caption)
@@ -1196,8 +1224,11 @@ struct SettingsLoggingView: View {
                     .padding(.top, 10)
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Toggle("Log Fitness data", isOn: $logFitnessData)
-                            .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Toggle("Log Fitness data", isOn: $logFitnessData)
+                                .fixedSize(horizontal: false, vertical: true)
+                            SettingsOpenFolderButton(url: FileManagerUtil.shared.getFitnessLogsDirectory())
+                        }
                         
                         Text("Appends all raw data from HKHealthStore / WorkoutManager to files in Logs/Fitness folder.")
                             .font(.caption)
@@ -1208,8 +1239,12 @@ struct SettingsLoggingView: View {
                 }
                 .padding(.vertical)
 
-                Button(action: resourceLogDump) {
-                    Label("Resource log dump", systemImage: "doc.text.magnifyingglass")
+                HStack {
+                    Button(action: resourceLogDump) {
+                        Label("Resource log dump", systemImage: "doc.text.magnifyingglass")
+                    }
+                    Spacer()
+                    SettingsOpenFolderButton(url: FileManagerUtil.shared.getDumpsLogsDirectory())
                 }
             }
         }

@@ -1267,20 +1267,7 @@ struct ErrorBannerModifier: ViewModifier {
     
     private func openLogsFolder() {
         let logsDirectory = FileManagerUtil.shared.getAppLogsDirectory()
-        if let sharedDocsUrl = URL(string: "shareddocuments://\(logsDirectory.path)"), UIApplication.shared.canOpenURL(sharedDocsUrl) {
-            UIApplication.shared.open(sharedDocsUrl)
-        } else {
-            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let window = windowScene.windows.first,
-                  let rootViewController = window.rootViewController else { return }
-            
-            let controller = UIActivityViewController(activityItems: [logsDirectory], applicationActivities: nil)
-            controller.popoverPresentationController?.sourceView = window
-            controller.popoverPresentationController?.sourceRect = CGRect(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2, width: 0, height: 0)
-            controller.popoverPresentationController?.permittedArrowDirections = []
-            
-            rootViewController.present(controller, animated: true)
-        }
+        FileManagerUtil.shared.openFolderInFilesApp(logsDirectory)
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 class FileManagerUtil {
     static let shared = FileManagerUtil()
@@ -24,7 +25,9 @@ class FileManagerUtil {
             "Logs/App",
             "Logs/Dumps",
             "Logs/Resources",
-            "Logs/Location"
+            "Logs/Location",
+            "Logs/Motion",
+            "Logs/Fitness"
         ]
         
         for folder in folders {
@@ -192,6 +195,62 @@ class FileManagerUtil {
             }
         }
         return logsDirectory
+    }
+
+    func getResourcesLogsDirectory() -> URL {
+        let fileManager = FileManager.default
+        let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs/Resources")
+        if !fileManager.fileExists(atPath: logsDirectory.path) {
+            do {
+                try fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Failed to create Logs/Resources directory: \(error)")
+            }
+        }
+        return logsDirectory
+    }
+
+    func getDumpsLogsDirectory() -> URL {
+        let fileManager = FileManager.default
+        let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let logsDirectory = documentDirectory.appendingPathComponent("Logs/Dumps")
+        if !fileManager.fileExists(atPath: logsDirectory.path) {
+            do {
+                try fileManager.createDirectory(at: logsDirectory, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Failed to create Logs/Dumps directory: \(error)")
+            }
+        }
+        return logsDirectory
+    }
+
+    func openFolderInFilesApp(_ folderUrl: URL) {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: folderUrl.path) {
+            try? fileManager.createDirectory(at: folderUrl, withIntermediateDirectories: true)
+        }
+        
+        let path = folderUrl.path
+        if let sharedDocsUrl = URL(string: "shareddocuments://\(path)"), UIApplication.shared.canOpenURL(sharedDocsUrl) {
+            UIApplication.shared.open(sharedDocsUrl)
+        } else {
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first(where: { $0.isKeyWindow }) ?? windowScene.windows.first,
+                  let rootViewController = window.rootViewController else { return }
+            
+            var presenter = rootViewController
+            while let presented = presenter.presentedViewController {
+                presenter = presented
+            }
+            
+            let controller = UIActivityViewController(activityItems: [folderUrl], applicationActivities: nil)
+            controller.popoverPresentationController?.sourceView = window
+            controller.popoverPresentationController?.sourceRect = CGRect(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2, width: 0, height: 0)
+            controller.popoverPresentationController?.permittedArrowDirections = []
+            
+            presenter.present(controller, animated: true)
+        }
     }
 
     /// Returns GPX files found directly in the Documents root (not in Gpx/ subfolders).
