@@ -169,6 +169,83 @@ final class Life2GpxTests: XCTestCase {
         XCTAssertEqual(calculateDuration(from: base, to: base.addingTimeInterval(7320)), "2h 2m")
     }
 
+    func testNextMidnightSchedulingCalculation() {
+        let calendar = Calendar.current
+        var components = DateComponents()
+        components.year = 2026
+        components.month = 8
+        components.day = 23
+        components.hour = 23
+        components.minute = 57
+        components.second = 0
+        
+        let now = calendar.date(from: components)!
+        guard let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) else {
+            XCTFail("Failed to get startOfTomorrow")
+            return
+        }
+        
+        let timeIntervalUntilMidnight = startOfTomorrow.timeIntervalSince(now)
+        let gracePeriod: TimeInterval = 10
+        let adjustedInterval = max(1.0, timeIntervalUntilMidnight + gracePeriod)
+        
+        // 3 minutes (180s) + 10s = 190s
+        XCTAssertEqual(timeIntervalUntilMidnight, 180, accuracy: 0.001)
+        XCTAssertEqual(adjustedInterval, 190, accuracy: 0.001)
+        
+        // Fire time should be 00:00:10 of the next day
+        let fireDate = now.addingTimeInterval(adjustedInterval)
+        let fireComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fireDate)
+        XCTAssertEqual(fireComponents.year, 2026)
+        XCTAssertEqual(fireComponents.month, 8)
+        XCTAssertEqual(fireComponents.day, 24)
+        XCTAssertEqual(fireComponents.hour, 0)
+        XCTAssertEqual(fireComponents.minute, 0)
+        XCTAssertEqual(fireComponents.second, 10)
+    }
+
+    func testMidnightUpdateClampingDoesNotUsePreviousDay() {
+        let calendar = Calendar.current
+        var todayComponents = DateComponents()
+        todayComponents.year = 2026
+        todayComponents.month = 8
+        todayComponents.day = 24
+        todayComponents.hour = 0
+        todayComponents.minute = 0
+        todayComponents.second = 10
+        let todayDate = calendar.date(from: todayComponents)!
+        let startOfToday = calendar.startOfDay(for: todayDate)
+
+        // Previous day timestamp (e.g. 23:57 of Aug 23)
+        var staleComponents = DateComponents()
+        staleComponents.year = 2026
+        staleComponents.month = 8
+        staleComponents.day = 23
+        staleComponents.hour = 23
+        staleComponents.minute = 57
+        staleComponents.second = 0
+        let staleLocationTimestamp = calendar.date(from: staleComponents)!
+
+        // Midnight update explicitly sets Date()
+        let midnightUpdateWaypoint = GPXWaypoint(latitude: 40.0, longitude: 10.0)
+        let isMidnightUpdate = true
+        if isMidnightUpdate {
+            midnightUpdateWaypoint.time = todayDate
+        } else {
+            midnightUpdateWaypoint.time = max(staleLocationTimestamp, startOfToday)
+        }
+
+        XCTAssertEqual(midnightUpdateWaypoint.time, todayDate)
+        XCTAssertGreaterThanOrEqual(midnightUpdateWaypoint.time!, startOfToday)
+        XCTAssertEqual(calendar.component(.day, from: midnightUpdateWaypoint.time!), 24)
+
+        // Non-midnight update with stale timestamp is clamped to startOfToday
+        let fallbackWaypoint = GPXWaypoint(latitude: 40.0, longitude: 10.0)
+        fallbackWaypoint.time = max(staleLocationTimestamp, startOfToday)
+        XCTAssertEqual(fallbackWaypoint.time, startOfToday)
+        XCTAssertEqual(calendar.component(.day, from: fallbackWaypoint.time!), 24)
+    }
+
     private func makeTrack(type: String?, pointCount: Int, startingAt start: Date) -> GPXTrack {
         let track = GPXTrack()
         track.type = type

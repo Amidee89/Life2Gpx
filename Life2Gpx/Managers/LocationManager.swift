@@ -36,6 +36,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var lastPedometerCheckDate: Date?
     private var latestPedometerSteps: Int = 0
     private var midnightTimer: Timer?
+    private var lastMidnightUpdateDate: Date?
+    private var isMidnightUpdateInProgress: Bool = false
     private var stationaryStepsUpdateTimer: Timer?
     private let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx")
     private var lastAppendCall: Date?
@@ -62,6 +64,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         if let savedTimestamp = UserDefaults.standard.object(forKey: "lastUpdateTimestamp") as? Date {
              lastUpdateTimestamp = savedTimestamp
+        }
+        if let savedMidnightDate = UserDefaults.standard.object(forKey: "lastMidnightUpdateDate") as? Date {
+             lastMidnightUpdateDate = savedMidnightDate
         }
         
         if !SettingsManager.shared.disableTracking {
@@ -99,25 +104,37 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         LogManager.shared.logData(context: "LocationManager", content: "All tracking started.", verbosity: 2)
     }
     private func scheduleMidnightUpdate() {
-            let calendar = Calendar.current
-            let now = Date()
-            
-            var midnightComponents = calendar.dateComponents([.year, .month, .day], from: now)
-            midnightComponents.hour = 0
-            midnightComponents.minute = 0
-            midnightComponents.second = 0
-            
-            guard let midnight = calendar.date(from: midnightComponents) else { return }
-            let timeIntervalUntilMidnight = midnight.timeIntervalSince(now)
-            //extra grace period in case clock ran a little bit too fast. It happened.
-            let adjustedInterval = (timeIntervalUntilMidnight > 0 ? timeIntervalUntilMidnight : timeIntervalUntilMidnight + 86400) + midnightUpdateGracePeriod
-            LogManager.shared.logData(context: "LocationManager", content: "Scheduling midnight update in \(adjustedInterval) seconds.", verbosity: 4)
-            midnightTimer = Timer.scheduledTimer(withTimeInterval: adjustedInterval, repeats: false) { [weak self] _ in
-                self?.forceMidnightUpdate()
-            }
+        midnightTimer?.invalidate()
+        midnightTimer = nil
+        
+        let calendar = Calendar.current
+        let now = Date()
+        
+        guard let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) else { return }
+        let timeIntervalUntilMidnight = startOfTomorrow.timeIntervalSince(now)
+        let adjustedInterval = max(1.0, timeIntervalUntilMidnight + midnightUpdateGracePeriod)
+        
+        LogManager.shared.logData(context: "LocationManager", content: "Scheduling midnight update in \(adjustedInterval) seconds (at \(startOfTomorrow.addingTimeInterval(midnightUpdateGracePeriod))).", verbosity: 4)
+        midnightTimer = Timer.scheduledTimer(withTimeInterval: adjustedInterval, repeats: false) { [weak self] _ in
+            self?.forceMidnightUpdate()
         }
+    }
         
     private func forceMidnightUpdate() {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if let lastMidnight = lastMidnightUpdateDate, calendar.isDate(lastMidnight, inSameDayAs: now) {
+            LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: Midnight update already performed today (\(lastMidnight)). Skipping duplicate.", verbosity: 3)
+            scheduleMidnightUpdate()
+            return
+        }
+        
+        if isMidnightUpdateInProgress {
+            LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: Midnight update already in progress. Skipping duplicate.", verbosity: 3)
+            return
+        }
+        
         if currentFilteredLocation == nil {
             if let location = locationManager.location {
                 currentFilteredLocation = location
@@ -128,7 +145,17 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
         }
-        currentDate = Date()
+        
+        isMidnightUpdateInProgress = true
+        lastMidnightUpdateDate = now
+        UserDefaults.standard.set(now, forKey: "lastMidnightUpdateDate")
+        currentDate = now
+        
+        if !filteredByPositionQueue.isEmpty {
+            filteredByPositionQueue.removeAll()
+            LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: Cleared filteredByPositionQueue for the new day.", verbosity: 4)
+        }
+        
         let rawType = UserDefaults.standard.string(forKey: "lastUpdateType") ?? ""
         let updateType = LocationUpdateType(rawValue: rawType) ?? .stationary
         LogManager.shared.logData(context: "LocationManager", content: "ForceMidnightUpdate: Forcing update with type: \(updateType.rawValue).", verbosity: 3)
@@ -320,15 +347,17 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let newUpdateDate = Date()
         LogManager.shared.logData(context: "LocationManager", content: "Received location: (\(newLocation.coordinate.latitude), \(newLocation.coordinate.longitude)), HAcc: \(newLocation.horizontalAccuracy), VAcc: \(newLocation.verticalAccuracy), Alt: \(newLocation.altitude), Speed: \(newLocation.speed), Time: \(newLocation.timestamp)", verbosity: 5)
 
-        //forcing update if it's the new day and somehow midnight scheduler has screwed.
-        if let previousUpdateDate = currentDate, Calendar.current.isDate(previousUpdateDate, inSameDayAs: newUpdateDate) == false {
-            let calendar = Calendar.current
-            let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
+        // Forcing update if it's the new day and midnight update hasn't run yet today
+        let calendar = Calendar.current
+        let startOfNewDay = calendar.startOfDay(for: newUpdateDate)
+        let hasDoneMidnightUpdateToday = lastMidnightUpdateDate.map { calendar.isDate($0, inSameDayAs: newUpdateDate) } ?? false
+
+        if !hasDoneMidnightUpdateToday {
             if newUpdateDate.timeIntervalSince(startOfNewDay) >= midnightUpdateGracePeriod {
-                LogManager.shared.logData(context: "LocationManager", content: "New day detected (after grace period), forcing midnight update.", verbosity: 2)
+                LogManager.shared.logData(context: "LocationManager", content: "New day detected without midnight update (after grace period), forcing midnight update.", verbosity: 2)
                 forceMidnightUpdate()
             } else {
-                LogManager.shared.logData(context: "LocationManager", content: "New day detected, but within grace period. Not forcing midnight update yet. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
+                LogManager.shared.logData(context: "LocationManager", content: "New day detected, but within grace period. Waiting for scheduled midnight update timer. newUpdateDate: \(newUpdateDate), startOfNewDay: \(startOfNewDay)", verbosity: 4)
             }
         }
         // Default to allow update if no previous timestamp; abs to prevent manual change of dates to distant future completely screwing up the eval.
@@ -517,6 +546,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard var location = currentFilteredLocation else {
             print("No location to save")
             LogManager.shared.logData(context: "GPXAppend", content: "Attempting to append point failed: currentFilteredLocation is nil. Type: \(type.rawValue), Debug: '\(debug)'.", verbosity: 2)
+            if debug == "Midnight Update" {
+                self.isMidnightUpdateInProgress = false
+            }
             return
         }
 
@@ -550,6 +582,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if timeSinceLastAppend < gpxAppendDebounceInterval {
                 print ("Cowardly refusing to double append – debouncing.")
                 LogManager.shared.logData(context: "GPXAppend", content: "[\(appendId)] Debounced append call. Type: \(type.rawValue).", verbosity: 4)
+                if debug == "Midnight Update" {
+                    self.isMidnightUpdateInProgress = false
+                }
                 return
             }
         }
@@ -813,6 +848,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             if let lastVisitTime = gpxWaypoints.last?.time, lastVisitTime > wpTime {
                                 wpTime = lastVisitTime
                             }
+                            let startOfToday = Calendar.current.startOfDay(for: Date())
+                            wpTime = max(wpTime, startOfToday)
                             
                             if let newLat = newTrackPoint.latitude,
                                let newLon = newTrackPoint.longitude,
@@ -913,10 +950,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                         latitude: location.coordinate.latitude.roundedTo5DecimalPlaces(),
                         longitude: location.coordinate.longitude.roundedTo5DecimalPlaces()
                     )
-                    if case .filteredBeforeFirstWaypoint(let trackStartTime) = filterResult {
-                        newWaypoint.time = trackStartTime
+                    let startOfToday = Calendar.current.startOfDay(for: Date())
+                    if debug == "Midnight Update" {
+                        newWaypoint.time = Date()
+                    } else if case .filteredBeforeFirstWaypoint(let trackStartTime) = filterResult {
+                        newWaypoint.time = max(trackStartTime, startOfToday)
                     } else {
-                        newWaypoint.time = location.timestamp
+                        newWaypoint.time = max(location.timestamp, startOfToday)
                     }
                     newWaypoint.elevation = location.altitude.roundedTo5DecimalPlaces()
                     
@@ -1013,6 +1053,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 }
 
                 GPXManager.shared.saveLocationData(gpxWaypoints, tracks: gpxTracks, forDate: Date())
+                if debug == "Midnight Update" {
+                    self.isMidnightUpdateInProgress = false
+                }
                 if let userDefaults = UserDefaults(suiteName: "group.DeltaCygniLabs.Life2Gpx") {
                     userDefaults.set(Date.now, forKey: "lastUpdateTimestamp")
                     userDefaults.set(type.rawValue, forKey: "lastUpdateType")
