@@ -307,7 +307,7 @@ class SettingsManager {
             loadCurrentDayOnRestoreAfterSecondsKey: 600,
             loadCurrentDayOnRestoreAfterValueKey: 10,
             loadCurrentDayOnRestoreAfterUnitKey: "minutes",
-            defaultNewPlaceRadiusKey: 100,
+            defaultNewPlaceRadiusKey: 20,
             placeProviderOrderKey: defaultOrder,
             filterSmallRoundTripsKey: true,
             filterBeforeFirstWaypointKey: true,
