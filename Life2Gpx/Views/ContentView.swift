@@ -124,6 +124,9 @@ struct ContentView: View {
                         .onAppear {
                             if isMapVisible {
                                 lastMapSize = CGSize(width: geometry.size.width, height: currentMapHeight)
+                                if !timelineObjects.isEmpty {
+                                    centerAllData()
+                                }
                             }
                             DiagnosticsStateStore.shared.update(
                                 section: "MapLayout",
@@ -160,7 +163,9 @@ struct ContentView: View {
                             }
                             
                             Button(action: {
-                                self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    self.selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: self.selectedDate)!
+                                }
                             }) {
                                 Image(systemName: "chevron.left")
                                     .frame(minWidth: 32, minHeight: 32)
@@ -178,16 +183,14 @@ struct ContentView: View {
                                     .multilineTextAlignment(.center)
                             } else {
                                 DatePicker("", selection: $selectedDate, in: minDate...maxDate, displayedComponents: .date)
-                                    .onChange(of: selectedDate) {
-                                        refreshData()
-                                        centerAllData()
-                                    }
                                     .fixedSize()
                                     .labelsHidden()
                             }
                             
                             Button(action: {
-                                self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    self.selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: self.selectedDate)!
+                                }
                             }) {
                                 Image(systemName: "chevron.right")
                                     .frame(minWidth: 32, minHeight: 32)
@@ -248,6 +251,8 @@ struct ContentView: View {
                             timelineObjects: $timelineObjects,
                             selectedTimelineObjectID: $selectedTimelineObjectID,
                             scrollPositions: $scrollPositions,
+                            minDate: minDate,
+                            maxDate: maxDate,
                             groupingMinutes: isEditMode ? 0 : groupingMinutes,
                             onRefresh: refreshData,
                             onSelectItem: { item in
@@ -257,7 +262,7 @@ struct ContentView: View {
                             onSelectGroup: { items in
                                 selectAndCenterGroup(items)
                             },
-                            selectedDate: selectedDate,
+                            selectedDate: $selectedDate,
                             onEditVisit: handleVisitEdit,
                             onRecenter: centerAllData,
                             isEditMode: isEditMode,
@@ -271,7 +276,7 @@ struct ContentView: View {
                                 let selectedItem = isSingleItem ? timelineObjects.first(where: { $0.id == selectedEditItems.first }) : nil
                                 let canConvert = selectedItem?.type == .track
 
-                                if isSingleItem, let item = selectedItem {
+                                if isSingleItem, selectedItem != nil {
                                     if canConvert {
                                         Button(action: {
                                             showMergeVisitLocationPicker = true
@@ -423,6 +428,23 @@ struct ContentView: View {
                 self.showSaveError = true
             }
         }
+        .onChange(of: selectedDate) { oldDate, newDate in
+            let normalizedOld = Calendar.current.startOfDay(for: oldDate)
+            let normalizedNew = Calendar.current.startOfDay(for: newDate)
+            guard normalizedOld != normalizedNew else { return }
+
+            updateCurrentGpxShareURL()
+            if let cached = TimelineDataStore.shared.timeline(for: normalizedNew) {
+                self.timelineObjects = cached
+                centerAllData()
+            } else {
+                TimelineDataStore.shared.loadTimeline(for: normalizedNew) { objects in
+                    self.timelineObjects = objects
+                    self.centerAllData()
+                }
+            }
+            TimelineDataStore.shared.preloadSurroundingDays(for: normalizedNew, minDate: minDate, maxDate: maxDate, range: 1)
+        }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             logContentSnapshot("ContentView scene phase \(oldPhase) -> \(newPhase)")
         }
@@ -440,6 +462,7 @@ struct ContentView: View {
                         GPXManager.shared.updateWaypoint(originalWaypoint: originalWaypoint, updatedWaypoint: updated, forDate: selectedDate)
                     }
                 }
+                TimelineDataStore.shared.invalidateAll()
                 refreshData()
                 centerAllData()
             }
@@ -654,11 +677,20 @@ struct ContentView: View {
             verbosity: 5
         )
         if !allCoordinates.isEmpty {
-            withAnimation (.easeInOut(duration: 0.5)){
+            withAnimation(.easeInOut(duration: 0.5)) {
                 recenterOn(coordinates: allCoordinates, mapSize: lastMapSize)
             }
             self.selectedTimelineObjectID = nil
             self.selectedGroupIDs = []
+        } else if let userLocation = (locationManager.currentFilteredLocation ?? locationManager.currentRawLocation)?.coordinate {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                cameraPosition = MapCameraPosition.region(
+                    MKCoordinateRegion(
+                        center: userLocation,
+                        span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                    )
+                )
+            }
         }
     }
     
@@ -711,14 +743,15 @@ struct ContentView: View {
     
     
     private func refreshData() {
-        let requestedDate = selectedDate
+        let requestedDate = Calendar.current.startOfDay(for: selectedDate)
         let startedAt = Date()
         logContentSnapshot("refreshData started for \(requestedDate)")
         updateCurrentGpxShareURL()
         GPXManager.shared.getDateRange { earliest, latest in
             if let earliestDate = earliest, let latestDate = latest {
-                minDate = earliestDate
-                maxDate = latestDate
+                self.minDate = earliestDate
+                self.maxDate = latestDate
+                TimelineDataStore.shared.maintainThreeDayBuffer(for: requestedDate, minDate: earliestDate, maxDate: latestDate)
                 LogManager.shared.logData(
                     context: "ContentView",
                     content: "Date range refreshed for \(requestedDate). minDate=\(earliestDate), maxDate=\(latestDate)",
@@ -732,21 +765,23 @@ struct ContentView: View {
                 )
             }
         }
-        loadTimelineForDate(requestedDate) { timelineObjects in
-            self.timelineObjects = timelineObjects
+        TimelineDataStore.shared.loadTimeline(for: requestedDate, forceRefresh: true) { loadedObjects in
+            self.timelineObjects = loadedObjects
+            self.centerAllData()
             let elapsed = Date().timeIntervalSince(startedAt)
-            let trackCount = timelineObjects.filter { $0.type == .track }.count
-            let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
-            let totalTrackPoints = timelineObjects
+            let trackCount = loadedObjects.filter { $0.type == .track }.count
+            let waypointCount = loadedObjects.filter { $0.type == .waypoint }.count
+            let totalTrackPoints = loadedObjects
                 .filter { $0.type == .track }
                 .flatMap(\.identifiableCoordinates)
                 .reduce(0) { $0 + $1.coordinates.count }
             LogManager.shared.logData(
                 context: "ContentView",
-                content: "refreshData finished for \(requestedDate) in \(String(format: "%.3f", elapsed))s. objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), currentSelectedDate=\(selectedDate), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
+                content: "refreshData finished for \(requestedDate) in \(String(format: "%.3f", elapsed))s. objects=\(loadedObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), currentSelectedDate=\(selectedDate), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}",
                 verbosity: 4
             )
         }
+        TimelineDataStore.shared.maintainThreeDayBuffer(for: requestedDate, minDate: minDate, maxDate: maxDate)
     }
 
     private func logContentSnapshot(_ reason: String, verbosity: Int = 4) {
@@ -805,6 +840,7 @@ struct ContentView: View {
             }
         }
         
+        TimelineDataStore.shared.invalidate(for: selectedDate)
         refreshData()
         centerAllData()
     }
@@ -884,6 +920,7 @@ struct ContentView: View {
                     self.mergeErrorMessage = "Failed to match the selected items in the file. The file may have been modified. Please refresh and try again."
                     self.showMergeError = true
                 }
+                TimelineDataStore.shared.invalidate(for: self.selectedDate)
                 self.refreshData()
                 self.centerAllData()
             }
@@ -909,6 +946,7 @@ struct ContentView: View {
                     self.mergeErrorMessage = "Merge failed. The selected items could not be reliably matched in the file. This usually happens if the file was modified in the background. Please refresh and try again."
                     self.showMergeError = true
                 }
+                TimelineDataStore.shared.invalidate(for: self.selectedDate)
                 self.refreshData()
                 self.centerAllData()
             }
@@ -934,6 +972,7 @@ struct ContentView: View {
                     self.mergeErrorMessage = "Merge failed. The selected items could not be reliably matched in the file. This usually happens if the file was modified in the background. Please refresh and try again."
                     self.showMergeError = true
                 }
+                TimelineDataStore.shared.invalidate(for: self.selectedDate)
                 self.refreshData()
                 self.centerAllData()
             }
@@ -961,7 +1000,7 @@ struct ContentView: View {
         self.selectedDate = targetDate
         
         // 2. Fetch the timeline objects for this day
-        loadTimelineForDate(targetDate) { loadedObjects in
+        TimelineDataStore.shared.loadTimeline(for: targetDate) { loadedObjects in
             self.timelineObjects = loadedObjects
             
             // 3. Find the matching waypoint
@@ -996,7 +1035,7 @@ struct ContentView: View {
         self.selectedDate = targetDate
         
         // 2. Fetch the timeline objects for this day
-        loadTimelineForDate(targetDate) { loadedObjects in
+        TimelineDataStore.shared.loadTimeline(for: targetDate) { loadedObjects in
             self.timelineObjects = loadedObjects
             
             // 3. Find the matching unknown track

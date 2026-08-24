@@ -871,20 +871,193 @@ private extension UIImage {
 
 struct TimelineView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var dataStore = TimelineDataStore.shared
+    @StateObject private var photoStore = TimelinePhotoStore()
 
     @Binding var timelineObjects: [TimelineObject]
     @Binding var selectedTimelineObjectID: UUID?
     @Binding var scrollPositions: [String: String]
+    var minDate: Date = Date()
+    var maxDate: Date = Date()
+    var groupingMinutes: Double
+    var onRefresh: () -> Void
+    var onSelectItem: (TimelineObject) -> Void
+    var onSelectGroup: (([TimelineObject]) -> Void)?
+    @Binding var selectedDate: Date
+    var onEditVisit: ((TimelineObject, Place?, Bool) -> Void)?
+    var onRecenter: () -> Void
+    var isEditMode: Bool = false
+    @Binding var selectedEditItems: Set<UUID>
+
+    @State private var expandedGroupIDs: Set<UUID> = []
+    @State private var photoSheet: TimelinePhotoSheet?
+    @State private var editingTimelineObject: TimelineObject?
+    @State private var showingEditSheet = false
+
+    private var normalizedSelectedDate: Date {
+        Calendar.current.startOfDay(for: selectedDate)
+    }
+
+    var body: some View {
+        TimelinePageView(
+            selectedDate: $selectedDate,
+            minDate: minDate,
+            maxDate: maxDate,
+            isEditMode: isEditMode
+        ) { dayDate, isSelected in
+            AnyView(
+                TimelineDayView(
+                    date: dayDate,
+                    isSelectedDay: isSelected,
+                    selectedTimelineObjectID: $selectedTimelineObjectID,
+                    scrollPositions: $scrollPositions,
+                    groupingMinutes: isEditMode ? 0 : groupingMinutes,
+                    isEditMode: isEditMode,
+                    selectedEditItems: $selectedEditItems,
+                    expandedGroupIDs: $expandedGroupIDs,
+                    photoStore: photoStore,
+                    scenePhase: scenePhase,
+                    onRefreshDay: {
+                        dataStore.loadTimeline(for: dayDate, forceRefresh: true) { loaded in
+                            if Calendar.current.isDate(dayDate, inSameDayAs: selectedDate) {
+                                self.timelineObjects = loaded
+                            }
+                        }
+                        onRefresh()
+                    },
+                    onSelectItem: { item in
+                        selectedTimelineObjectID = item.id
+                        onSelectItem(item)
+                    },
+                    onSelectGroup: { items in
+                        onSelectGroup?(items)
+                    },
+                    onEditObject: { item in
+                        editingTimelineObject = item
+                        showingEditSheet = true
+                    },
+                    onOpenPhotoViewer: { photos, initialID in
+                        photoSheet = TimelinePhotoSheet(photos: photos, initialPhotoID: initialID)
+                    },
+                    onEditVisit: onEditVisit
+                )
+            )
+        }
+        .onAppear {
+            let normalized = normalizedSelectedDate
+            dataStore.maintainThreeDayBuffer(for: normalized, minDate: minDate, maxDate: maxDate)
+            if let cached = dataStore.timeline(for: normalized) {
+                self.timelineObjects = cached
+            } else {
+                dataStore.loadTimeline(for: normalized) { objects in
+                    self.timelineObjects = objects
+                }
+            }
+            photoStore.setSceneSuspended(scenePhase != .active, reason: "TimelineView appeared")
+        }
+        .onChange(of: selectedDate) { oldDate, newDate in
+            let normalizedNew = Calendar.current.startOfDay(for: newDate)
+            dataStore.maintainThreeDayBuffer(for: normalizedNew, minDate: minDate, maxDate: maxDate)
+            if let cached = dataStore.timeline(for: normalizedNew) {
+                self.timelineObjects = cached
+            } else {
+                dataStore.loadTimeline(for: normalizedNew) { objects in
+                    self.timelineObjects = objects
+                }
+            }
+        }
+        .onChange(of: dataStore.updateSequence) { _, _ in
+            let current = normalizedSelectedDate
+            if let currentObjects = dataStore.timeline(for: current) {
+                if currentObjects.count != timelineObjects.count || currentObjects.map(\.id) != timelineObjects.map(\.id) {
+                    self.timelineObjects = currentObjects
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            if let timelineObject = editingTimelineObject {
+                if timelineObject.type == .waypoint {
+                    EditVisitView(
+                        timelineObject: timelineObject,
+                        fileDate: selectedDate,
+                        onSave: { place, wasUnknown in
+                            onEditVisit?(timelineObject, place, wasUnknown)
+                        }
+                    )
+                } else {
+                    EditTrackView(
+                        timelineObject: timelineObject,
+                        fileDate: selectedDate,
+                        onSaveChanges: {
+                            dataStore.invalidate(for: selectedDate)
+                            dataStore.loadTimeline(for: selectedDate, forceRefresh: true) { objects in
+                                self.timelineObjects = objects
+                            }
+                            onRefresh()
+                            onRecenter()
+                        }
+                    )
+                }
+            }
+        }
+        .fullScreenCover(item: $photoSheet) { sheet in
+            TimelinePhotoViewer(
+                photos: sheet.photos,
+                initialPhotoID: sheet.initialPhotoID,
+                photoStore: photoStore
+            )
+        }
+        .onChange(of: showingEditSheet) { _, newValue in
+            if !newValue {
+                editingTimelineObject = nil
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
+            showingEditSheet = false
+            photoSheet = nil
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            photoStore.setSceneSuspended(newPhase != .active, reason: "TimelineView scene phase changed")
+        }
+    }
+}
+
+// MARK: - TimelineDayView
+
+struct TimelineDayView: View {
+    let date: Date
+    let isSelectedDay: Bool
+    @ObservedObject private var dataStore = TimelineDataStore.shared
+
+    private var timelineObjects: [TimelineObject] {
+        dataStore.getTimeline(for: date)
+    }
+
+    private var isLoading: Bool {
+        dataStore.isLoading(for: date) && !dataStore.isLoaded(for: date)
+    }
+
+    @Binding var selectedTimelineObjectID: UUID?
+    @Binding var scrollPositions: [String: String]
+    let groupingMinutes: Double
+    let isEditMode: Bool
+    @Binding var selectedEditItems: Set<UUID>
+    @Binding var expandedGroupIDs: Set<UUID>
+    let photoStore: TimelinePhotoStore
+    let scenePhase: ScenePhase
+    let onRefreshDay: () -> Void
+    let onSelectItem: (TimelineObject) -> Void
+    let onSelectGroup: (([TimelineObject]) -> Void)?
+    let onEditObject: (TimelineObject) -> Void
+    let onOpenPhotoViewer: ([TimelinePhoto], String) -> Void
+    let onEditVisit: ((TimelineObject, Place?, Bool) -> Void)?
+
     @State private var activeScrollID: String? = nil
     @State private var scrolledDateKey: String? = nil
     @State private var pendingScrollTarget: String? = nil
     @State private var lastTappedEditItemID: String? = nil
     @State private var visibleIDs: Set<String> = []
-    @State private var editingTimelineObject: TimelineObject?
-    @State private var showingEditSheet = false
-    @State private var expandedGroupIDs: Set<UUID> = []
-    @StateObject private var photoStore = TimelinePhotoStore()
-    @State private var photoSheet: TimelinePhotoSheet?
+
     @AppStorage("timelinePictureDisplayMode") private var timelinePictureDisplayModeRaw: String = SettingsManager.shared.timelinePictureDisplayMode.rawValue
     @AppStorage("activitySummaryVisibility") private var activitySummaryVisibilityRaw: String = SettingsManager.shared.activitySummaryVisibility.rawValue
     @AppStorage("activitySummaryDistanceThreshold") private var activitySummaryDistanceThreshold: Int = SettingsManager.shared.activitySummaryDistanceThreshold
@@ -909,30 +1082,41 @@ struct TimelineView: View {
     private var matchUnknownPlacesMode: MatchUnknownPlacesMode {
         MatchUnknownPlacesMode(rawValue: matchUnknownPlacesModeRaw) ?? .ask
     }
-    
+
+    private var timelinePictureDisplayMode: TimelinePictureDisplayMode {
+        TimelinePictureDisplayMode(rawValue: timelinePictureDisplayModeRaw) ?? .small
+    }
+
+    private var activitySummaryVisibility: ActivitySummaryVisibility {
+        ActivitySummaryVisibility(rawValue: activitySummaryVisibilityRaw) ?? .onPullDown
+    }
+
+    private var dayKey: String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
+    }
+
+    private var displayTimeZone: TimeZone {
+        if timelineLocalTimeMode == .never {
+            return .current
+        }
+        let tz = dayCalculatedTimeZone ?? .current
+        if timelineLocalTimeMode == .always {
+            return tz
+        }
+        return useOriginalTimeZoneForDay ? tz : .current
+    }
+
     private func displayTimeZone(for item: TimelineObject?) -> TimeZone {
         if timelineLocalTimeMode == .never {
             return .current
         }
-        
         let itemTZ = item?.localTimeZone ?? dayCalculatedTimeZone ?? .current
-        
         if timelineLocalTimeMode == .always {
             return itemTZ
         }
-        // ask mode
         return useOriginalTimeZoneForDay ? itemTZ : .current
     }
-
-    var groupingMinutes: Double
-    var onRefresh: () -> Void
-    var onSelectItem: (TimelineObject) -> Void
-    var onSelectGroup: (([TimelineObject]) -> Void)?
-    var selectedDate: Date
-    var onEditVisit: ((TimelineObject, Place?, Bool) -> Void)?
-    var onRecenter: () -> Void
-    var isEditMode: Bool = false
-    @Binding var selectedEditItems: Set<UUID>
 
     private var displayItems: [TimelineDisplayItem] {
         guard groupingMinutes > 0 else {
@@ -973,110 +1157,6 @@ struct TimelineView: View {
         return result
     }
 
-    private var timelinePictureDisplayMode: TimelinePictureDisplayMode {
-        TimelinePictureDisplayMode(rawValue: timelinePictureDisplayModeRaw) ?? .small
-    }
-
-    private var selectedDayKey: String {
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
-        return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
-    }
-
-    private var displayedObjectsDayKey: String? {
-        guard let firstWithDate = timelineObjects.first(where: { $0.startDate != nil }),
-              let startDate = firstWithDate.startDate else {
-            return nil
-        }
-        let components = Calendar.current.dateComponents([.year, .month, .day], from: startDate)
-        return "\(components.year ?? 0)-\(components.month ?? 0)-\(components.day ?? 0)"
-    }
-    
-    private func updateActiveScrollID() {
-        if let topVisibleItem = displayItems.first(where: { visibleIDs.contains($0.id) }) {
-            let topId = topVisibleItem.id
-            if activeScrollID != topId {
-                LogManager.shared.logData(context: "TimelineScroll", content: "[updateActiveScrollID] Top visible item ID determined to be: \(topId)", verbosity: 4)
-                activeScrollID = topId
-            }
-        }
-    }
-
-    private func updateTimeZoneInfo() {
-        if timelineLocalTimeMode == .never {
-            dayHasDifferentTimeZone = false
-            dayCalculatedTimeZone = nil
-            return
-        }
-        
-        let currentOffset = TimeZone.current.secondsFromGMT(for: selectedDate)
-        
-        var hasDifferentTZ = false
-        var firstFoundTZ: TimeZone? = nil
-        
-        for obj in timelineObjects {
-            if let tz = obj.localTimeZone {
-                if firstFoundTZ == nil {
-                    firstFoundTZ = tz
-                }
-                let newOffset = tz.secondsFromGMT(for: selectedDate)
-                if currentOffset != newOffset {
-                    hasDifferentTZ = true
-                }
-            }
-        }
-        
-        dayHasDifferentTimeZone = hasDifferentTZ
-        dayCalculatedTimeZone = firstFoundTZ
-        
-        if timelineLocalTimeMode == .always {
-            useOriginalTimeZoneForDay = true
-        }
-    }
-
-    private func applyScrollPositionForCurrentDay() {
-        let key = selectedDayKey
-        let displayedKey = displayedObjectsDayKey
-        
-        LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Starting scroll restoration. selectedDate key: \(key), displayed items key: \(displayedKey ?? "nil"), saved positions count: \(scrollPositions.count)", verbosity: 4)
-        
-        if timelineObjects.isEmpty {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Timeline is empty. Resetting activeScrollID to nil.", verbosity: 4)
-            activeScrollID = nil
-            scrolledDateKey = key
-            return
-        }
-        
-        // We only restore/set scroll position if the displayed objects actually match the selected day.
-        guard let displayedKey = displayedKey, displayedKey == key else {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Displayed items key (\(displayedKey ?? "nil")) does not match selectedDate key (\(key)). Delaying scroll restoration.", verbosity: 4)
-            return
-        }
-        
-        let targetId: String?
-        if let savedId = scrollPositions[key], displayItems.contains(where: { $0.id == savedId }) {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Restoring saved scroll position: \(savedId) for day: \(key)", verbosity: 4)
-            targetId = savedId
-        } else if let firstId = displayItems.first?.id {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] No saved position or saved ID not found. Scrolling to first item: \(firstId) for day: \(key)", verbosity: 4)
-            targetId = firstId
-            scrollPositions[key] = firstId
-        } else {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] List is empty. Resetting activeScrollID to nil.", verbosity: 4)
-            targetId = nil
-        }
-        
-        scrolledDateKey = key
-        
-        if let targetId = targetId {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Setting pendingScrollTarget: \(targetId) for day: \(key)", verbosity: 4)
-            pendingScrollTarget = targetId
-        }
-    }
-    
-    private var activitySummaryVisibility: ActivitySummaryVisibility {
-        ActivitySummaryVisibility(rawValue: activitySummaryVisibilityRaw) ?? .onPullDown
-    }
-
     struct ActivitySummary {
         let trackType: String?
         var meters: Int
@@ -1085,7 +1165,7 @@ struct TimelineView: View {
 
     private var activitySummaries: [ActivitySummary] {
         var summaryMap: [String: ActivitySummary] = [:]
-        
+
         for item in timelineObjects {
             let key = item.trackType ?? "unknown"
             if item.type == .track && item.meters >= activitySummaryDistanceThreshold && key != "unknown" {
@@ -1097,7 +1177,7 @@ struct TimelineView: View {
                 }
             }
         }
-        
+
         return summaryMap.values.sorted { ($0.trackType ?? "") < ($1.trackType ?? "") }
     }
 
@@ -1105,7 +1185,7 @@ struct TimelineView: View {
     private var activitySummaryView: some View {
         let summaries = activitySummaries
         let totalSteps = timelineObjects.reduce(0) { $0 + $1.steps }
-        
+
         if !summaries.isEmpty || totalSteps > 0 {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -1131,7 +1211,7 @@ struct TimelineView: View {
                         let color = PreferencesManager.shared.color(for: summary.trackType)
                         let icon = PreferencesManager.shared.icon(for: summary.trackType)
                         let km = Double(summary.meters) / 1000.0
-                        
+
                         HStack(spacing: 4) {
                             Image(systemName: icon)
                             Text(String(format: "%@: %.1f km", typeName, km))
@@ -1154,6 +1234,208 @@ struct TimelineView: View {
         }
     }
 
+    private func updateActiveScrollID() {
+        if let topVisibleItem = displayItems.first(where: { visibleIDs.contains($0.id) }) {
+            let topId = topVisibleItem.id
+            if activeScrollID != topId {
+                LogManager.shared.logData(context: "TimelineScroll", content: "[updateActiveScrollID] Top visible item ID: \(topId) for day \(dayKey)", verbosity: 5)
+                activeScrollID = topId
+            }
+        }
+    }
+
+    private func updateTimeZoneInfo() {
+        if timelineLocalTimeMode == .never {
+            dayHasDifferentTimeZone = false
+            dayCalculatedTimeZone = nil
+            return
+        }
+
+        let currentOffset = TimeZone.current.secondsFromGMT(for: date)
+        var hasDifferentTZ = false
+        var firstFoundTZ: TimeZone? = nil
+
+        for obj in timelineObjects {
+            if let tz = obj.localTimeZone {
+                if firstFoundTZ == nil {
+                    firstFoundTZ = tz
+                }
+                let newOffset = tz.secondsFromGMT(for: date)
+                if currentOffset != newOffset {
+                    hasDifferentTZ = true
+                }
+            }
+        }
+
+        dayHasDifferentTimeZone = hasDifferentTZ
+        dayCalculatedTimeZone = firstFoundTZ
+
+        if timelineLocalTimeMode == .always {
+            useOriginalTimeZoneForDay = true
+        }
+    }
+
+    private func applyScrollPositionForCurrentDay() {
+        let key = dayKey
+
+        if timelineObjects.isEmpty {
+            activeScrollID = nil
+            scrolledDateKey = key
+            return
+        }
+
+        let targetId: String?
+        if let savedId = scrollPositions[key], displayItems.contains(where: { $0.id == savedId }) {
+            LogManager.shared.logData(context: "TimelineScroll", content: "[applyScrollPosition] Restoring saved scroll position: \(savedId) for day: \(key)", verbosity: 4)
+            targetId = savedId
+        } else if let firstId = displayItems.first?.id {
+            targetId = firstId
+            scrollPositions[key] = firstId
+        } else {
+            targetId = nil
+        }
+
+        scrolledDateKey = key
+
+        if let targetId = targetId {
+            pendingScrollTarget = targetId
+        }
+    }
+
+    var body: some View {
+        let photoIntervalsByObjectID = isSelectedDay && timelinePictureDisplayMode != .none ? makePhotoIntervalsByObjectID() : [:]
+
+        ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                if timelineLocalTimeMode == .ask && dayHasDifferentTimeZone {
+                    Toggle(isOn: $useOriginalTimeZoneForDay) {
+                        Text("Show times in local time zone")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemBackground))
+                }
+                if activitySummaryVisibility == .always {
+                    activitySummaryView
+                        .background(Color(.systemBackground))
+                }
+                if isLoading && timelineObjects.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        ProgressView()
+                        Text("Loading timeline...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if timelineObjects.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 44))
+                            .foregroundColor(.secondary.opacity(0.6))
+                        Text("No activity recorded for this day")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        if activitySummaryVisibility == .onPullDown {
+                            activitySummaryView
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
+                                .listRowSeparator(.hidden)
+                                .id("ActivitySummaryID")
+                        }
+                        ForEach(displayItems) { displayItem in
+                            rowView(for: displayItem, photoIntervals: photoIntervalsByObjectID)
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                }
+            }
+            .refreshable {
+                onRefreshDay()
+            }
+            .onAppear {
+                if isSelectedDay {
+                    LogManager.shared.logData(context: "TimelineScroll", content: "[onAppear] TimelineDayView appeared for day \(dayKey)", verbosity: 4)
+                    applyScrollPositionForCurrentDay()
+                    updateTimeZoneInfo()
+                }
+            }
+            .onChange(of: isSelectedDay) { _, newSelected in
+                if newSelected {
+                    applyScrollPositionForCurrentDay()
+                    updateTimeZoneInfo()
+                }
+            }
+            .onChange(of: timelineObjects.map { $0.id }) { oldIds, newIds in
+                guard isSelectedDay else { return }
+                LogManager.shared.logData(context: "TimelineScroll", content: "[onChange timelineObjects] Day \(dayKey) count: \(oldIds.count) -> \(newIds.count)", verbosity: 4)
+                applyScrollPositionForCurrentDay()
+                updateTimeZoneInfo()
+            }
+            .onChange(of: timelineLocalTimeModeRaw) { _, _ in
+                guard isSelectedDay else { return }
+                updateTimeZoneInfo()
+            }
+            .onChange(of: activeScrollID) { oldId, newId in
+                let key = dayKey
+                guard scrolledDateKey == key else { return }
+
+                if let newId = newId {
+                    if displayItems.contains(where: { $0.id == newId }) {
+                        scrollPositions[key] = newId
+                    }
+                }
+            }
+            .onChange(of: pendingScrollTarget) { _, targetId in
+                if let targetId = targetId {
+                    proxy.scrollTo(targetId, anchor: .top)
+                    pendingScrollTarget = nil
+                }
+            }
+            .onChange(of: lastTappedEditItemID) { _, targetId in
+                if let targetId = targetId {
+                    withAnimation {
+                        proxy.scrollTo(targetId, anchor: .center)
+                    }
+                    lastTappedEditItemID = nil
+                }
+            }
+            .onChange(of: selectedTimelineObjectID) { _, newId in
+                guard isSelectedDay, let newId = newId else { return }
+                if let displayItem = displayItems.first(where: { item in
+                    switch item {
+                    case .single(let obj):
+                        return obj.id == newId
+                    case .groupHeader(_, _, let items, _):
+                        return items.contains(where: { $0.id == newId })
+                    case .groupChild(let obj):
+                        return obj.id == newId
+                    }
+                }) {
+                    withAnimation {
+                        proxy.scrollTo(displayItem.id, anchor: .center)
+                    }
+                }
+            }
+        }
+        .task(id: isSelectedDay ? "\(timelinePictureDisplayModeRaw)-\(scenePhaseDescription(scenePhase))-\(dayKey)" : "") {
+            if isSelectedDay, scenePhase == .active, timelinePictureDisplayMode != .none {
+                await photoStore.requestAuthorizationIfNeeded()
+            }
+        }
+    }
+
+    // MARK: - Row View
+
     @ViewBuilder
     private func rowView(for displayItem: TimelineDisplayItem, photoIntervals: [UUID: DateInterval]) -> some View {
         switch displayItem {
@@ -1164,35 +1446,35 @@ struct TimelineView: View {
                 }
                 itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervals[item.id])
             }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
-                .onTapGesture {
-                    if isEditMode {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            toggleEditSelection(for: item)
-                            if selectedEditItems.contains(item.id) {
-                                lastTappedEditItemID = displayItem.id
-                            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+            .onTapGesture {
+                if isEditMode {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        toggleEditSelection(for: item)
+                        if selectedEditItems.contains(item.id) {
+                            lastTappedEditItemID = displayItem.id
                         }
-                    } else {
-                        withAnimation { onSelectItem(item) }
                     }
+                } else {
+                    withAnimation { onSelectItem(item) }
                 }
-                .listRowBackground(
-                    isEditMode
-                        ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color.clear)
-                        : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
-                )
-                .id(displayItem.id)
-                .onAppear {
-                    visibleIDs.insert(displayItem.id)
-                    updateActiveScrollID()
-                }
-                .onDisappear {
-                    visibleIDs.remove(displayItem.id)
-                    updateActiveScrollID()
-                }
+            }
+            .listRowBackground(
+                isEditMode
+                    ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color.clear)
+                    : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color.clear)
+            )
+            .id(displayItem.id)
+            .onAppear {
+                visibleIDs.insert(displayItem.id)
+                updateActiveScrollID()
+            }
+            .onDisappear {
+                visibleIDs.remove(displayItem.id)
+                updateActiveScrollID()
+            }
 
         case .groupHeader(_, let groupUUID, let items, let isExpanded):
             HStack(spacing: 0) {
@@ -1201,44 +1483,44 @@ struct TimelineView: View {
                 }
                 groupHeaderRow(groupID: groupUUID, items: items, isExpanded: isExpanded)
             }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
-                .onTapGesture {
-                    if isEditMode {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            let allSelected = items.allSatisfy { selectedEditItems.contains($0.id) }
-                            for item in items {
-                                if allSelected {
-                                    selectedEditItems.remove(item.id)
-                                } else {
-                                    selectedEditItems.insert(item.id)
-                                }
-                            }
-                            if !allSelected {
-                                lastTappedEditItemID = displayItem.id
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+            .onTapGesture {
+                if isEditMode {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        let allSelected = items.allSatisfy { selectedEditItems.contains($0.id) }
+                        for item in items {
+                            if allSelected {
+                                selectedEditItems.remove(item.id)
+                            } else {
+                                selectedEditItems.insert(item.id)
                             }
                         }
-                    } else {
-                        withAnimation {
-                            onSelectGroup?(items)
+                        if !allSelected {
+                            lastTappedEditItemID = displayItem.id
                         }
                     }
+                } else {
+                    withAnimation {
+                        onSelectGroup?(items)
+                    }
                 }
-                .listRowBackground(
-                    isEditMode
-                        ? (items.contains(where: { selectedEditItems.contains($0.id) }) ? Color.blue.opacity(0.15) : Color.clear)
-                        : (items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear)
-                )
-                .id(displayItem.id)
-                .onAppear {
-                    visibleIDs.insert(displayItem.id)
-                    updateActiveScrollID()
-                }
-                .onDisappear {
-                    visibleIDs.remove(displayItem.id)
-                    updateActiveScrollID()
-                }
+            }
+            .listRowBackground(
+                isEditMode
+                    ? (items.contains(where: { selectedEditItems.contains($0.id) }) ? Color.blue.opacity(0.15) : Color.clear)
+                    : (items.contains(where: { $0.selected }) ? Color.blue.opacity(0.3) : Color.clear)
+            )
+            .id(displayItem.id)
+            .onAppear {
+                visibleIDs.insert(displayItem.id)
+                updateActiveScrollID()
+            }
+            .onDisappear {
+                visibleIDs.remove(displayItem.id)
+                updateActiveScrollID()
+            }
 
         case .groupChild(let item):
             HStack(spacing: 0) {
@@ -1247,252 +1529,35 @@ struct TimelineView: View {
                 }
                 itemRow(item: item, showEdit: !isEditMode, photoInterval: photoIntervals[item.id])
             }
-                .padding(.leading, 12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
-                .onTapGesture {
-                    if isEditMode {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            toggleEditSelection(for: item)
-                            if selectedEditItems.contains(item.id) {
-                                lastTappedEditItemID = displayItem.id
-                            }
+            .padding(.leading, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+            .onTapGesture {
+                if isEditMode {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        toggleEditSelection(for: item)
+                        if selectedEditItems.contains(item.id) {
+                            lastTappedEditItemID = displayItem.id
                         }
-                    } else {
-                        withAnimation { onSelectItem(item) }
                     }
-                }
-                .listRowBackground(
-                    isEditMode
-                        ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color(.secondarySystemBackground))
-                        : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
-                )
-                .id(displayItem.id)
-                .onAppear {
-                    visibleIDs.insert(displayItem.id)
-                    updateActiveScrollID()
-                }
-                .onDisappear {
-                    visibleIDs.remove(displayItem.id)
-                    updateActiveScrollID()
-                }
-        }
-    }
-
-    var body: some View {
-        let photoIntervalsByObjectID = makePhotoIntervalsByObjectID()
-
-        ScrollViewReader { proxy in
-        VStack(spacing: 0) {
-            if timelineLocalTimeMode == .ask && dayHasDifferentTimeZone {
-                Toggle(isOn: $useOriginalTimeZoneForDay) {
-                    Text("Show times in local time zone")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color(.systemBackground))
-            }
-            if activitySummaryVisibility == .always {
-                activitySummaryView
-                    .background(Color(.systemBackground))
-            }
-            List {
-                if activitySummaryVisibility == .onPullDown {
-                    activitySummaryView
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .id("ActivitySummaryID")
-                }
-                ForEach(displayItems) { displayItem in
-                    rowView(for: displayItem, photoIntervals: photoIntervalsByObjectID)
-                }
-            }
-            .refreshable {
-            onRefresh()
-        }
-        .listStyle(PlainListStyle())
-        .onAppear {
-            LogManager.shared.logData(context: "TimelineScroll", content: "[onAppear] TimelineView appeared. selectedDate: \(selectedDate)", verbosity: 4)
-            photoStore.setSceneSuspended(scenePhase != .active, reason: "TimelineView appeared with scenePhase=\(scenePhaseDescription(scenePhase))")
-            recordTimelineDiagnostics(reason: "TimelineView appeared")
-            applyScrollPositionForCurrentDay()
-        }
-        .onChange(of: selectedDate) { oldDate, newDate in
-            LogManager.shared.logData(context: "TimelineScroll", content: "[onChange selectedDate] selectedDate changed from \(oldDate) to \(newDate). Locking scroll updates.", verbosity: 4)
-            recordTimelineDiagnostics(reason: "Selected date changed \(oldDate) -> \(newDate)")
-            scrolledDateKey = nil // Lock scroll updates during transition
-            visibleIDs.removeAll() // Clear visible IDs
-            activeScrollID = nil // Reset activeScrollID
-        }
-        .onChange(of: timelineObjects.map { $0.id }) { oldIds, newIds in
-            LogManager.shared.logData(context: "TimelineScroll", content: "[onChange timelineObjects] IDs changed. Old count: \(oldIds.count), New count: \(newIds.count). Restoring scroll position.", verbosity: 4)
-            recordTimelineDiagnostics(reason: "Timeline object IDs changed \(oldIds.count) -> \(newIds.count)")
-            applyScrollPositionForCurrentDay()
-            updateTimeZoneInfo()
-        }
-        .onAppear {
-            updateTimeZoneInfo()
-        }
-        .onChange(of: timelineLocalTimeModeRaw) { _, _ in
-            updateTimeZoneInfo()
-        }
-        .onChange(of: activeScrollID) { oldId, newId in
-            let key = selectedDayKey
-            let displayedKey = displayedObjectsDayKey
-            
-            LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] activeScrollID changed from \(oldId ?? "nil") to \(newId ?? "nil"). scrolledDateKey: \(scrolledDateKey ?? "nil"), selectedDayKey: \(key), displayedKey: \(displayedKey ?? "nil")", verbosity: 5)
-            
-            // Only save if scroll-tracking is unlocked and matches the currently displayed day
-            guard let displayedKey = displayedKey,
-                  scrolledDateKey == key,
-                  displayedKey == key else {
-                LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update (scrolledDateKey mismatch or still transitioning)", verbosity: 4)
-                return
-            }
-            
-            if let newId = newId {
-                if displayItems.contains(where: { $0.id == newId }) {
-                    LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Saving scroll position: \(newId) under key: \(key)", verbosity: 4)
-                    scrollPositions[key] = newId
                 } else {
-                    LogManager.shared.logData(context: "TimelineScroll", content: "[onChange activeScrollID] Ignored scroll update because ID \(newId) is not in current displayItems", verbosity: 4)
+                    withAnimation { onSelectItem(item) }
                 }
             }
-        }
-        .onChange(of: pendingScrollTarget) { _, targetId in
-            // This onChange runs inside the ScrollViewReader closure where proxy is guaranteed valid.
-            if let targetId = targetId {
-                LogManager.shared.logData(context: "TimelineScroll", content: "[pendingScrollTarget] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
-                proxy.scrollTo(targetId, anchor: .top)
-                pendingScrollTarget = nil
-            }
-        }
-        .onChange(of: lastTappedEditItemID) { _, targetId in
-            if let targetId = targetId {
-                LogManager.shared.logData(context: "TimelineScroll", content: "[lastTappedEditItemID] Calling proxy.scrollTo: \(targetId)", verbosity: 4)
-                withAnimation {
-                    proxy.scrollTo(targetId, anchor: .center)
-                }
-                lastTappedEditItemID = nil
-            }
-        }
-        .onChange(of: selectedTimelineObjectID) { _, newId in
-            guard let newId = newId else { return }
-            if let displayItem = displayItems.first(where: { item in
-                switch item {
-                case .single(let obj):
-                    return obj.id == newId
-                case .groupHeader(_, _, let items, _):
-                    return items.contains(where: { $0.id == newId })
-                case .groupChild(let obj):
-                    return obj.id == newId
-                }
-            }) {
-                LogManager.shared.logData(context: "TimelineScroll", content: "[selectedTimelineObjectID] Scrolling to display item: \(displayItem.id) for selected object: \(newId)", verbosity: 4)
-                withAnimation {
-                    proxy.scrollTo(displayItem.id, anchor: .center)
-                }
-            }
-        }
-        } // end VStack
-        } // end ScrollViewReader
-        .sheet(isPresented: $showingEditSheet, content: {
-            if let timelineObject = editingTimelineObject {
-                if timelineObject.type == .waypoint {
-                    EditVisitView(
-                        timelineObject: timelineObject,
-                        fileDate: selectedDate,
-                        onSave: { place, wasUnknown in
-                            if place == nil, let wpTime = timelineObject.points.first?.time?.description {
-                                rejectedPlaceIds.removeValue(forKey: wpTime)
-                            }
-                            onEditVisit?(timelineObject, place, wasUnknown)
-                        }
-                    )
-                } else {
-                    EditTrackView(
-                        timelineObject: timelineObject,
-                        fileDate: selectedDate,
-                        onSaveChanges: {
-                            onRefresh()
-                            onRecenter()
-                        }
-                    )
-                }
-            }
-        })
-        .fullScreenCover(item: $photoSheet) { sheet in
-            TimelinePhotoViewer(
-                photos: sheet.photos,
-                initialPhotoID: sheet.initialPhotoID,
-                photoStore: photoStore
+            .listRowBackground(
+                isEditMode
+                    ? (selectedEditItems.contains(item.id) ? Color.blue.opacity(0.15) : Color(.secondarySystemBackground))
+                    : (item.id == selectedTimelineObjectID || item.selected ? Color.blue.opacity(0.3) : Color(.secondarySystemBackground))
             )
-        }
-        .onChange(of: showingEditSheet) { _, newValue in
-            if !newValue {
-                editingTimelineObject = nil
+            .id(displayItem.id)
+            .onAppear {
+                visibleIDs.insert(displayItem.id)
+                updateActiveScrollID()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .loadTodayData)) { _ in
-            showingEditSheet = false
-            photoSheet = nil
-        }
-        .onChange(of: groupingMinutes) {
-            expandedGroupIDs.removeAll()
-        }
-        .onChange(of: selectedDate) {
-            LogManager.shared.logData(
-                context: TimelinePhotoLog.context,
-                content: "Selected date changed to \(TimelinePhotoLog.dateString(selectedDate)). Clearing timeline photo cache.",
-                verbosity: 4
-            )
-            photoStore.clear()
-        }
-        .onChange(of: timelineObjects.map { $0.id }) {
-            LogManager.shared.logData(
-                context: TimelinePhotoLog.context,
-                content: "Timeline object IDs changed. Object count: \(timelineObjects.count). Clearing timeline photo cache.",
-                verbosity: 4
-            )
-            photoStore.clear()
-        }
-        .onChange(of: timelinePictureDisplayModeRaw) {
-            LogManager.shared.logData(
-                context: TimelinePhotoLog.context,
-                content: "Timeline picture display mode changed to \(timelinePictureDisplayModeRaw). Clearing timeline photo cache.",
-                verbosity: 4
-            )
-            recordTimelineDiagnostics(reason: "Timeline picture display mode changed")
-            photoStore.clear()
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            photoStore.setSceneSuspended(newPhase != .active, reason: "TimelineView scene phase \(scenePhaseDescription(oldPhase)) -> \(scenePhaseDescription(newPhase))")
-            recordTimelineDiagnostics(reason: "TimelineView scene phase \(scenePhaseDescription(oldPhase)) -> \(scenePhaseDescription(newPhase))")
-        }
-        .task(id: "\(timelinePictureDisplayModeRaw)-\(scenePhaseDescription(scenePhase))") {
-            LogManager.shared.logData(
-                context: TimelinePhotoLog.context,
-                content: "Timeline photo task started. Mode: \(timelinePictureDisplayModeRaw), scenePhase: \(scenePhaseDescription(scenePhase)), selectedDate: \(TimelinePhotoLog.dateString(selectedDate)), timelineObjects: \(timelineObjects.count), displayItems: \(displayItems.count)",
-                verbosity: 4
-            )
-            if scenePhase == .active, timelinePictureDisplayMode != .none {
-                await photoStore.requestAuthorizationIfNeeded()
-            } else if scenePhase != .active {
-                LogManager.shared.logData(
-                    context: TimelinePhotoLog.context,
-                    content: "Timeline photo task skipped authorization because scene is \(scenePhaseDescription(scenePhase)).",
-                    verbosity: 4
-                )
-            } else {
-                LogManager.shared.logData(
-                    context: TimelinePhotoLog.context,
-                    content: "Timeline photo task skipped authorization because mode is none.",
-                    verbosity: 4
-                )
+            .onDisappear {
+                visibleIDs.remove(displayItem.id)
+                updateActiveScrollID()
             }
         }
     }
@@ -1540,13 +1605,13 @@ struct TimelineView: View {
                                         return []
                                     }()
                                     let remainingPlaces = allMatchingPlaces.filter { !rejectedForWp.contains($0.placeId) }
-                                    
+
                                     if let matchingPlace = remainingPlaces.first {
                                         HStack(spacing: 8) {
                                             Button(action: {
                                                 let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: GPXUtils.deepCopyPoint(wp), place: matchingPlace)
-                                                GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
-                                                onRefresh()
+                                                GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: date)
+                                                onRefreshDay()
                                             }) {
                                                 HStack(spacing: 4) {
                                                     Image(systemName: "arrow.up.circle.fill")
@@ -1561,13 +1626,13 @@ struct TimelineView: View {
                                                 .cornerRadius(8)
                                             }
                                             .buttonStyle(BorderlessButtonStyle())
-                                            
+
                                             Button(action: {
                                                 if remainingPlaces.count == 1 {
                                                     let updated = GPXUtils.deepCopyPoint(wp)
                                                     GPXUtils.updateExtension(for: updated, with: ["PlaceId": "-1"])
-                                                    GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
-                                                    onRefresh()
+                                                    GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: date)
+                                                    onRefreshDay()
                                                 } else {
                                                     rejectedPlaceIds[wpKey, default: []].insert(matchingPlace.placeId)
                                                 }
@@ -1641,7 +1706,7 @@ struct TimelineView: View {
 
                 Spacer()
 
-                if timelinePictureDisplayMode == .small,
+                if isSelectedDay && timelinePictureDisplayMode == .small,
                    let photoInterval,
                    let photoKey {
                     TimelinePhotoAttachmentView(
@@ -1650,10 +1715,7 @@ struct TimelineView: View {
                         interval: photoInterval,
                         displayMode: .small,
                         onOpenPhoto: { photo in
-                            photoSheet = TimelinePhotoSheet(
-                                photos: photosForViewer(photo, cacheKey: photoKey),
-                                initialPhotoID: photo.id
-                            )
+                            onOpenPhotoViewer(photosForViewer(photo, cacheKey: photoKey), photo.id)
                         }
                     )
                 }
@@ -1662,8 +1724,8 @@ struct TimelineView: View {
                     if item.type == .waypoint, !item.isUnknownPlace, updatePlaceInformationMode == .ask, let wp = item.points.first, let matchingPlace = GPXUtils.getMatchingPlace(for: wp), GPXUtils.isWaypointPlaceInfoOutdated(wp, matchingPlace: matchingPlace) {
                         Button(action: {
                             let updated = GPXUtils.updateWaypointMetadataFromPlace(updatedWaypoint: GPXUtils.deepCopyPoint(wp), place: matchingPlace)
-                            GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: selectedDate)
-                            onRefresh()
+                            GPXManager.shared.updateWaypoint(originalWaypoint: wp, updatedWaypoint: updated, forDate: date)
+                            onRefreshDay()
                         }) {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.title3)
@@ -1675,7 +1737,7 @@ struct TimelineView: View {
                 }
             }
 
-            if timelinePictureDisplayMode == .medium || timelinePictureDisplayMode == .large,
+            if isSelectedDay && (timelinePictureDisplayMode == .medium || timelinePictureDisplayMode == .large),
                let photoInterval,
                let photoKey {
                 TimelinePhotoAttachmentView(
@@ -1684,17 +1746,15 @@ struct TimelineView: View {
                     interval: photoInterval,
                     displayMode: timelinePictureDisplayMode,
                     onOpenPhoto: { photo in
-                        photoSheet = TimelinePhotoSheet(
-                            photos: photosForViewer(photo, cacheKey: photoKey),
-                            initialPhotoID: photo.id
-                        )
+                        onOpenPhotoViewer(photosForViewer(photo, cacheKey: photoKey), photo.id)
                     }
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .task(id: photoTaskID(for: photoKey)) {
-            if scenePhase == .active,
+        .task(id: isSelectedDay ? photoTaskID(for: photoKey) : "") {
+            if isSelectedDay,
+               scenePhase == .active,
                let photoKey = photoKey,
                let photoInterval = photoInterval,
                timelinePictureDisplayMode != .none {
@@ -1707,9 +1767,8 @@ struct TimelineView: View {
     private func editButton(for item: TimelineObject) -> some View {
         if item.type == .waypoint && (item.id == selectedTimelineObjectID || item.isUnknownPlace) {
             Button(action: {
-                editingTimelineObject = item
                 onSelectItem(item)
-                showingEditSheet = true
+                onEditObject(item)
             }) {
                 Image(systemName: "square.and.pencil")
                     .foregroundColor(item.id == selectedTimelineObjectID ? .black : .blue)
@@ -1718,8 +1777,7 @@ struct TimelineView: View {
             .contentShape(Rectangle())
         } else if item.type == .track && item.id == selectedTimelineObjectID {
             Button(action: {
-                editingTimelineObject = item
-                showingEditSheet = true
+                onEditObject(item)
             }) {
                 Image(systemName: "square.and.pencil")
                     .foregroundColor(.black)
@@ -1794,17 +1852,12 @@ struct TimelineView: View {
                 .dropFirst(index + 1)
                 .compactMap(\.startDate)
                 .first { $0 > startDate }
-            let endDate = nextStartDate ?? item.endDate ?? endOfSelectedDay()
+            let endDate = nextStartDate ?? item.endDate ?? endOfDay()
             guard endDate > startDate else { continue }
 
             intervalsByID[item.id] = DateInterval(start: startDate, end: endDate)
         }
 
-        LogManager.shared.logData(
-            context: TimelinePhotoLog.context,
-            content: "Computed photo intervals once for render. Timeline objects: \(timelineObjects.count), intervals: \(intervalsByID.count)",
-            verbosity: 5
-        )
         return intervalsByID
     }
 
@@ -1823,20 +1876,6 @@ struct TimelineView: View {
         "\(photoKey ?? "nil")-\(timelinePictureDisplayModeRaw)-\(scenePhaseDescription(scenePhase))"
     }
 
-    private func recordTimelineDiagnostics(reason: String) {
-        let trackCount = timelineObjects.filter { $0.type == .track }.count
-        let waypointCount = timelineObjects.filter { $0.type == .waypoint }.count
-        let totalTrackPoints = timelineObjects
-            .filter { $0.type == .track }
-            .flatMap(\.identifiableCoordinates)
-            .reduce(0) { $0 + $1.coordinates.count }
-
-        DiagnosticsStateStore.shared.update(
-            section: "TimelineView",
-            detail: "\(reason). scenePhase=\(scenePhaseDescription(scenePhase)), selectedDate=\(selectedDate), objects=\(timelineObjects.count), tracks=\(trackCount), waypoints=\(waypointCount), totalTrackPoints=\(totalTrackPoints), displayItems=\(displayItems.count), visibleIDs=\(visibleIDs.count), activeScrollID=\(activeScrollID ?? "nil"), pendingScrollTarget=\(pendingScrollTarget ?? "nil"), photoMode=\(timelinePictureDisplayModeRaw), photoSheet=\(photoSheet != nil), editSheet=\(showingEditSheet), \(ResourceDiagnostics.memorySnapshot()), network={\(NetworkDiagnostics.shared.snapshot())}"
-        )
-    }
-
     private func scenePhaseDescription(_ phase: ScenePhase) -> String {
         switch phase {
         case .active:
@@ -1850,12 +1889,12 @@ struct TimelineView: View {
         }
     }
 
-    private func endOfSelectedDay() -> Date {
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: selectedDate)
+    private func endOfDay() -> Date {
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         components.hour = 23
         components.minute = 59
         components.second = 59
-        return Calendar.current.date(from: components) ?? selectedDate
+        return Calendar.current.date(from: components) ?? date
     }
 
     private func groupSummary(_ items: [TimelineObject]) -> String {
@@ -1907,11 +1946,13 @@ struct TimelineView: View {
         timelineObjects: .constant([TimelineObject.previewWaypoint, TimelineObject.previewTrack]),
         selectedTimelineObjectID: .constant(nil),
         scrollPositions: .constant([:]),
+        minDate: Date(),
+        maxDate: Date(),
         groupingMinutes: 5,
         onRefresh: {},
         onSelectItem: { _ in },
         onSelectGroup: { _ in },
-        selectedDate: Date(),
+        selectedDate: .constant(Date()),
         onEditVisit: { _, _, _ in },
         onRecenter: {},
         isEditMode: false,
@@ -1958,3 +1999,125 @@ extension TimelinePhotoStore {
     }
 }
 #endif
+
+// MARK: - TimelinePageView (Native UIPageViewController Paging)
+
+struct TimelinePageView: UIViewControllerRepresentable {
+    @Binding var selectedDate: Date
+    let minDate: Date
+    let maxDate: Date
+    let isEditMode: Bool
+    let dayViewBuilder: (Date, Bool) -> AnyView
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIViewController(context: Context) -> UIPageViewController {
+        let pvc = UIPageViewController(
+            transitionStyle: .scroll,
+            navigationOrientation: .horizontal,
+            options: [UIPageViewController.OptionsKey.interPageSpacing: 0]
+        )
+        pvc.dataSource = isEditMode ? nil : context.coordinator
+        pvc.delegate = context.coordinator
+
+        let initialDate = Calendar.current.startOfDay(for: selectedDate)
+        let initialVC = context.coordinator.hostingController(for: initialDate, isSelected: true)
+        pvc.setViewControllers([initialVC], direction: .forward, animated: false)
+        context.coordinator.currentDate = initialDate
+        context.coordinator.updateGestures(in: pvc, isEditMode: isEditMode)
+
+        return pvc
+    }
+
+    func updateUIViewController(_ pvc: UIPageViewController, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.updateGestures(in: pvc, isEditMode: isEditMode)
+
+        let normalizedNew = Calendar.current.startOfDay(for: selectedDate)
+        if context.coordinator.currentDate != normalizedNew {
+            let direction: UIPageViewController.NavigationDirection = normalizedNew > context.coordinator.currentDate ? .forward : .reverse
+            context.coordinator.currentDate = normalizedNew
+            let newVC = context.coordinator.hostingController(for: normalizedNew, isSelected: true)
+            pvc.setViewControllers([newVC], direction: direction, animated: true)
+        } else {
+            if let currentVC = pvc.viewControllers?.first as? DayHostingController {
+                currentVC.rootView = dayViewBuilder(normalizedNew, true)
+            }
+        }
+    }
+
+    class Coordinator: NSObject, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+        var parent: TimelinePageView
+        var currentDate: Date = Date()
+
+        init(_ parent: TimelinePageView) {
+            self.parent = parent
+            self.currentDate = Calendar.current.startOfDay(for: parent.selectedDate)
+        }
+
+        func updateGestures(in pvc: UIPageViewController, isEditMode: Bool) {
+            pvc.dataSource = isEditMode ? nil : self
+            for recognizer in pvc.gestureRecognizers {
+                recognizer.isEnabled = !isEditMode
+            }
+        }
+
+        func hostingController(for date: Date, isSelected: Bool) -> DayHostingController {
+            let normalized = Calendar.current.startOfDay(for: date)
+            let view = parent.dayViewBuilder(normalized, isSelected)
+            return DayHostingController(rootView: view, date: normalized)
+        }
+
+        func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
+            guard let dayVC = viewController as? DayHostingController else { return nil }
+            let cal = Calendar.current
+            guard let prevDate = cal.date(byAdding: .day, value: -1, to: dayVC.date) else { return nil }
+            let normalizedPrev = cal.startOfDay(for: prevDate)
+            let normalizedMin = cal.startOfDay(for: parent.minDate)
+            guard normalizedPrev >= normalizedMin else { return nil }
+
+            return hostingController(for: normalizedPrev, isSelected: false)
+        }
+
+        func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
+            guard let dayVC = viewController as? DayHostingController else { return nil }
+            let cal = Calendar.current
+            guard let nextDate = cal.date(byAdding: .day, value: 1, to: dayVC.date) else { return nil }
+            let normalizedNext = cal.startOfDay(for: nextDate)
+            let normalizedMax = cal.startOfDay(for: parent.maxDate)
+            guard normalizedNext <= normalizedMax else { return nil }
+
+            return hostingController(for: normalizedNext, isSelected: false)
+        }
+
+        func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
+            if completed, let visibleVC = pageViewController.viewControllers?.first as? DayHostingController {
+                let newDate = visibleVC.date
+                currentDate = newDate
+                if Calendar.current.startOfDay(for: parent.selectedDate) != newDate {
+                    DispatchQueue.main.async {
+                        self.parent.selectedDate = newDate
+                    }
+                }
+            }
+        }
+    }
+}
+
+class DayHostingController: UIHostingController<AnyView> {
+    var date: Date
+
+    init(rootView: AnyView, date: Date) {
+        self.date = date
+        super.init(rootView: rootView)
+        self.view.backgroundColor = .systemBackground
+    }
+
+    @MainActor required dynamic init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+
