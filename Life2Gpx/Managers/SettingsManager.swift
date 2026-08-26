@@ -970,7 +970,7 @@ struct TrackType: Identifiable, Codable, Equatable, Hashable {
             return .custom
         }
         switch id.lowercased() {
-        case "walking", "running", "cycling", "automotive", "train", "plane", "boat", "unknown":
+        case "walking", "running", "cycling", "scooter", "automotive", "motorcycle", "train", "plane", "boat", "unknown":
             return .basic
         case "outdoor_cycling", "hiking", "swimming", "skiing", "snowboarding", "rowing", "stair_climbing", "golf", "wheelchair", "equestrian_sports", "skating_sports", "surfing_sports", "paddlesports", "sailing", "climbing", "track_and_field", "swim_bike_run", "underwater_diving", "hand_cycling", "hunting", "water_sports":
             return .workouts
@@ -1005,7 +1005,9 @@ class PreferencesManager: ObservableObject {
             TrackType(id: "walking", name: "Walking", colorHex: "#34C759", icon: "figure.walk", isDefault: true),
             TrackType(id: "running", name: "Running", colorHex: "#FF9500", icon: "figure.run", isDefault: true),
             TrackType(id: "cycling", name: "Cycling", colorHex: "#FF3B30", icon: "figure.outdoor.cycle", isDefault: true),
+            TrackType(id: "scooter", name: "Scooter", colorHex: "#FF9F0A", icon: "scooter", isDefault: true),
             TrackType(id: "automotive", name: "Automotive", colorHex: "#007AFF", icon: "car.fill", isDefault: true),
+            TrackType(id: "motorcycle", name: "Motorcycle", colorHex: "#5856D6", icon: "motorcycle", isDefault: true),
             TrackType(id: "train", name: "Train", colorHex: "#5AC8FA", icon: "train.side.front.car", isDefault: true),
             TrackType(id: "plane", name: "Plane", colorHex: "#5856D6", icon: "airplane", isDefault: true),
             TrackType(id: "boat", name: "Boat", colorHex: "#00C7BE", icon: "sailboat.fill", isDefault: true),
@@ -1084,8 +1086,17 @@ class PreferencesManager: ObservableObject {
             let decoder = JSONDecoder()
             if let decoded = try? decoder.decode([TrackType].self, from: data) {
                 var mergedTypes = decoded
-                for defaultType in defaultTrackTypes() {
+                let defaults = defaultTrackTypes()
+                for defaultType in defaults {
                     if !mergedTypes.contains(where: { $0.id == defaultType.id }) {
+                        if let defaultIndex = defaults.firstIndex(where: { $0.id == defaultType.id }),
+                           defaultIndex > 0 {
+                            let prevDefaultId = defaults[defaultIndex - 1].id
+                            if let prevIndex = mergedTypes.firstIndex(where: { $0.id == prevDefaultId }) {
+                                mergedTypes.insert(defaultType, at: prevIndex + 1)
+                                continue
+                            }
+                        }
                         mergedTypes.append(defaultType)
                     }
                 }

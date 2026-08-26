@@ -146,6 +146,31 @@ final class Life2GpxTests: XCTestCase {
 
         let cyclingTrack = makeTrack(type: "cycling", pointCount: 1, startingAt: Date())
         XCTAssertFalse(NotificationManager.isUnknownTrack(cyclingTrack))
+
+        let scooterTrack = makeTrack(type: "scooter", pointCount: 1, startingAt: Date())
+        XCTAssertFalse(NotificationManager.isUnknownTrack(scooterTrack))
+
+        let motorcycleTrack = makeTrack(type: "motorcycle", pointCount: 1, startingAt: Date())
+        XCTAssertFalse(NotificationManager.isUnknownTrack(motorcycleTrack))
+    }
+
+    func testBasicTrackTypesIncludeScooterAndMotorcycleInOrder() {
+        let basicTypes = PreferencesManager.shared.trackTypes.filter { $0.category == .basic }
+        let basicIds = basicTypes.map { $0.id.lowercased() }
+        
+        XCTAssertTrue(basicIds.contains("scooter"), "Basic track types should contain scooter")
+        XCTAssertTrue(basicIds.contains("motorcycle"), "Basic track types should contain motorcycle")
+
+        guard let cyclingIndex = basicIds.firstIndex(of: "cycling"),
+              let scooterIndex = basicIds.firstIndex(of: "scooter"),
+              let automotiveIndex = basicIds.firstIndex(of: "automotive"),
+              let motorcycleIndex = basicIds.firstIndex(of: "motorcycle") else {
+            XCTFail("Missing basic track types")
+            return
+        }
+
+        XCTAssertEqual(scooterIndex, cyclingIndex + 1, "Scooter should be immediately after cycling")
+        XCTAssertEqual(motorcycleIndex, automotiveIndex + 1, "Motorcycle should be immediately after automotive")
     }
 
     func testCalculateDuration() {
