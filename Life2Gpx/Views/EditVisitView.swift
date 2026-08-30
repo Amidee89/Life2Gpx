@@ -276,7 +276,11 @@ struct EditVisitView: View {
                         changePlaceSection(coordinate: coordinate)
                     }
                 }
-
+                }
+                .safeAreaInset(edge: .bottom) {
+                    if showingPlaceSearch {
+                        Color.clear.frame(height: 100)
+                    }
                 }
             }
             .navigationTitle("Edit Visit")
