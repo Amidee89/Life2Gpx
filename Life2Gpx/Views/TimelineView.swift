@@ -1363,11 +1363,9 @@ struct TimelineDayView: View {
                 onRefreshDay()
             }
             .onAppear {
-                if isSelectedDay {
-                    LogManager.shared.logData(context: "TimelineScroll", content: "[onAppear] TimelineDayView appeared for day \(dayKey)", verbosity: 4)
-                    applyScrollPositionForCurrentDay()
-                    updateTimeZoneInfo()
-                }
+                LogManager.shared.logData(context: "TimelineScroll", content: "[onAppear] TimelineDayView appeared for day \(dayKey)", verbosity: 4)
+                applyScrollPositionForCurrentDay()
+                updateTimeZoneInfo()
             }
             .onChange(of: isSelectedDay) { _, newSelected in
                 if newSelected {
@@ -1376,13 +1374,11 @@ struct TimelineDayView: View {
                 }
             }
             .onChange(of: timelineObjects.map { $0.id }) { oldIds, newIds in
-                guard isSelectedDay else { return }
                 LogManager.shared.logData(context: "TimelineScroll", content: "[onChange timelineObjects] Day \(dayKey) count: \(oldIds.count) -> \(newIds.count)", verbosity: 4)
                 applyScrollPositionForCurrentDay()
                 updateTimeZoneInfo()
             }
             .onChange(of: timelineLocalTimeModeRaw) { _, _ in
-                guard isSelectedDay else { return }
                 updateTimeZoneInfo()
             }
             .onChange(of: activeScrollID) { oldId, newId in
