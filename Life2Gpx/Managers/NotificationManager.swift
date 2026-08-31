@@ -54,6 +54,337 @@ class NotificationManager: ObservableObject {
         return type.caseInsensitiveCompare("unknown") == .orderedSame
     }
 
+    static func isUnknownPlace(_ waypoint: GPXWaypoint) -> Bool {
+        guard let placeId = waypoint.extensions?["PlaceId"].text?.trimmingCharacters(in: .whitespacesAndNewlines), !placeId.isEmpty else {
+            return true
+        }
+        return placeId == "-1"
+    }
+
+    struct DailyRecapData {
+        let placesCount: Int
+        let unknownPlacesCount: Int
+        let unknownTracksCount: Int
+        let activities: [(type: String, meters: Double)]
+        let totalSteps: Int
+    }
+
+    static func extractDailyRecapData(waypoints: [GPXWaypoint], tracks: [GPXTrack]) -> DailyRecapData {
+        let placesCount = waypoints.count
+        let unknownPlacesCount = waypoints.filter { isUnknownPlace($0) }.count
+
+        var totalSteps = 0
+        for wp in waypoints {
+            totalSteps += Int(wp.extensions?["Steps"].text ?? "0") ?? 0
+        }
+
+        var unknownTracksCount = 0
+        var activityMap: [String: Double] = [:]
+
+        for track in tracks {
+            if isUnknownTrack(track) {
+                unknownTracksCount += 1
+            }
+
+            var trackDistance: Double = 0
+            for segment in track.segments {
+                for i in 0..<segment.points.count {
+                    if i < segment.points.count - 1 {
+                        trackDistance += calculateDistance(from: segment.points[i], to: segment.points[i + 1])
+                    }
+                    totalSteps += Int(segment.points[i].extensions?["Steps"].text ?? "0") ?? 0
+                }
+            }
+
+            let rawType = track.type?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !isUnknownTrack(track) && !rawType.isEmpty {
+                let key = rawType.lowercased()
+                activityMap[key, default: 0] += trackDistance
+            }
+        }
+
+        let activities = activityMap.map { (type: $0.key, meters: $0.value) }
+
+        return DailyRecapData(
+            placesCount: placesCount,
+            unknownPlacesCount: unknownPlacesCount,
+            unknownTracksCount: unknownTracksCount,
+            activities: activities,
+            totalSteps: totalSteps
+        )
+    }
+
+    static func formatActivityRecapMessage(placesCount: Int, activities: [(type: String, meters: Double)], totalSteps: Int) -> String {
+        let placesText: String
+        if placesCount == 1 {
+            placesText = "You visited 1 place"
+        } else {
+            placesText = "You visited \(placesCount) places"
+        }
+
+        let stepsText: String
+        if totalSteps == 1 {
+            stepsText = "1 step"
+        } else {
+            stepsText = "\(totalSteps) steps"
+        }
+
+        let sortedActivities = activities
+            .filter { $0.meters >= 100 }
+            .sorted { $0.meters > $1.meters }
+
+        let topActivities = Array(sortedActivities.prefix(3))
+
+        if topActivities.isEmpty {
+            return "\(placesText), and walked \(stepsText)."
+        }
+
+        let formattedActivities = topActivities.map { item -> String in
+            let typeName = PreferencesManager.shared.trackType(for: item.type)?.name.lowercased() ?? item.type.lowercased()
+            let km = item.meters / 1000.0
+            let rounded = (km * 10).rounded() / 10
+            let kmText: String
+            if rounded.truncatingRemainder(dividingBy: 1) == 0 {
+                kmText = "\(Int(rounded)) km"
+            } else {
+                kmText = String(format: "%.1f km", locale: Locale(identifier: "en_US_POSIX"), rounded)
+            }
+            return "\(typeName) \(kmText)"
+        }
+
+        let activitiesText = formattedActivities.joined(separator: ", ")
+        return "\(placesText), \(activitiesText), and walked \(stepsText)."
+    }
+
+    static func formatUnknownItemsRecapMessage(unknownPlacesCount: Int, unknownTracksCount: Int) -> String {
+        let placesText: String
+        if unknownPlacesCount == 1 {
+            placesText = "You've been to 1 unknown place"
+        } else {
+            placesText = "You've been to \(unknownPlacesCount) unknown places"
+        }
+
+        let tracksText: String
+        if unknownTracksCount == 1 {
+            tracksText = "there is 1 unknown type track today."
+        } else {
+            tracksText = "there are \(unknownTracksCount) unknown type tracks today."
+        }
+
+        return "\(placesText) and \(tracksText)"
+    }
+
+    func scheduleOrUpdateDailyRecapNotifications() {
+        let settings = SettingsManager.shared
+        guard settings.dailyActivityRecapEnabled || settings.dailyUnknownItemsRecapEnabled else {
+            cancelDailyActivityRecapNotification()
+            cancelDailyUnknownItemsRecapNotification()
+            return
+        }
+
+        GPXManager.shared.loadFile(forDate: Date()) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+            let recapData = Self.extractDailyRecapData(waypoints: waypoints, tracks: tracks)
+            self.scheduleRecapNotifications(with: recapData)
+        }
+    }
+
+    private func scheduleRecapNotifications(with recapData: DailyRecapData) {
+        let settings = SettingsManager.shared
+        let center = UNUserNotificationCenter.current()
+        let now = Date()
+
+        if settings.dailyActivityRecapEnabled {
+            let body = Self.formatActivityRecapMessage(
+                placesCount: recapData.placesCount,
+                activities: recapData.activities,
+                totalSteps: recapData.totalSteps
+            )
+            scheduleDailyNotification(
+                identifier: "DailyActivityRecap",
+                title: "Daily Activity Recap",
+                body: body,
+                time: settings.dailyActivityRecapTime,
+                lastSentDate: settings.lastDailyActivityRecapDate,
+                now: now,
+                center: center
+            )
+        } else {
+            cancelDailyActivityRecapNotification()
+        }
+
+        if settings.dailyUnknownItemsRecapEnabled {
+            let body = Self.formatUnknownItemsRecapMessage(
+                unknownPlacesCount: recapData.unknownPlacesCount,
+                unknownTracksCount: recapData.unknownTracksCount
+            )
+            scheduleDailyNotification(
+                identifier: "DailyUnknownItemsRecap",
+                title: "Daily Unknown Items Recap",
+                body: body,
+                time: settings.dailyUnknownItemsRecapTime,
+                lastSentDate: settings.lastDailyUnknownItemsRecapDate,
+                now: now,
+                center: center
+            )
+        } else {
+            cancelDailyUnknownItemsRecapNotification()
+        }
+    }
+
+    private func scheduleDailyNotification(
+        identifier: String,
+        title: String,
+        body: String,
+        time: Date,
+        lastSentDate: Date?,
+        now: Date,
+        center: UNUserNotificationCenter
+    ) {
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        let calendar = Calendar.current
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        var todayComponents = calendar.dateComponents([.year, .month, .day], from: now)
+        todayComponents.hour = timeComponents.hour
+        todayComponents.minute = timeComponents.minute
+        todayComponents.second = 0
+
+        guard let targetDateToday = calendar.date(from: todayComponents) else { return }
+
+        let alreadySentToday = lastSentDate != nil && calendar.isDate(lastSentDate!, inSameDayAs: now)
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.interruptionLevel = .active
+
+        if !alreadySentToday && now < targetDateToday {
+            var matchingComponents = DateComponents()
+            matchingComponents.hour = timeComponents.hour
+            matchingComponents.minute = timeComponents.minute
+            let trigger = UNCalendarNotificationTrigger(dateMatching: matchingComponents, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            center.add(request) { error in
+                if let error = error {
+                    LogManager.shared.logData(context: "NotificationManager", content: "Error scheduling \(identifier): \(error.localizedDescription)", verbosity: 2)
+                } else {
+                    LogManager.shared.logData(context: "NotificationManager", content: "Scheduled \(identifier) for today at \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0).", verbosity: 3)
+                }
+            }
+        } else if alreadySentToday {
+            // Already sent today; schedule for tomorrow's recurring trigger
+            var matchingComponents = DateComponents()
+            matchingComponents.hour = timeComponents.hour
+            matchingComponents.minute = timeComponents.minute
+            let trigger = UNCalendarNotificationTrigger(dateMatching: matchingComponents, repeats: true)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            center.add(request) { _ in }
+        }
+    }
+
+    func checkDailyRecapNotifications() {
+        let settings = SettingsManager.shared
+        guard settings.dailyActivityRecapEnabled || settings.dailyUnknownItemsRecapEnabled else { return }
+
+        GPXManager.shared.loadFile(forDate: Date()) { [weak self] waypoints, tracks in
+            guard let self = self else { return }
+            let recapData = Self.extractDailyRecapData(waypoints: waypoints, tracks: tracks)
+            self.evaluateAndSendDueRecapNotifications(recapData: recapData)
+        }
+    }
+
+    private func evaluateAndSendDueRecapNotifications(recapData: DailyRecapData) {
+        let settings = SettingsManager.shared
+        let calendar = Calendar.current
+        let now = Date()
+
+        if settings.dailyActivityRecapEnabled {
+            let alreadySentToday = settings.lastDailyActivityRecapDate != nil && calendar.isDate(settings.lastDailyActivityRecapDate!, inSameDayAs: now)
+            if !alreadySentToday, let targetDate = Self.targetDateForToday(time: settings.dailyActivityRecapTime), now >= targetDate {
+                let body = Self.formatActivityRecapMessage(
+                    placesCount: recapData.placesCount,
+                    activities: recapData.activities,
+                    totalSteps: recapData.totalSteps
+                )
+                sendImmediateRecapNotification(
+                    identifier: "DailyActivityRecap",
+                    title: "Daily Activity Recap",
+                    body: body
+                ) {
+                    SettingsManager.shared.lastDailyActivityRecapDate = Date()
+                }
+            }
+        }
+
+        if settings.dailyUnknownItemsRecapEnabled {
+            let alreadySentToday = settings.lastDailyUnknownItemsRecapDate != nil && calendar.isDate(settings.lastDailyUnknownItemsRecapDate!, inSameDayAs: now)
+            if !alreadySentToday, let targetDate = Self.targetDateForToday(time: settings.dailyUnknownItemsRecapTime), now >= targetDate {
+                let body = Self.formatUnknownItemsRecapMessage(
+                    unknownPlacesCount: recapData.unknownPlacesCount,
+                    unknownTracksCount: recapData.unknownTracksCount
+                )
+                sendImmediateRecapNotification(
+                    identifier: "DailyUnknownItemsRecap",
+                    title: "Daily Unknown Items Recap",
+                    body: body
+                ) {
+                    SettingsManager.shared.lastDailyUnknownItemsRecapDate = Date()
+                }
+            }
+        }
+    }
+
+    private func sendImmediateRecapNotification(identifier: String, title: String, body: String, completion: @escaping () -> Void) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.interruptionLevel = .active
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+        center.add(request) { error in
+            if let error = error {
+                LogManager.shared.logData(context: "NotificationManager", content: "Error sending immediate \(identifier): \(error.localizedDescription)", verbosity: 2)
+            } else {
+                LogManager.shared.logData(context: "NotificationManager", content: "Delivered immediate \(identifier).", verbosity: 3)
+                DispatchQueue.main.async {
+                    completion()
+                }
+            }
+        }
+    }
+
+    private static func targetDateForToday(time: Date) -> Date? {
+        let calendar = Calendar.current
+        var targetComponents = calendar.dateComponents([.year, .month, .day], from: Date())
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        targetComponents.hour = timeComponents.hour
+        targetComponents.minute = timeComponents.minute
+        targetComponents.second = 0
+        return calendar.date(from: targetComponents)
+    }
+
+    func cancelDailyActivityRecapNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["DailyActivityRecap"])
+        center.removeDeliveredNotifications(withIdentifiers: ["DailyActivityRecap"])
+        LogManager.shared.logData(context: "NotificationManager", content: "Cancelled DailyActivityRecap notification.", verbosity: 4)
+    }
+
+    func cancelDailyUnknownItemsRecapNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["DailyUnknownItemsRecap"])
+        center.removeDeliveredNotifications(withIdentifiers: ["DailyUnknownItemsRecap"])
+        LogManager.shared.logData(context: "NotificationManager", content: "Cancelled DailyUnknownItemsRecap notification.", verbosity: 4)
+    }
+
     func checkAndNotifyUnknownTracks(tracks: [GPXTrack], forDate date: Date) {
         guard SettingsManager.shared.notifyOfSavedUnknownTrackTypes else {
             cancelUnknownTrackNotification()

@@ -271,6 +271,97 @@ final class Life2GpxTests: XCTestCase {
         XCTAssertEqual(calendar.component(.day, from: fallbackWaypoint.time!), 24)
     }
 
+    func testNotificationManagerIsUnknownPlace() {
+        let nilExtWaypoint = GPXWaypoint(latitude: 40.0, longitude: 10.0)
+        XCTAssertTrue(NotificationManager.isUnknownPlace(nilExtWaypoint))
+
+        let emptyPlaceIdWaypoint = GPXWaypoint(latitude: 40.0, longitude: 10.0)
+        GPXUtils.updateExtension(for: emptyPlaceIdWaypoint, with: ["PlaceId": ""])
+        XCTAssertTrue(NotificationManager.isUnknownPlace(emptyPlaceIdWaypoint))
+
+        let rejectedPlaceIdWaypoint = GPXWaypoint(latitude: 40.0, longitude: 10.0)
+        GPXUtils.updateExtension(for: rejectedPlaceIdWaypoint, with: ["PlaceId": "-1"])
+        XCTAssertTrue(NotificationManager.isUnknownPlace(rejectedPlaceIdWaypoint))
+
+        let knownPlaceWaypoint = GPXWaypoint(latitude: 40.0, longitude: 10.0)
+        GPXUtils.updateExtension(for: knownPlaceWaypoint, with: ["PlaceId": "place_abc123"])
+        XCTAssertFalse(NotificationManager.isUnknownPlace(knownPlaceWaypoint))
+    }
+
+    func testFormatActivityRecapMessageSingularPlural() {
+        let msgZero = NotificationManager.formatActivityRecapMessage(placesCount: 0, activities: [], totalSteps: 0)
+        XCTAssertEqual(msgZero, "You visited 0 places, and walked 0 steps.")
+
+        let msgOne = NotificationManager.formatActivityRecapMessage(placesCount: 1, activities: [], totalSteps: 1)
+        XCTAssertEqual(msgOne, "You visited 1 place, and walked 1 step.")
+
+        let msgPlural = NotificationManager.formatActivityRecapMessage(placesCount: 2, activities: [], totalSteps: 500)
+        XCTAssertEqual(msgPlural, "You visited 2 places, and walked 500 steps.")
+    }
+
+    func testFormatActivityRecapMessageWithActivitiesAndLimiting() {
+        let activities: [(type: String, meters: Double)] = [
+            ("automotive", 14500),
+            ("walking", 3200)
+        ]
+        let msg = NotificationManager.formatActivityRecapMessage(placesCount: 3, activities: activities, totalSteps: 4120)
+        XCTAssertEqual(msg, "You visited 3 places, automotive 14.5 km, walking 3.2 km, and walked 4120 steps.")
+
+        let singleActivity: [(type: String, meters: Double)] = [
+            ("cycling", 8000)
+        ]
+        let msgSingle = NotificationManager.formatActivityRecapMessage(placesCount: 1, activities: singleActivity, totalSteps: 1200)
+        XCTAssertEqual(msgSingle, "You visited 1 place, cycling 8 km, and walked 1200 steps.")
+
+        // Test limiting to top 3 biggest activities
+        let manyActivities: [(type: String, meters: Double)] = [
+            ("walking", 3000),
+            ("cycling", 12000),
+            ("automotive", 45000),
+            ("running", 5000),
+            ("scooter", 1500)
+        ]
+        let msgMany = NotificationManager.formatActivityRecapMessage(placesCount: 5, activities: manyActivities, totalSteps: 10000)
+        XCTAssertEqual(msgMany, "You visited 5 places, automotive 45 km, cycling 12 km, running 5 km, and walked 10000 steps.")
+
+        // Test filtering out sub-100m drift
+        let tinyActivities: [(type: String, meters: Double)] = [
+            ("walking", 50),
+            ("automotive", 30)
+        ]
+        let msgTiny = NotificationManager.formatActivityRecapMessage(placesCount: 1, activities: tinyActivities, totalSteps: 100)
+        XCTAssertEqual(msgTiny, "You visited 1 place, and walked 100 steps.")
+    }
+
+    func testFormatUnknownItemsRecapMessageSingularPlural() {
+        let msg11 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 1, unknownTracksCount: 1)
+        XCTAssertEqual(msg11, "You've been to 1 unknown place and there is 1 unknown type track today.")
+
+        let msg12 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 1, unknownTracksCount: 2)
+        XCTAssertEqual(msg12, "You've been to 1 unknown place and there are 2 unknown type tracks today.")
+
+        let msg21 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 2, unknownTracksCount: 1)
+        XCTAssertEqual(msg21, "You've been to 2 unknown places and there is 1 unknown type track today.")
+
+        let msg00 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 0, unknownTracksCount: 0)
+        XCTAssertEqual(msg00, "You've been to 0 unknown places and there are 0 unknown type tracks today.")
+
+        let msg35 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 3, unknownTracksCount: 5)
+        XCTAssertEqual(msg35, "You've been to 3 unknown places and there are 5 unknown type tracks today.")
+    }
+
+    func testDailyRecapSettingsDefaults() {
+        XCTAssertFalse(SettingsManager.shared.dailyActivityRecapEnabled)
+        XCTAssertFalse(SettingsManager.shared.dailyUnknownItemsRecapEnabled)
+
+        let calendar = Calendar.current
+        XCTAssertEqual(calendar.component(.hour, from: SettingsManager.shared.dailyActivityRecapTime), 21)
+        XCTAssertEqual(calendar.component(.minute, from: SettingsManager.shared.dailyActivityRecapTime), 30)
+
+        XCTAssertEqual(calendar.component(.hour, from: SettingsManager.shared.dailyUnknownItemsRecapTime), 21)
+        XCTAssertEqual(calendar.component(.minute, from: SettingsManager.shared.dailyUnknownItemsRecapTime), 30)
+    }
+
     private func makeTrack(type: String?, pointCount: Int, startingAt start: Date) -> GPXTrack {
         let track = GPXTrack()
         track.type = type

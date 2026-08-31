@@ -402,6 +402,8 @@ struct SettingsLayoutAppearanceView: View {
 struct SettingsNotificationsView: View {
     @AppStorage("sendNotificationOnUnknownPlace") private var sendNotificationOnUnknownPlace: Bool = true
     @AppStorage("notifyOfSavedUnknownTrackTypes") private var notifyOfSavedUnknownTrackTypes: Bool = SettingsManager.shared.notifyOfSavedUnknownTrackTypes
+    @AppStorage("dailyActivityRecapEnabled") private var dailyActivityRecapEnabled: Bool = SettingsManager.shared.dailyActivityRecapEnabled
+    @AppStorage("dailyUnknownItemsRecapEnabled") private var dailyUnknownItemsRecapEnabled: Bool = SettingsManager.shared.dailyUnknownItemsRecapEnabled
     @AppStorage("unknownPlaceNotificationValue") private var unknownPlaceNotificationValue: Int = SettingsManager.shared.unknownPlaceNotificationValue
     @AppStorage("unknownPlaceNotificationUnit") private var unknownPlaceNotificationUnit: String = SettingsManager.shared.unknownPlaceNotificationUnit
     @AppStorage("enableDeadMansSwitch") private var enableDeadMansSwitch: Bool = SettingsManager.shared.enableDeadMansSwitch
@@ -411,6 +413,46 @@ struct SettingsNotificationsView: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Recap of the activities in the day", isOn: $dailyActivityRecapEnabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        if dailyActivityRecapEnabled {
+                            DatePicker("Notification time", selection: Binding(
+                                get: { SettingsManager.shared.dailyActivityRecapTime },
+                                set: {
+                                    SettingsManager.shared.dailyActivityRecapTime = $0
+                                    NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
+                                }
+                            ), displayedComponents: .hourAndMinute)
+                        }
+                        
+                        Text("Sends a daily notification recapping your visited places, main activities, and total walked steps.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Recap of unknown items", isOn: $dailyUnknownItemsRecapEnabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        if dailyUnknownItemsRecapEnabled {
+                            DatePicker("Notification time", selection: Binding(
+                                get: { SettingsManager.shared.dailyUnknownItemsRecapTime },
+                                set: {
+                                    SettingsManager.shared.dailyUnknownItemsRecapTime = $0
+                                    NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
+                                }
+                            ), displayedComponents: .hourAndMinute)
+                        }
+                        
+                        Text("Sends a daily notification with the number of unknown places and unknown track types today.")
+                            .font(.caption)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundColor(.gray)
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
                         Toggle("Send notification to check in unknown places", isOn: $sendNotificationOnUnknownPlace)
                             .fixedSize(horizontal: false, vertical: true)
@@ -467,6 +509,12 @@ struct SettingsNotificationsView: View {
             }
         }
         .navigationTitle("Notifications")
+        .onChange(of: dailyActivityRecapEnabled) { _, _ in
+            NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
+        }
+        .onChange(of: dailyUnknownItemsRecapEnabled) { _, _ in
+            NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
+        }
         .toolbar { 
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()

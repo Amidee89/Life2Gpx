@@ -203,6 +203,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             NotificationManager.shared.handleNotificationTap(userInfo: userInfo)
         } else if identifier == "UnknownTrackType" || (userInfo["notificationType"] as? String) == "unknownTrack" {
             NotificationManager.shared.handleUnknownTrackNotificationTap(userInfo: userInfo)
+        } else if identifier == "DailyActivityRecap" || identifier == "DailyUnknownItemsRecap" {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .loadTodayData, object: nil)
+            }
         }
         
         completionHandler()

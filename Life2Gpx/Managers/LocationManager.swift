@@ -1077,6 +1077,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             DispatchQueue.main.async {
                 iCloudBackupManager.shared.checkAndRunBackupIfNeeded()
                 WorkoutManager.shared.syncWorkoutsToGPX()
+                NotificationManager.shared.checkDailyRecapNotifications()
+                NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
             }
         }
     }

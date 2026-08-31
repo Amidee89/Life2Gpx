@@ -250,6 +250,12 @@ class SettingsManager {
     private let autoReverseLookupUnknownVisitsKey = "autoReverseLookupUnknownVisits"
     private let sendNotificationOnUnknownPlaceKey = "sendNotificationOnUnknownPlace"
     private let notifyOfSavedUnknownTrackTypesKey = "notifyOfSavedUnknownTrackTypes"
+    private let dailyActivityRecapEnabledKey = "dailyActivityRecapEnabled"
+    private let dailyActivityRecapTimeKey = "dailyActivityRecapTime"
+    private let dailyUnknownItemsRecapEnabledKey = "dailyUnknownItemsRecapEnabled"
+    private let dailyUnknownItemsRecapTimeKey = "dailyUnknownItemsRecapTime"
+    private let lastDailyActivityRecapDateKey = "lastDailyActivityRecapDate"
+    private let lastDailyUnknownItemsRecapDateKey = "lastDailyUnknownItemsRecapDate"
     private let unknownPlaceNotificationValueKey = "unknownPlaceNotificationValue"
     private let unknownPlaceNotificationUnitKey = "unknownPlaceNotificationUnit"
     private let trackResourceUsageKey = "trackResourceUsage"
@@ -327,6 +333,8 @@ class SettingsManager {
             autoReverseLookupUnknownVisitsKey: true,
             sendNotificationOnUnknownPlaceKey: true,
             notifyOfSavedUnknownTrackTypesKey: true,
+            dailyActivityRecapEnabledKey: false,
+            dailyUnknownItemsRecapEnabledKey: false,
             unknownPlaceNotificationValueKey: 10,
             unknownPlaceNotificationUnitKey: "minutes",
             trackResourceUsageKey: false,
@@ -377,6 +385,14 @@ class SettingsManager {
             components.minute = 0
             let defaultTime = Calendar.current.date(from: components) ?? Date()
             defaults.set(defaultTime, forKey: iCloudBackupDailyTimeKey)
+        }
+        
+        if defaults.object(forKey: dailyActivityRecapTimeKey) == nil {
+            defaults.set(Self.defaultDailyRecapTime, forKey: dailyActivityRecapTimeKey)
+        }
+        
+        if defaults.object(forKey: dailyUnknownItemsRecapTimeKey) == nil {
+            defaults.set(Self.defaultDailyRecapTime, forKey: dailyUnknownItemsRecapTimeKey)
         }
         
         print("UserDefaults registered with default verbosity: \(defaults.integer(forKey: debugLogVerbosityKey))")
@@ -714,6 +730,43 @@ class SettingsManager {
     var sendNotificationOnUnknownPlace: Bool {
         get { return defaults.bool(forKey: sendNotificationOnUnknownPlaceKey) }
         set { defaults.set(newValue, forKey: sendNotificationOnUnknownPlaceKey) }
+    }
+
+    static var defaultDailyRecapTime: Date {
+        var components = DateComponents()
+        components.hour = 21
+        components.minute = 30
+        return Calendar.current.date(from: components) ?? Date()
+    }
+
+    var dailyActivityRecapEnabled: Bool {
+        get { return defaults.bool(forKey: dailyActivityRecapEnabledKey) }
+        set { defaults.set(newValue, forKey: dailyActivityRecapEnabledKey) }
+    }
+
+    var dailyActivityRecapTime: Date {
+        get { return defaults.object(forKey: dailyActivityRecapTimeKey) as? Date ?? Self.defaultDailyRecapTime }
+        set { defaults.set(newValue, forKey: dailyActivityRecapTimeKey) }
+    }
+
+    var dailyUnknownItemsRecapEnabled: Bool {
+        get { return defaults.bool(forKey: dailyUnknownItemsRecapEnabledKey) }
+        set { defaults.set(newValue, forKey: dailyUnknownItemsRecapEnabledKey) }
+    }
+
+    var dailyUnknownItemsRecapTime: Date {
+        get { return defaults.object(forKey: dailyUnknownItemsRecapTimeKey) as? Date ?? Self.defaultDailyRecapTime }
+        set { defaults.set(newValue, forKey: dailyUnknownItemsRecapTimeKey) }
+    }
+
+    var lastDailyActivityRecapDate: Date? {
+        get { return defaults.object(forKey: lastDailyActivityRecapDateKey) as? Date }
+        set { defaults.set(newValue, forKey: lastDailyActivityRecapDateKey) }
+    }
+
+    var lastDailyUnknownItemsRecapDate: Date? {
+        get { return defaults.object(forKey: lastDailyUnknownItemsRecapDateKey) as? Date }
+        set { defaults.set(newValue, forKey: lastDailyUnknownItemsRecapDateKey) }
     }
 
     var notifyOfSavedUnknownTrackTypes: Bool {

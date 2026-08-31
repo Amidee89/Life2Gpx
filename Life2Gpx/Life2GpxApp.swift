@@ -57,6 +57,8 @@ struct Life2GpxApp: App {
                 )
                 checkAndLoadTodayIfNeeded()
                 iCloudBackupManager.shared.checkAndRunBackupIfNeeded()
+                NotificationManager.shared.checkDailyRecapNotifications()
+                NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
             case .inactive:
                 LogManager.shared.logData(context: "AppLifecycle", content: "Scene became inactive.", verbosity: 3)
                 ResourceDiagnostics.logRuntime(
@@ -80,6 +82,8 @@ struct Life2GpxApp: App {
                 )
                 defaults.set(currentTime, forKey: "LastActiveTime")
                 LogManager.shared.logData(context: "AppLifecycle", content: "Saved LastActiveTime: \(currentTime)", verbosity: 3)
+                NotificationManager.shared.checkDailyRecapNotifications()
+                NotificationManager.shared.scheduleOrUpdateDailyRecapNotifications()
             @unknown default:
                 LogManager.shared.logData(context: "AppLifecycle", content: "Scene entered unknown state.", verbosity: 2)
                 ResourceDiagnostics.logRuntime(
