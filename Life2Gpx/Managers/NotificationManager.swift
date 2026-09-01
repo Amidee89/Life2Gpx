@@ -156,7 +156,27 @@ class NotificationManager: ObservableObject {
         return "\(placesText), \(activitiesText), and walked \(stepsText)."
     }
 
-    static func formatUnknownItemsRecapMessage(unknownPlacesCount: Int, unknownTracksCount: Int) -> String {
+    static func formatUnknownItemsRecapMessage(unknownPlacesCount: Int, unknownTracksCount: Int) -> String? {
+        guard unknownPlacesCount > 0 || unknownTracksCount > 0 else {
+            return nil
+        }
+
+        if unknownPlacesCount > 0 && unknownTracksCount == 0 {
+            if unknownPlacesCount == 1 {
+                return "You've been to 1 unknown place today."
+            } else {
+                return "You've been to \(unknownPlacesCount) unknown places today."
+            }
+        }
+
+        if unknownPlacesCount == 0 && unknownTracksCount > 0 {
+            if unknownTracksCount == 1 {
+                return "There is 1 unknown type track today."
+            } else {
+                return "There are \(unknownTracksCount) unknown type tracks today."
+            }
+        }
+
         let placesText: String
         if unknownPlacesCount == 1 {
             placesText = "You've been to 1 unknown place"
@@ -214,19 +234,22 @@ class NotificationManager: ObservableObject {
         }
 
         if settings.dailyUnknownItemsRecapEnabled {
-            let body = Self.formatUnknownItemsRecapMessage(
+            if let body = Self.formatUnknownItemsRecapMessage(
                 unknownPlacesCount: recapData.unknownPlacesCount,
                 unknownTracksCount: recapData.unknownTracksCount
-            )
-            scheduleDailyNotification(
-                identifier: "DailyUnknownItemsRecap",
-                title: "Daily Unknown Items Recap",
-                body: body,
-                time: settings.dailyUnknownItemsRecapTime,
-                lastSentDate: settings.lastDailyUnknownItemsRecapDate,
-                now: now,
-                center: center
-            )
+            ) {
+                scheduleDailyNotification(
+                    identifier: "DailyUnknownItemsRecap",
+                    title: "Daily Unknown Items Recap",
+                    body: body,
+                    time: settings.dailyUnknownItemsRecapTime,
+                    lastSentDate: settings.lastDailyUnknownItemsRecapDate,
+                    now: now,
+                    center: center
+                )
+            } else {
+                cancelDailyUnknownItemsRecapNotification()
+            }
         } else {
             cancelDailyUnknownItemsRecapNotification()
         }
@@ -321,15 +344,19 @@ class NotificationManager: ObservableObject {
         if settings.dailyUnknownItemsRecapEnabled {
             let alreadySentToday = settings.lastDailyUnknownItemsRecapDate != nil && calendar.isDate(settings.lastDailyUnknownItemsRecapDate!, inSameDayAs: now)
             if !alreadySentToday, let targetDate = Self.targetDateForToday(time: settings.dailyUnknownItemsRecapTime), now >= targetDate {
-                let body = Self.formatUnknownItemsRecapMessage(
+                if let body = Self.formatUnknownItemsRecapMessage(
                     unknownPlacesCount: recapData.unknownPlacesCount,
                     unknownTracksCount: recapData.unknownTracksCount
-                )
-                sendImmediateRecapNotification(
-                    identifier: "DailyUnknownItemsRecap",
-                    title: "Daily Unknown Items Recap",
-                    body: body
                 ) {
+                    sendImmediateRecapNotification(
+                        identifier: "DailyUnknownItemsRecap",
+                        title: "Daily Unknown Items Recap",
+                        body: body
+                    ) {
+                        SettingsManager.shared.lastDailyUnknownItemsRecapDate = Date()
+                    }
+                } else {
+                    // No unknown items today; mark sent for today to avoid re-evaluating repeatedly
                     SettingsManager.shared.lastDailyUnknownItemsRecapDate = Date()
                 }
             }

@@ -334,6 +334,21 @@ final class Life2GpxTests: XCTestCase {
     }
 
     func testFormatUnknownItemsRecapMessageSingularPlural() {
+        let msg00 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 0, unknownTracksCount: 0)
+        XCTAssertNil(msg00)
+
+        let msg10 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 1, unknownTracksCount: 0)
+        XCTAssertEqual(msg10, "You've been to 1 unknown place today.")
+
+        let msg30 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 3, unknownTracksCount: 0)
+        XCTAssertEqual(msg30, "You've been to 3 unknown places today.")
+
+        let msg01 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 0, unknownTracksCount: 1)
+        XCTAssertEqual(msg01, "There is 1 unknown type track today.")
+
+        let msg04 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 0, unknownTracksCount: 4)
+        XCTAssertEqual(msg04, "There are 4 unknown type tracks today.")
+
         let msg11 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 1, unknownTracksCount: 1)
         XCTAssertEqual(msg11, "You've been to 1 unknown place and there is 1 unknown type track today.")
 
@@ -342,9 +357,6 @@ final class Life2GpxTests: XCTestCase {
 
         let msg21 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 2, unknownTracksCount: 1)
         XCTAssertEqual(msg21, "You've been to 2 unknown places and there is 1 unknown type track today.")
-
-        let msg00 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 0, unknownTracksCount: 0)
-        XCTAssertEqual(msg00, "You've been to 0 unknown places and there are 0 unknown type tracks today.")
 
         let msg35 = NotificationManager.formatUnknownItemsRecapMessage(unknownPlacesCount: 3, unknownTracksCount: 5)
         XCTAssertEqual(msg35, "You've been to 3 unknown places and there are 5 unknown type tracks today.")
